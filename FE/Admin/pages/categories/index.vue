@@ -1,15 +1,13 @@
 <template>
   <div>
     <UPageHeader title="Category Management" description="Manage product categories">
-      <template #right>
-        <UButton
-          color="primary"
-          icon="i-heroicons-plus"
-          @click="openAddModal"
-        >
-          Add Category
-        </UButton>
-      </template>
+      <UButton
+        color="primary"
+        icon="i-heroicons-plus"
+        @click="openAddModal"
+      >
+        Add Category
+      </UButton>
     </UPageHeader>
     
     <!-- Categories Table -->
@@ -173,7 +171,7 @@
 <script setup>
 import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { useApi } from '~/composables/useApi'
-import { useToast } from '@nuxt/ui'
+
 
 // Define page meta
 definePageMeta({
@@ -244,7 +242,7 @@ const fetchCategories = async () => {
   isLoading.value = true
   
   try {
-    const { data, error } = await api.get('/api/categories')
+    const { data, error } = await api.get('/api/Category')
     
     if (error) {
       toast.add({
@@ -309,10 +307,10 @@ const saveCategory = async () => {
     
     if (isEditing.value) {
       // Update existing category
-      result = await api.put(`/api/categories/${formState.id}`, formState)
+      result = await api.put(`/api/Category/${formState.id}`, formState)
     } else {
       // Create new category
-      result = await api.post('/api/categories', formState)
+      result = await api.post('/api/Category', formState)
     }
     
     if (result.error) {
@@ -351,7 +349,7 @@ const deleteCategory = async () => {
   isDeleting.value = true
   
   try {
-    const { error } = await api.delete(`/api/categories/${selectedCategory.value.id}`)
+    const { error } = await api.delete(`/api/Category/${selectedCategory.value.id}`)
     
     if (error) {
       throw new Error(error.message || 'Failed to delete category')

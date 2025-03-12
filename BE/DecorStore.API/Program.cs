@@ -80,12 +80,23 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
     });
 });
 
-// Register repositories
+// Add repositories
 builder.Services.AddScoped<IProductRepository, ProductRepository>();
+builder.Services.AddScoped<ICategoryRepository, CategoryRepository>();
+builder.Services.AddScoped<IOrderRepository, OrderRepository>();
+builder.Services.AddScoped<IReviewRepository, ReviewRepository>();
+builder.Services.AddScoped<IBannerRepository, BannerRepository>();
 
-// Register services
+// Add services
 builder.Services.AddScoped<IProductService, ProductService>();
+builder.Services.AddScoped<ICategoryService, CategoryService>();
+builder.Services.AddScoped<IOrderService, OrderService>();
+builder.Services.AddScoped<IReviewService, ReviewService>();
+builder.Services.AddScoped<IBannerService, BannerService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
+
+// Add HttpContextAccessor
+builder.Services.AddHttpContextAccessor();
 
 // Configure JWT Authentication
 var jwtSettings = builder.Configuration.GetSection("JWT");

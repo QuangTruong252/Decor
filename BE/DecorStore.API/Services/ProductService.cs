@@ -4,6 +4,8 @@ using System.Threading.Tasks;
 using DecorStore.API.DTOs;
 using DecorStore.API.Models;
 using DecorStore.API.Repositories;
+using System;
+using DecorStore.API.Exceptions;
 
 namespace DecorStore.API.Services
 {
@@ -16,9 +18,55 @@ namespace DecorStore.API.Services
             _productRepository = productRepository;
         }
 
+        public async Task<IEnumerable<Product>> GetAllAsync(ProductFilterDTO filter)
+        {
+            return await _productRepository.GetAllAsync(filter);
+        }
+
+        public async Task<Product> CreateAsync(CreateProductDTO productDto)
+        {
+            var product = new Product
+            {
+                Name = productDto.Name,
+                Slug = productDto.Slug,
+                Description = productDto.Description ?? string.Empty,
+                Price = productDto.Price,
+                OriginalPrice = productDto.OriginalPrice,
+                StockQuantity = productDto.StockQuantity,
+                SKU = productDto.SKU,
+                CategoryId = productDto.CategoryId,
+                IsFeatured = productDto.IsFeatured,
+                IsActive = productDto.IsActive
+            };
+
+            return await _productRepository.CreateAsync(product);
+        }
+
+        public async Task UpdateAsync(int id, UpdateProductDTO productDto)
+        {
+            var product = await _productRepository.GetByIdAsync(id);
+            if (product == null)
+                throw new NotFoundException("Product not found");
+
+            product.Name = productDto.Name;
+            product.Slug = productDto.Slug;
+            product.Description = productDto.Description;
+            product.Price = productDto.Price;
+            product.OriginalPrice = productDto.OriginalPrice;
+            product.StockQuantity = productDto.StockQuantity;
+            product.SKU = productDto.SKU;
+            product.CategoryId = productDto.CategoryId;
+            product.IsFeatured = productDto.IsFeatured;
+            product.IsActive = productDto.IsActive;
+            product.UpdatedAt = DateTime.UtcNow;
+
+            await _productRepository.UpdateAsync(product);
+        }
+
         public async Task<IEnumerable<ProductDTO>> GetAllProductsAsync()
         {
-            var products = await _productRepository.GetAllAsync();
+            var filter = new ProductFilterDTO { PageNumber = 1, PageSize = 100 };
+            var products = await _productRepository.GetAllAsync(filter);
             return products.Select(p => MapProductToDto(p));
         }
 
@@ -28,45 +76,10 @@ namespace DecorStore.API.Services
             return product != null ? MapProductToDto(product) : null;
         }
 
-        public async Task<ProductDTO> CreateProductAsync(CreateProductDTO productDto)
-        {
-            var product = new Product
-            {
-                Name = productDto.Name,
-                Price = productDto.Price,
-                Category = productDto.Category,
-                ImageUrl = productDto.ImageUrl
-            };
-
-            var createdProduct = await _productRepository.CreateAsync(product);
-            return MapProductToDto(createdProduct);
-        }
-
-        public async Task<ProductDTO> UpdateProductAsync(int id, UpdateProductDTO productDto)
-        {
-            var existingProduct = await _productRepository.GetByIdAsync(id);
-            
-            if (existingProduct == null)
-                return null;
-
-            existingProduct.Name = productDto.Name;
-            existingProduct.Price = productDto.Price;
-            existingProduct.Category = productDto.Category;
-            existingProduct.ImageUrl = productDto.ImageUrl;
-
-            var updatedProduct = await _productRepository.UpdateAsync(existingProduct);
-            return MapProductToDto(updatedProduct);
-        }
-
         public async Task<bool> DeleteProductAsync(int id)
         {
-            return await _productRepository.DeleteAsync(id);
-        }
-
-        public async Task<IEnumerable<ProductDTO>> GetProductsByCategoryAsync(string category)
-        {
-            var products = await _productRepository.GetByCategoryAsync(category);
-            return products.Select(p => MapProductToDto(p));
+            await _productRepository.DeleteAsync(id);
+            return true;
         }
 
         // Helper method to map Product entity to ProductDTO
@@ -76,9 +89,26 @@ namespace DecorStore.API.Services
             {
                 Id = product.Id,
                 Name = product.Name,
+                Slug = product.Slug,
+                Description = product.Description,
                 Price = product.Price,
-                Category = product.Category,
-                ImageUrl = product.ImageUrl
+                OriginalPrice = product.OriginalPrice,
+                StockQuantity = product.StockQuantity,
+                SKU = product.SKU,
+                CategoryId = product.CategoryId,
+                CategoryName = product.Category?.Name ?? string.Empty,
+                IsFeatured = product.IsFeatured,
+                IsActive = product.IsActive,
+                AverageRating = product.AverageRating,
+                CreatedAt = product.CreatedAt,
+                UpdatedAt = product.UpdatedAt,
+                Images = product.Images?.Select(i => new ProductImageDTO
+                {
+                    Id = i.Id,
+                    ProductId = i.ProductId,
+                    ImageUrl = i.ImageUrl,
+                    IsDefault = i.IsDefault
+                }).ToList() ?? new List<ProductImageDTO>()
             };
         }
     }

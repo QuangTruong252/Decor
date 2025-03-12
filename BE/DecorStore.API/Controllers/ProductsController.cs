@@ -4,6 +4,7 @@ using DecorStore.API.DTOs;
 using DecorStore.API.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using DecorStore.API.Models;
 
 namespace DecorStore.API.Controllers
 {
@@ -40,20 +41,21 @@ namespace DecorStore.API.Controllers
             return Ok(product);
         }
 
-        // GET: api/Products/category/Lighting
-        [HttpGet("category/{category}")]
-        public async Task<ActionResult<IEnumerable<ProductDTO>>> GetProductsByCategory(string category)
+        // GET: api/Products/category/{categoryId}
+        [HttpGet("category/{categoryId}")]
+        public async Task<ActionResult<IEnumerable<Product>>> GetProductsByCategory(int categoryId)
         {
-            var products = await _productService.GetProductsByCategoryAsync(category);
+            var filter = new ProductFilterDTO { CategoryId = categoryId };
+            var products = await _productService.GetAllAsync(filter);
             return Ok(products);
         }
 
         // POST: api/Products
         [HttpPost]
         [Authorize(Roles = "Admin")] // Only admin can create products
-        public async Task<ActionResult<ProductDTO>> CreateProduct(CreateProductDTO productDto)
+        public async Task<ActionResult<Product>> CreateProduct(CreateProductDTO productDto)
         {
-            var createdProduct = await _productService.CreateProductAsync(productDto);
+            var createdProduct = await _productService.CreateAsync(productDto);
             return CreatedAtAction(nameof(GetProduct), new { id = createdProduct.Id }, createdProduct);
         }
 
@@ -62,14 +64,15 @@ namespace DecorStore.API.Controllers
         [Authorize(Roles = "Admin")] // Only admin can update products
         public async Task<IActionResult> UpdateProduct(int id, UpdateProductDTO productDto)
         {
-            var updatedProduct = await _productService.UpdateProductAsync(id, productDto);
-
-            if (updatedProduct == null)
+            try
+            {
+                await _productService.UpdateAsync(id, productDto);
+                return NoContent();
+            }
+            catch (DecorStore.API.Exceptions.NotFoundException)
             {
                 return NotFound();
             }
-
-            return Ok(updatedProduct);
         }
 
         // DELETE: api/Products/5
@@ -78,12 +81,6 @@ namespace DecorStore.API.Controllers
         public async Task<IActionResult> DeleteProduct(int id)
         {
             var result = await _productService.DeleteProductAsync(id);
-
-            if (!result)
-            {
-                return NotFound();
-            }
-
             return NoContent();
         }
     }

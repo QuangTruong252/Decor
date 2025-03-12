@@ -1,439 +1,490 @@
 <template>
   <div>
-    <UPageHeader title="Banner Management" description="Manage your website banners">
-      <template #right>
-        <UButton
-          color="primary"
-          icon="i-heroicons-plus"
-          @click="openAddModal"
-        >
-          Add Banner
+    <div class="mb-6">
+      <h1 class="text-2xl font-bold">Quản lý Banners</h1>
+      <p class="text-gray-600">Thêm và quản lý banners hiển thị trên trang chủ</p>
+    </div>
+
+    <!-- Banners Grid -->
+    <UCard class="relative overflow-hidden">
+      <div class="mb-4 flex justify-between items-center">
+        <UInput
+          v-model="searchTerm"
+          placeholder="Tìm kiếm theo tiêu đề"
+          icon="i-heroicons-magnifying-glass"
+          @update:model-value="loadBanners"
+          class="w-full md:w-64"
+        />
+        <UButton color="primary" icon="i-heroicons-plus" @click="showBannerModal = true">
+          Thêm banner mới
         </UButton>
-      </template>
-    </UPageHeader>
-    
-    <!-- Banners Table -->
-    <UCard class="mt-6">
-      <UTable
-        :columns="columns"
-        :rows="banners"
-        :loading="isLoading"
-        :empty-state="{ icon: 'i-heroicons-photo', label: 'No banners found' }"
-      >
-        <template #image-data="{ row }">
-          <img
-            :src="row.imageUrl"
-            :alt="row.title"
-            class="h-16 w-24 object-cover rounded"
-          />
-        </template>
-        
-        <template #isActive-data="{ row }">
-          <UBadge :color="row.isActive ? 'green' : 'gray'" size="sm">
-            {{ row.isActive ? 'Active' : 'Inactive' }}
-          </UBadge>
-        </template>
-        
-        <template #actions-data="{ row }">
-          <div class="flex space-x-2">
-            <UButton
-              color="gray"
-              variant="ghost"
-              icon="i-heroicons-pencil-square"
-              size="xs"
-              @click="editBanner(row)"
-            />
-            <UButton
-              color="red"
-              variant="ghost"
-              icon="i-heroicons-trash"
-              size="xs"
-              @click="confirmDelete(row)"
-            />
-            <UButton
-              :color="row.isActive ? 'yellow' : 'green'"
-              variant="ghost"
-              :icon="row.isActive ? 'i-heroicons-eye-slash' : 'i-heroicons-eye'"
-              size="xs"
-              @click="toggleStatus(row)"
-            />
+      </div>
+      
+      <!-- Loading skeleton -->
+      <div v-if="loading" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        <USkeleton v-for="i in 4" :key="i" class="h-60" />
+      </div>
+      
+      <!-- Banner cards -->
+      <div v-else-if="banners.length > 0" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        <UCard
+          v-for="banner in banners"
+          :key="banner.id"
+          class="group overflow-hidden"
+          :class="{ 'border-gray-200': !banner.isActive, 'border-primary': banner.isActive }"
+        >
+          <div class="relative">
+            <!-- Banner image -->
+            <div class="aspect-video overflow-hidden bg-gray-100 rounded-md">
+              <img
+                :src="banner.imageUrl"
+                :alt="banner.title"
+                class="w-full h-full object-cover"
+                :class="{ 'opacity-60': !banner.isActive }"
+              />
+            </div>
+            
+            <!-- Overlay with actions -->
+            <div class="absolute top-2 right-2 flex gap-1">
+              <UButton
+                icon="i-heroicons-pencil-square"
+                color="white"
+                variant="solid"
+                size="xs"
+                @click="editBanner(banner)"
+              />
+              <UButton
+                icon="i-heroicons-trash"
+                color="white"
+                variant="solid"
+                size="xs"
+                @click="confirmDelete(banner)"
+              />
+            </div>
+            
+            <!-- Active/Inactive badge -->
+            <UBadge
+              :color="banner.isActive ? 'green' : 'gray'"
+              size="sm"
+              variant="subtle"
+              class="absolute top-2 left-2"
+            >
+              {{ banner.isActive ? 'Đang hiển thị' : 'Đã ẩn' }}
+            </UBadge>
           </div>
-        </template>
-      </UTable>
+          
+          <div class="mt-3">
+            <div class="flex justify-between items-center">
+              <h3 class="font-medium line-clamp-1">{{ banner.title }}</h3>
+              <UToggle
+                v-model="banner.isActive"
+                @change="toggleBannerStatus(banner)"
+                color="primary"
+                :disabled="savingId === banner.id"
+              />
+            </div>
+            <p v-if="banner.link" class="text-xs text-gray-500 truncate mt-1">
+              Link: {{ banner.link }}
+            </p>
+            <p class="text-xs text-gray-500 mt-1">
+              Thứ tự: {{ banner.displayOrder || 0 }}
+            </p>
+          </div>
+        </UCard>
+      </div>
+      
+      <!-- Empty state -->
+      <div v-else class="text-center py-12">
+        <UIcon name="i-heroicons-photo" class="text-gray-400 text-6xl mx-auto mb-4" />
+        <h3 class="text-lg font-medium text-gray-900">Không có banner nào</h3>
+        <p class="text-gray-500 mb-6">Chưa có banner nào được tạo. Hãy bắt đầu thêm banner mới.</p>
+        <UButton color="primary" icon="i-heroicons-plus" @click="showBannerModal = true">
+          Thêm banner mới
+        </UButton>
+      </div>
+      
+      <!-- Pagination -->
+      <div v-if="banners.length > 0" class="mt-6 flex justify-center">
+        <UPagination
+          v-model="currentPage"
+          :page-count="pageCount"
+          :total="totalItems"
+          :ui="{ wrapper: 'flex items-center gap-1' }"
+          :page-size="pageSize"
+          @update:model-value="handlePageChange"
+        />
+      </div>
     </UCard>
     
-    <!-- Add/Edit Banner Modal -->
-    <UModal v-model="isModalOpen" :ui="{ width: 'max-w-2xl' }">
+    <!-- Banner Modal (Add/Edit) -->
+    <UModal v-model="showBannerModal">
       <UCard>
         <template #header>
-          <div class="flex items-center justify-between">
-            <h3 class="text-lg font-medium">{{ isEditing ? 'Edit Banner' : 'Add New Banner' }}</h3>
-            <UButton
-              color="gray"
-              variant="ghost"
-              icon="i-heroicons-x-mark"
-              @click="isModalOpen = false"
-            />
+          <div class="flex justify-between items-center">
+            <h3 class="text-lg font-semibold">{{ isEditing ? 'Chỉnh sửa banner' : 'Thêm banner mới' }}</h3>
+            <UButton icon="i-heroicons-x-mark" color="gray" variant="ghost" @click="showBannerModal = false" />
           </div>
         </template>
         
-        <UForm :state="formState" class="space-y-4" @submit="saveBanner">
-          <UFormGroup label="Title" name="title">
-            <UInput
-              v-model="formState.title"
-              placeholder="Enter banner title"
-              required
-            />
-          </UFormGroup>
-          
-          <UFormGroup label="Link URL" name="link">
-            <UInput
-              v-model="formState.link"
-              placeholder="https://example.com/page"
-              required
-            />
-          </UFormGroup>
-          
-          <UFormGroup label="Banner Image" name="image">
-            <div class="space-y-2">
-              <UFileInput
-                v-model="formState.image"
-                placeholder="Select an image"
-                accept="image/*"
-                :ui="{ base: 'w-full' }"
+        <div class="space-y-4">
+          <UForm :state="bannerForm" class="space-y-4" @submit="saveBanner">
+            <!-- Title -->
+            <UFormGroup label="Tiêu đề" name="title">
+              <UInput v-model="bannerForm.title" placeholder="Nhập tiêu đề banner" />
+            </UFormGroup>
+            
+            <!-- Link -->
+            <UFormGroup label="Link" name="link">
+              <UInput v-model="bannerForm.link" placeholder="Nhập URL khi click vào banner" />
+            </UFormGroup>
+            
+            <!-- Display order -->
+            <UFormGroup label="Thứ tự hiển thị" name="displayOrder">
+              <UInput
+                v-model="bannerForm.displayOrder"
+                type="number"
+                placeholder="Nhập thứ tự hiển thị"
+                min="0"
+                step="1"
               />
-              
-              <div v-if="formState.imageUrl || imagePreview" class="mt-2">
-                <img
-                  :src="imagePreview || formState.imageUrl"
-                  alt="Banner preview"
-                  class="h-40 object-contain rounded border"
-                />
+            </UFormGroup>
+            
+            <!-- Active status -->
+            <UFormGroup label="Trạng thái" name="isActive">
+              <div class="flex items-center">
+                <UToggle v-model="bannerForm.isActive" color="primary" />
+                <span class="ml-2 text-sm text-gray-500">
+                  {{ bannerForm.isActive ? 'Hiển thị trên trang chủ' : 'Ẩn banner' }}
+                </span>
               </div>
+            </UFormGroup>
+            
+            <!-- Image -->
+            <UFormGroup label="Hình ảnh" name="imageFile">
+              <div class="space-y-2">
+                <!-- Current image (for editing) -->
+                <div v-if="isEditing && bannerForm.imageUrl" class="mb-4">
+                  <img
+                    :src="bannerForm.imageUrl"
+                    alt="Banner image"
+                    class="h-40 object-contain rounded border"
+                  />
+                </div>
+                
+                <!-- File uploader -->
+                <UFormGroup>
+                  <UUpload
+                    v-model="bannerForm.imageFile"
+                    :max-size="5242880"
+                    accept="image/*"
+                    :placeholder="isEditing ? 'Chọn ảnh mới (nếu muốn thay đổi)' : 'Chọn ảnh banner'"
+                  />
+                </UFormGroup>
+              </div>
+            </UFormGroup>
+            
+            <div class="flex justify-end space-x-2 pt-4">
+              <UButton
+                type="button"
+                color="gray"
+                variant="soft"
+                @click="showBannerModal = false"
+              >
+                Hủy
+              </UButton>
+              <UButton
+                type="submit"
+                color="primary"
+                :loading="saving"
+              >
+                {{ isEditing ? 'Cập nhật' : 'Thêm mới' }}
+              </UButton>
             </div>
-          </UFormGroup>
-          
-          <UFormGroup name="isActive">
-            <UCheckbox
-              v-model="formState.isActive"
-              label="Active"
-              name="isActive"
-            />
-          </UFormGroup>
-          
-          <div class="flex justify-end space-x-2">
-            <UButton
-              color="gray"
-              variant="outline"
-              @click="isModalOpen = false"
-            >
-              Cancel
-            </UButton>
-            <UButton
-              type="submit"
-              color="primary"
-              :loading="isSaving"
-              :disabled="isSaving"
-            >
-              {{ isEditing ? 'Update' : 'Create' }}
-            </UButton>
-          </div>
-        </UForm>
+          </UForm>
+        </div>
       </UCard>
     </UModal>
     
-    <!-- Delete Confirmation Modal -->
-    <UModal v-model="isDeleteModalOpen">
-      <UCard>
-        <template #header>
-          <div class="flex items-center justify-between">
-            <h3 class="text-lg font-medium">Confirm Delete</h3>
-            <UButton
-              color="gray"
-              variant="ghost"
-              icon="i-heroicons-x-mark"
-              @click="isDeleteModalOpen = false"
-            />
-          </div>
-        </template>
+    <!-- Delete confirmation modal -->
+    <UModal v-model="showDeleteModal">
+      <div class="p-4">
+        <div class="flex items-center gap-4 mb-4">
+          <UIcon name="i-heroicons-exclamation-triangle" class="text-red-500 text-xl" />
+          <h3 class="text-lg font-medium">Xác nhận xóa banner</h3>
+        </div>
         
-        <p>Are you sure you want to delete this banner? This action cannot be undone.</p>
+        <div v-if="selectedBanner" class="mb-4">
+          <p>Bạn có chắc chắn muốn xóa banner <strong>{{ selectedBanner.title }}</strong>?</p>
+        </div>
         
-        <template #footer>
-          <div class="flex justify-end space-x-2">
-            <UButton
-              color="gray"
-              variant="outline"
-              @click="isDeleteModalOpen = false"
-            >
-              Cancel
-            </UButton>
-            <UButton
-              color="red"
-              :loading="isDeleting"
-              :disabled="isDeleting"
-              @click="deleteBanner"
-            >
-              Delete
-            </UButton>
-          </div>
-        </template>
-      </UCard>
+        <div class="flex justify-end gap-2">
+          <UButton color="gray" variant="soft" @click="showDeleteModal = false">
+            Hủy
+          </UButton>
+          <UButton color="red" :loading="saving" @click="deleteBanner">
+            Xóa
+          </UButton>
+        </div>
+      </div>
     </UModal>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted, watch } from 'vue'
-import { useApi } from '~/composables/useApi'
-import { useToast } from '@nuxt/ui'
+import { ref, computed, onMounted } from 'vue'
 
-// Define page meta
+
+// Meta
 definePageMeta({
   middleware: ['auth']
 })
 
-const api = useApi()
-const toast = useToast()
-
-// Table columns
-const columns = [
-  {
-    key: 'image',
-    label: 'Image'
-  },
-  {
-    key: 'title',
-    label: 'Title'
-  },
-  {
-    key: 'link',
-    label: 'Link'
-  },
-  {
-    key: 'isActive',
-    label: 'Status'
-  },
-  {
-    key: 'actions',
-    label: 'Actions',
-    sortable: false
-  }
-]
-
 // State
 const banners = ref([])
-const isLoading = ref(true)
-const isModalOpen = ref(false)
-const isDeleteModalOpen = ref(false)
-const isSaving = ref(false)
-const isDeleting = ref(false)
+const loading = ref(true)
+const saving = ref(false)
+const savingId = ref(null)
 const selectedBanner = ref(null)
-const imagePreview = ref(null)
 
-// Form state
-const formState = reactive({
-  id: null,
+// Pagination
+const currentPage = ref(1)
+const pageSize = ref(12) // 3x4 grid for desktop
+const pageCount = ref(1)
+const totalItems = ref(0)
+const searchTerm = ref('')
+
+// Modals visibility
+const showBannerModal = ref(false)
+const showDeleteModal = ref(false)
+const isEditing = ref(false)
+
+// Banner form
+const bannerForm = reactive({
+  id: 0,
   title: '',
   link: '',
-  image: null,
+  displayOrder: 0,
+  isActive: true,
   imageUrl: '',
-  isActive: true
+  imageFile: null
 })
 
-// Computed
-const isEditing = computed(() => !!formState.id)
+// Composables
+const toast = useToast()
+const api = useApi()
+// Reset form
+const resetForm = () => {
+  Object.assign(bannerForm, {
+    id: 0,
+    title: '',
+    link: '',
+    displayOrder: 0,
+    isActive: true,
+    imageUrl: '',
+    imageFile: null
+  })
+}
 
-// Methods
-const fetchBanners = async () => {
-  isLoading.value = true
-  
+// Load banners
+const loadBanners = async () => {
   try {
-    const { data, error } = await api.get('/api/banners')
+    loading.value = true
     
-    if (error) {
-      toast.add({
-        title: 'Error',
-        description: 'Failed to load banners',
-        color: 'red'
-      })
-      return
+    const params = {
+      page: currentPage.value,
+      pageSize: pageSize.value,
+      searchTerm: searchTerm.value
     }
     
-    banners.value = data || []
-  } catch (err) {
-    console.error('Error fetching banners:', err)
+    // Call API
+    const response = await api.get('/api/Banner', {
+      method: 'GET',
+      // params
+    })
+    
+    banners.value = response.items || []
+    totalItems.value = response.totalItems || 0
+    pageCount.value = response.pageCount || 1
+    
+  } catch (error) {
     toast.add({
       title: 'Error',
-      description: 'Failed to load banners',
+      description: error.message || 'Failed to load banners',
       color: 'red'
     })
+    console.error(error)
   } finally {
-    isLoading.value = false
+    loading.value = false
   }
 }
 
-const openAddModal = () => {
-  // Reset form
-  Object.assign(formState, {
-    id: null,
-    title: '',
-    link: '',
-    image: null,
-    imageUrl: '',
-    isActive: true
-  })
-  
-  imagePreview.value = null
-  isModalOpen.value = true
+// Handle pagination
+const handlePageChange = (page) => {
+  currentPage.value = page
+  loadBanners()
 }
 
+// Edit banner
 const editBanner = (banner) => {
-  // Populate form with banner data
-  Object.assign(formState, {
+  isEditing.value = true
+  selectedBanner.value = banner
+  
+  Object.assign(bannerForm, {
     id: banner.id,
     title: banner.title,
     link: banner.link,
-    image: null,
+    displayOrder: banner.displayOrder || 0,
+    isActive: banner.isActive,
     imageUrl: banner.imageUrl,
-    isActive: banner.isActive
+    imageFile: null
   })
   
-  imagePreview.value = null
-  isModalOpen.value = true
+  showBannerModal.value = true
 }
 
-const saveBanner = async () => {
-  isSaving.value = true
-  
+// Confirm delete banner
+const confirmDelete = (banner) => {
+  selectedBanner.value = banner
+  showDeleteModal.value = true
+}
+
+// Toggle banner active status
+const toggleBannerStatus = async (banner) => {
   try {
-    // Create FormData for file upload
-    const formData = new FormData()
-    formData.append('title', formState.title)
-    formData.append('link', formState.link)
-    formData.append('isActive', formState.isActive)
+    savingId.value = banner.id
     
-    if (formState.image) {
-      formData.append('image', formState.image)
-    }
-    
-    let result
-    
-    if (isEditing.value) {
-      // Update existing banner
-      formData.append('id', formState.id)
-      result = await api.put(`/api/banners/${formState.id}`, formData)
-    } else {
-      // Create new banner
-      result = await api.post('/api/banners', formData)
-    }
-    
-    if (result.error) {
-      throw new Error(result.error.message || 'Failed to save banner')
-    }
-    
-    // Success
-    toast.add({
-      title: 'Success',
-      description: isEditing.value ? 'Banner updated successfully' : 'Banner created successfully',
-      color: 'green'
+    // Call API
+    await api.patch(`/api/Banner/${banner.id}/status`, {
+      method: 'PATCH',
+      body: { isActive: banner.isActive }
     })
     
-    isModalOpen.value = false
-    fetchBanners()
-  } catch (err) {
-    console.error('Error saving banner:', err)
+    toast.success(`Banner ${banner.isActive ? 'đã được hiển thị' : 'đã bị ẩn'}`)
+  } catch (error) {
+    // Revert toggle on error
+    banner.isActive = !banner.isActive
     toast.add({
       title: 'Error',
-      description: err.message || 'Failed to save banner',
+      description: error.message || 'Failed to update banner status',
       color: 'red'
     })
+    console.error(error)
   } finally {
-    isSaving.value = false
+    savingId.value = null
   }
 }
 
-const confirmDelete = (banner) => {
-  selectedBanner.value = banner
-  isDeleteModalOpen.value = true
+// Save banner (add or update)
+const saveBanner = async () => {
+  try {
+    saving.value = true
+    
+    // Validate form
+    if (!bannerForm.title) {
+      toast.add({
+        title: 'Error',
+        description: 'Please enter a banner title',
+        color: 'red'
+      })
+      saving.value = false
+      return
+    }
+    
+    // Require image file for new banners
+    if (!isEditing.value && !bannerForm.imageFile) {
+      toast.add({
+        title: 'Error',
+        description: 'Please select a banner image',
+        color: 'red'
+      })
+      saving.value = false
+      return
+    }
+    
+    // Create form data for file upload
+    const formData = new FormData()
+    formData.append('title', bannerForm.title)
+    formData.append('link', bannerForm.link)
+    formData.append('displayOrder', bannerForm.displayOrder.toString())
+    formData.append('isActive', bannerForm.isActive.toString())
+    
+    if (bannerForm.imageFile) {
+      formData.append('image', bannerForm.imageFile)
+    }
+    
+    if (isEditing.value) {
+      // Update banner
+      await api.put(`/api/Banner/${bannerForm.id}`, {
+        method: 'PUT',
+        body: formData
+      })
+      
+      toast.success('Cập nhật banner thành công')
+    } else {
+      // Create new banner
+      await api.post('/api/Banner', {
+        method: 'POST',
+        body: formData
+      })
+      
+      toast.success('Thêm banner mới thành công')
+    }
+    
+    // Reload banners
+    await loadBanners()
+    
+    // Close modal and reset form
+    showBannerModal.value = false
+    resetForm()
+    isEditing.value = false
+    
+  } catch (error) {
+    toast.add({
+      title: 'Error',
+      description: error.message || 'Failed to save banner',
+      color: 'red'
+    })
+    console.error(error)
+  } finally {
+    saving.value = false
+  }
 }
 
+// Delete banner
 const deleteBanner = async () => {
   if (!selectedBanner.value) return
   
-  isDeleting.value = true
-  
   try {
-    const { error } = await api.delete(`/api/banners/${selectedBanner.value.id}`)
+    saving.value = true
     
-    if (error) {
-      throw new Error(error.message || 'Failed to delete banner')
-    }
-    
-    // Success
-    toast.add({
-      title: 'Success',
-      description: 'Banner deleted successfully',
-      color: 'green'
+    // Call API
+    await api.delete(`/api/Banner/${selectedBanner.value.id}`, {
+      method: 'DELETE'
     })
     
-    isDeleteModalOpen.value = false
-    fetchBanners()
-  } catch (err) {
-    console.error('Error deleting banner:', err)
+    toast.success('Xóa banner thành công')
+    
+    // Reload banners
+    await loadBanners()
+    
+    // Close modal
+    showDeleteModal.value = false
+    selectedBanner.value = null
+    
+  } catch (error) {
     toast.add({
       title: 'Error',
-      description: err.message || 'Failed to delete banner',
+      description: error.message || 'Failed to delete banner',
       color: 'red'
     })
+    console.error(error)
   } finally {
-    isDeleting.value = false
+    saving.value = false
   }
 }
 
-const toggleStatus = async (banner) => {
-  try {
-    const { error } = await api.put(`/api/banners/${banner.id}/toggle-status`, {
-      isActive: !banner.isActive
-    })
-    
-    if (error) {
-      throw new Error(error.message || 'Failed to update banner status')
-    }
-    
-    // Success
-    toast.add({
-      title: 'Success',
-      description: `Banner ${banner.isActive ? 'deactivated' : 'activated'} successfully`,
-      color: 'green'
-    })
-    
-    fetchBanners()
-  } catch (err) {
-    console.error('Error toggling banner status:', err)
-    toast.add({
-      title: 'Error',
-      description: err.message || 'Failed to update banner status',
-      color: 'red'
-    })
-  }
-}
-
-// Watch for image changes to create preview
-watch(() => formState.image, (newImage) => {
-  if (newImage) {
-    const reader = new FileReader()
-    reader.onload = (e) => {
-      imagePreview.value = e.target.result
-    }
-    reader.readAsDataURL(newImage)
-  } else {
-    imagePreview.value = null
-  }
-})
-
-// Fetch banners on component mount
+// Load initial data
 onMounted(() => {
-  fetchBanners()
+  loadBanners()
 })
 </script> 

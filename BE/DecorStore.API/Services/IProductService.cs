@@ -7,11 +7,11 @@ namespace DecorStore.API.Services
 {
     public interface IProductService
     {
+        Task<IEnumerable<Product>> GetAllAsync(ProductFilterDTO filter);
+        Task<Product> CreateAsync(CreateProductDTO productDto);
+        Task UpdateAsync(int id, UpdateProductDTO productDto);
         Task<IEnumerable<ProductDTO>> GetAllProductsAsync();
         Task<ProductDTO> GetProductByIdAsync(int id);
-        Task<ProductDTO> CreateProductAsync(CreateProductDTO productDto);
-        Task<ProductDTO> UpdateProductAsync(int id, UpdateProductDTO productDto);
         Task<bool> DeleteProductAsync(int id);
-        Task<IEnumerable<ProductDTO>> GetProductsByCategoryAsync(string category);
     }
 } 

@@ -1,27 +1,23 @@
 <template>
   <div>
-    <UPageHeader title="Product Management" description="Manage your store products">
-      <template #right>
-        <div class="flex items-center space-x-2">
-          <USelect
-            v-model="selectedCategory"
-            :options="categoryOptions"
-            placeholder="Filter by category"
-            option-attribute="name"
-            value-attribute="id"
-            size="sm"
-            class="w-48"
-          />
-          <UButton
-            color="primary"
-            icon="i-heroicons-plus"
-            @click="openAddModal"
-          >
-            Add Product
-          </UButton>
-        </div>
-      </template>
-    </UPageHeader>
+    <div class="flex items-center justify-end space-x-2">
+      <USelect
+        v-model="selectedCategory"
+        :options="categoryOptions"
+        placeholder="Filter by category"
+        option-attribute="name"
+        value-attribute="id"
+        size="sm"
+        class="w-48"
+      />
+      <UButton
+        color="primary"
+        icon="i-heroicons-plus"
+        @click="openAddModal"
+      >
+        Add Product
+      </UButton>
+    </div>
     
     <!-- Products Table -->
     <UCard class="mt-6">
@@ -46,7 +42,7 @@
         </template>
         
         <template #category-data="{ row }">
-          {{ getCategoryName(row.categoryId) }}
+          {{ getCategoryName(row.category) }}
         </template>
         
         <template #createdAt-data="{ row }">
@@ -133,9 +129,9 @@
           </div>
           
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <UFormGroup label="Category" name="categoryId" required>
+            <UFormGroup label="Category" name="category" required>
               <USelect
-                v-model="formState.categoryId"
+                v-model="formState.category"
                 :options="categories"
                 placeholder="Select category"
                 option-attribute="name"
@@ -283,7 +279,6 @@
 <script setup>
 import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { useApi } from '~/composables/useApi'
-import { useToast } from '@nuxt/ui'
 
 // Define page meta
 definePageMeta({
@@ -349,7 +344,7 @@ const formState = reactive({
   description: '',
   price: 0,
   stock: 0,
-  categoryId: null,
+  category: null,
   images: [],
   imageUrls: [],
   isActive: true
@@ -367,7 +362,7 @@ const filteredProducts = computed(() => {
   
   // Filter by category if selected
   if (selectedCategory.value) {
-    filtered = filtered.filter(product => product.categoryId === selectedCategory.value)
+    filtered = filtered.filter(product => product.category === selectedCategory.value)
   }
   
   return filtered
@@ -453,7 +448,7 @@ const openAddModal = () => {
     description: '',
     price: 0,
     stock: 0,
-    categoryId: null,
+    category: null,
     images: [],
     imageUrls: [],
     isActive: true
@@ -471,7 +466,7 @@ const editProduct = (product) => {
     description: product.description || '',
     price: product.price,
     stock: product.stock || 0,
-    categoryId: product.categoryId,
+    category: product.category,
     images: [],
     imageUrls: product.images || [],
     isActive: product.isActive
@@ -491,7 +486,7 @@ const saveProduct = async () => {
     formData.append('description', formState.description)
     formData.append('price', formState.price)
     formData.append('stock', formState.stock)
-    formData.append('categoryId', formState.categoryId)
+    formData.append('category', formState.category)
     formData.append('isActive', formState.isActive)
     
     // Add existing image URLs
@@ -653,9 +648,9 @@ const formatPrice = (price) => {
   }).format(price)
 }
 
-const getCategoryName = (categoryId) => {
-  const category = categories.value.find(c => c.id === categoryId)
-  return category ? category.name : 'Uncategorized'
+const getCategoryName = (id) => {
+  const category = categories.value.find(c => c.id === id)
+  return category ? category.name : '-'
 }
 
 // Watch for image changes to create preview

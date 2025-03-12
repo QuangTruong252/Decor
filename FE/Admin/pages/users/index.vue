@@ -141,7 +141,7 @@
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useApi } from '~/composables/useApi'
-import { useToast } from '@nuxt/ui'
+
 import { useAuthStore } from '~/stores/auth'
 
 // Define page meta

@@ -1,7 +1,6 @@
-
 ## **1. Tổng quan dự án (Project Overview)**
 
-Decor Store API là một backend API hiện đại được xây dựng trên nền tảng ASP.NET Core 8, phục vụ cho ứng dụng web bán đồ trang trí nội thất. API này cung cấp đầy đủ các chức năng thiết yếu như quản lý sản phẩm, xác thực người dùng, và xử lý đơn hàng.
+Decor Store API là một backend API hiện đại được xây dựng trên nền tảng ASP.NET Core 8, phục vụ cho ứng dụng web bán đồ trang trí nội thất. API này cung cấp đầy đủ các chức năng thiết yếu như quản lý sản phẩm, danh mục, đơn hàng, đánh giá, banner quảng cáo, xác thực người dùng, và xử lý đơn hàng.
 
 **Mục tiêu dự án:**
 - Xây dựng API RESTful chuẩn, dễ mở rộng và bảo trì
@@ -25,32 +24,63 @@ Decor Store API là một backend API hiện đại được xây dựng trên n
 
 ```
 DecorStore.API/
-├── Controllers/             # API controllers xử lý các requests
-│   ├── AuthController.cs    # Xử lý đăng nhập, đăng ký
-│   ├── ProductController.cs # Quản lý sản phẩm
-│   └── HealthCheckController.cs # Kiểm tra trạng thái API
+├── Controllers/                  # API controllers xử lý các requests
+│   ├── AuthController.cs         # Xử lý đăng nhập, đăng ký
+│   ├── ProductsController.cs     # Quản lý sản phẩm
+│   ├── CategoryController.cs     # Quản lý danh mục sản phẩm
+│   ├── OrderController.cs        # Quản lý đơn hàng
+│   ├── ReviewController.cs       # Quản lý đánh giá sản phẩm
+│   ├── BannerController.cs       # Quản lý banner quảng cáo
+│   └── HealthCheckController.cs  # Kiểm tra trạng thái API
 ├── Data/
-│   └── ApplicationDbContext.cs # DbContext kết nối với database
-├── DTOs/                    # Data Transfer Objects
-│   ├── AuthResponseDTO.cs   # Phản hồi xác thực
-│   ├── LoginDTO.cs          # Dữ liệu đăng nhập
-│   ├── RegisterDTO.cs       # Dữ liệu đăng ký
-│   └── UserDTO.cs           # Dữ liệu người dùng
-├── Migrations/              # EF Core migrations
-├── Models/                  # Entity models
-│   ├── Product.cs           # Model sản phẩm
-│   └── User.cs              # Model người dùng
-├── Repositories/            # Repository pattern
-│   ├── IProductRepository.cs
-│   └── ProductRepository.cs
-├── Services/                # Business logic
-│   ├── AuthService.cs       # Dịch vụ xác thực
-│   ├── IAuthService.cs
-│   ├── IProductService.cs
-│   └── ProductService.cs
-├── Program.cs               # Điểm khởi đầu ứng dụng
-├── appsettings.json         # Cấu hình ứng dụng
-└── railway.toml             # Cấu hình triển khai Railway
+│   └── ApplicationDbContext.cs   # DbContext kết nối với database
+├── DTOs/                         # Data Transfer Objects
+│   ├── AuthResponseDTO.cs        # Phản hồi xác thực
+│   ├── LoginDTO.cs               # Dữ liệu đăng nhập
+│   ├── RegisterDTO.cs            # Dữ liệu đăng ký
+│   ├── UserDTO.cs                # Dữ liệu người dùng
+│   ├── ProductDTO.cs             # Dữ liệu sản phẩm
+│   ├── CategoryDTO.cs            # Dữ liệu danh mục
+│   ├── OrderDTO.cs               # Dữ liệu đơn hàng
+│   ├── ReviewDTO.cs              # Dữ liệu đánh giá
+│   └── BannerDTO.cs              # Dữ liệu banner
+├── Migrations/                   # EF Core migrations
+├── Models/                       # Entity models
+│   ├── Product.cs                # Model sản phẩm
+│   ├── User.cs                   # Model người dùng
+│   ├── Category.cs               # Model danh mục
+│   ├── Order.cs                  # Model đơn hàng
+│   ├── OrderItem.cs              # Model mặt hàng trong đơn hàng
+│   ├── Review.cs                 # Model đánh giá
+│   ├── Banner.cs                 # Model banner
+│   └── ProductImage.cs           # Model hình ảnh sản phẩm
+├── Repositories/                 # Repository pattern
+│   ├── IProductRepository.cs     # Interface cho repository sản phẩm
+│   ├── ProductRepository.cs      # Repository sản phẩm
+│   ├── ICategoryRepository.cs    # Interface cho repository danh mục
+│   ├── CategoryRepository.cs     # Repository danh mục
+│   ├── IOrderRepository.cs       # Interface cho repository đơn hàng
+│   ├── OrderRepository.cs        # Repository đơn hàng
+│   ├── IReviewRepository.cs      # Interface cho repository đánh giá
+│   ├── ReviewRepository.cs       # Repository đánh giá
+│   ├── IBannerRepository.cs      # Interface cho repository banner
+│   └── BannerRepository.cs       # Repository banner
+├── Services/                     # Business logic
+│   ├── IAuthService.cs           # Interface service xác thực
+│   ├── AuthService.cs            # Service xác thực
+│   ├── IProductService.cs        # Interface service sản phẩm
+│   ├── ProductService.cs         # Service sản phẩm
+│   ├── ICategoryService.cs       # Interface service danh mục
+│   ├── CategoryService.cs        # Service danh mục
+│   ├── IOrderService.cs          # Interface service đơn hàng
+│   ├── OrderService.cs           # Service đơn hàng
+│   ├── IReviewService.cs         # Interface service đánh giá
+│   ├── ReviewService.cs          # Service đánh giá
+│   ├── IBannerService.cs         # Interface service banner
+│   └── BannerService.cs          # Service banner
+├── Program.cs                    # Điểm khởi đầu ứng dụng
+├── appsettings.json              # Cấu hình ứng dụng
+└── railway.toml                  # Cấu hình triển khai Railway
 ```
 
 ## **4. Hướng dẫn cài đặt (Setup Guide)**
@@ -216,6 +246,114 @@ public class ApplicationDbContext : DbContext
 }
 ```
 
+### **Kiến trúc API của DecorStore**
+
+Dự án DecorStore API được xây dựng trên kiến trúc nhiều tầng, với các controllers, services, và repositories thực thi các chức năng cụ thể:
+
+#### **Controllers:**
+
+1. **AuthController**: 
+   - Xử lý xác thực người dùng: đăng ký, đăng nhập, lấy thông tin user
+
+2. **ProductsController**: 
+   - Quản lý CRUD cho sản phẩm
+   - Hỗ trợ tìm kiếm, lọc và phân trang
+
+3. **CategoryController**:
+   - Quản lý danh mục sản phẩm
+   - Hỗ trợ hiển thị danh mục dạng phân cấp cha-con
+   - Cho phép tạo, cập nhật, xóa danh mục (chỉ Admin)
+
+4. **OrderController**:
+   - Quản lý đơn hàng người dùng
+   - Hỗ trợ tạo đơn hàng mới, cập nhật trạng thái
+   - Kiểm tra quyền truy cập: người dùng chỉ xem được đơn hàng của mình, Admin xem được tất cả
+
+5. **ReviewController**:
+   - Quản lý đánh giá sản phẩm
+   - Cho phép người dùng thêm, sửa, xóa đánh giá của mình
+   - Tính toán điểm đánh giá trung bình cho sản phẩm
+
+6. **BannerController**:
+   - Quản lý banner quảng cáo
+   - Lấy các banner đang hoạt động để hiển thị
+   - Thêm, sửa, xóa banner (chỉ Admin)
+
+7. **HealthCheckController**:
+   - Kiểm tra trạng thái hoạt động của API
+   - Hữu ích cho monitoring và kiểm tra kết nối database
+
+#### **Repository Pattern:**
+
+Mỗi entity đều có một repository riêng, tuân theo mẫu thiết kế Repository Pattern:
+
+```csharp
+// Interface định nghĩa các phương thức
+public interface ICategoryRepository
+{
+    Task<IEnumerable<Category>> GetAllAsync();
+    Task<Category> GetByIdAsync(int id);
+    // ...các phương thức khác
+}
+
+// Lớp cài đặt cụ thể
+public class CategoryRepository : ICategoryRepository
+{
+    private readonly ApplicationDbContext _context;
+    
+    public CategoryRepository(ApplicationDbContext context)
+    {
+        _context = context;
+    }
+    
+    public async Task<IEnumerable<Category>> GetAllAsync()
+    {
+        return await _context.Categories.ToListAsync();
+    }
+    
+    // ...các phương thức khác
+}
+```
+
+#### **Service Layer:**
+
+Các services chứa business logic, kết nối giữa controllers và repositories:
+
+```csharp
+// Interface định nghĩa các phương thức
+public interface ICategoryService
+{
+    Task<IEnumerable<CategoryDTO>> GetAllCategoriesAsync();
+    Task<CategoryDTO> GetCategoryByIdAsync(int id);
+    // ...các phương thức khác
+}
+
+// Lớp cài đặt cụ thể
+public class CategoryService : ICategoryService
+{
+    private readonly ICategoryRepository _categoryRepository;
+    
+    public CategoryService(ICategoryRepository categoryRepository)
+    {
+        _categoryRepository = categoryRepository;
+    }
+    
+    public async Task<IEnumerable<CategoryDTO>> GetAllCategoriesAsync()
+    {
+        var categories = await _categoryRepository.GetAllAsync();
+        return categories.Select(c => MapCategoryToDto(c));
+    }
+    
+    // ...các phương thức khác
+}
+```
+
+Mô hình này đảm bảo:
+- **Separation of Concerns**: Mỗi lớp có trách nhiệm riêng biệt
+- **Dependency Injection**: Các dependencies được inject vào constructor
+- **Testability**: Dễ dàng viết unit tests bằng cách mock các dependencies
+- **Maintainability**: Dễ dàng bảo trì và mở rộng code
+
 ## **7. Tài liệu API (API Documentation)**
 
 ### **Swagger UI:**
@@ -237,9 +375,42 @@ Swagger UI cung cấp tài liệu tương tác cho API, cho phép bạn:
 #### Products:
 - `GET /api/products` - Lấy tất cả sản phẩm
 - `GET /api/products/{id}` - Lấy sản phẩm theo ID
-- `POST /api/products` - Thêm sản phẩm mới
-- `PUT /api/products/{id}` - Cập nhật sản phẩm
-- `DELETE /api/products/{id}` - Xóa sản phẩm
+- `POST /api/products` - Thêm sản phẩm mới (Admin)
+- `PUT /api/products/{id}` - Cập nhật sản phẩm (Admin)
+- `DELETE /api/products/{id}` - Xóa sản phẩm (Admin)
+
+#### Categories:
+- `GET /api/category` - Lấy tất cả danh mục
+- `GET /api/category/hierarchical` - Lấy danh mục dạng phân cấp
+- `GET /api/category/{id}` - Lấy danh mục theo ID
+- `GET /api/category/slug/{slug}` - Lấy danh mục theo slug
+- `POST /api/category` - Tạo danh mục mới (Admin)
+- `PUT /api/category/{id}` - Cập nhật danh mục (Admin)
+- `DELETE /api/category/{id}` - Xóa danh mục (Admin)
+
+#### Orders:
+- `GET /api/order` - Lấy tất cả đơn hàng (Admin)
+- `GET /api/order/user/{userId}` - Lấy đơn hàng theo user
+- `GET /api/order/{id}` - Lấy chi tiết đơn hàng
+- `POST /api/order` - Tạo đơn hàng mới
+- `PUT /api/order/{id}/status` - Cập nhật trạng thái đơn hàng (Admin)
+- `DELETE /api/order/{id}` - Xóa đơn hàng
+
+#### Reviews:
+- `GET /api/review/product/{productId}` - Lấy đánh giá theo sản phẩm
+- `GET /api/review/{id}` - Lấy chi tiết đánh giá
+- `GET /api/review/product/{productId}/rating` - Lấy điểm đánh giá trung bình của sản phẩm
+- `POST /api/review` - Tạo đánh giá mới
+- `PUT /api/review/{id}` - Cập nhật đánh giá
+- `DELETE /api/review/{id}` - Xóa đánh giá
+
+#### Banners:
+- `GET /api/banner` - Lấy tất cả banner
+- `GET /api/banner/active` - Lấy các banner đang hoạt động
+- `GET /api/banner/{id}` - Lấy chi tiết banner
+- `POST /api/banner` - Tạo banner mới (Admin)
+- `PUT /api/banner/{id}` - Cập nhật banner (Admin)
+- `DELETE /api/banner/{id}` - Xóa banner (Admin)
 
 ## **8. Triển khai (Deployment)**
 

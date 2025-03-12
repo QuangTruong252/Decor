@@ -96,25 +96,13 @@ export const useAuthStore = defineStore('auth', {
     
     async checkAuth() {
       if (!this.token) return false
-      const baseURL = useRuntimeConfig().public.apiBaseUrl
-      try {
-        const { data, error } = await useFetch(`${baseURL}/api/auth/me`, {
-          headers: {
-            Authorization: `Bearer ${this.token}`
-          }
-        })
-        
-        if (error.value || !data.value) {
-          this.logout()
-          return false
-        }
-        
-        this.setUser(data.value as User)
-        return true
-      } catch (err) {
+      const localToken = localStorage.getItem('token')
+      console.log(localToken)
+      if (!localToken) {
         this.logout()
         return false
       }
+      return true
     }
   }
 }) 
