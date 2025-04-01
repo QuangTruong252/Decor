@@ -74,7 +74,7 @@
               v-model="formState.slug"
               placeholder="category-slug"
               :disabled="isAutoSlug"
-              :trailing="isAutoSlug ? 'Auto-generated' : ''"
+              :trailing="isAutoSlug ? true : false"
             />
             <template #hint>
               <div class="flex items-center mt-1">
@@ -91,7 +91,7 @@
             <UTextarea
               v-model="formState.description"
               placeholder="Enter category description"
-              rows="3"
+              :rows="3"
             />
           </UFormGroup>
           
@@ -102,6 +102,7 @@
               placeholder="Select parent category (optional)"
               option-attribute="name"
               value-attribute="id"
+              :ui="{ wrapper: 'w-full' }"
             />
           </UFormGroup>
           
@@ -168,18 +169,27 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, reactive, computed, onMounted, watch } from 'vue'
-import { useApi } from '~/composables/useApi'
-
+import type { CategoryDTO } from '~/api-services'
+import { apiService, handleApiError, showSuccessToast, showErrorToast } from '~/api-services/api-service'
+import { useApiCompat } from '~/composables/useApi'
 
 // Define page meta
 definePageMeta({
   middleware: ['auth']
 })
 
-const api = useApi()
-const toast = useToast()
+const apiCompat = useApiCompat()
+
+// Define interface for form state
+interface CategoryForm {
+  id?: number;
+  name: string;
+  slug: string;
+  description: string;
+  parentId?: number | undefined;
+}
 
 // Table columns
 const columns = [
@@ -206,23 +216,23 @@ const columns = [
 ]
 
 // State
-const categories = ref([])
+const categories = ref<CategoryDTO[]>([])
 const isLoading = ref(true)
 const isModalOpen = ref(false)
 const isDeleteModalOpen = ref(false)
 const isSaving = ref(false)
 const isDeleting = ref(false)
-const selectedCategory = ref(null)
+const selectedCategory = ref<CategoryDTO | null>(null)
 const isAutoSlug = ref(true)
 const sortBy = ref({ column: 'createdAt', direction: 'desc' })
 
 // Form state
-const formState = reactive({
-  id: null,
+const formState = reactive<CategoryForm>({
+  id: undefined,
   name: '',
   slug: '',
   description: '',
-  parentId: null
+  parentId: undefined
 })
 
 // Computed
@@ -234,58 +244,48 @@ const parentCategoryOptions = computed(() => {
     !isEditing.value || cat.id !== formState.id
   )
   
-  return [{ id: null, name: 'None (Top Level)' }, ...filteredCategories]
+  return [{ id: undefined, name: 'None (Top Level)' }, ...filteredCategories]
 })
 
 // Methods
-const fetchCategories = async () => {
+const fetchCategories = async (): Promise<void> => {
   isLoading.value = true
   
   try {
-    const { data, error } = await api.get('/api/Category')
+    const res = await apiService.categoryApi.apiCategoryGet()
     
-    if (error) {
-      toast.add({
-        title: 'Error',
-        description: 'Failed to load categories',
-        color: 'red'
-      })
-      return
+    if (res.status === 200) {
+      categories.value = res.data || []
+    } else {
+      showErrorToast('Failed to load categories')
     }
-    
-    categories.value = data || []
   } catch (err) {
-    console.error('Error fetching categories:', err)
-    toast.add({
-      title: 'Error',
-      description: 'Failed to load categories',
-      color: 'red'
-    })
+    handleApiError(err, 'Failed to load categories')
   } finally {
     isLoading.value = false
   }
 }
 
-const openAddModal = () => {
+const openAddModal = (): void => {
   // Reset form
   Object.assign(formState, {
-    id: null,
+    id: undefined,
     name: '',
     slug: '',
     description: '',
-    parentId: null
+    parentId: undefined
   })
   
   isAutoSlug.value = true
   isModalOpen.value = true
 }
 
-const editCategory = (category) => {
+const editCategory = (category: CategoryDTO): void => {
   // Populate form with category data
   Object.assign(formState, {
     id: category.id,
-    name: category.name,
-    slug: category.slug,
+    name: category.name || '',
+    slug: category.slug || '',
     description: category.description || '',
     parentId: category.parentId
   })
@@ -294,7 +294,7 @@ const editCategory = (category) => {
   isModalOpen.value = true
 }
 
-const saveCategory = async () => {
+const saveCategory = async (): Promise<void> => {
   isSaving.value = true
   
   try {
@@ -303,85 +303,77 @@ const saveCategory = async () => {
       formState.slug = generateSlug(formState.name)
     }
     
-    let result
-    
-    if (isEditing.value) {
+    if (isEditing.value && formState.id !== undefined) {
       // Update existing category
-      result = await api.put(`/api/Category/${formState.id}`, formState)
+      const res = await apiService.categoryApi.apiCategoryIdPut({
+        ...formState,
+        id: formState.id
+      })
+      
+      if (res.status !== 200 && res.status !== 204) {
+        throw new Error('Failed to update category')
+      }
     } else {
       // Create new category
-      result = await api.post('/api/Category', formState)
-    }
-    
-    if (result.error) {
-      throw new Error(result.error.message || 'Failed to save category')
+      const res = await apiService.categoryApi.apiCategoryPost({
+        name: formState.name,
+        slug: formState.slug,
+        description: formState.description,
+        parentId: formState.parentId
+      })
+      
+      if (res.status !== 201 && res.status !== 200) {
+        throw new Error('Failed to create category')
+      }
     }
     
     // Success
-    toast.add({
-      title: 'Success',
-      description: isEditing.value ? 'Category updated successfully' : 'Category created successfully',
-      color: 'green'
-    })
+    showSuccessToast(isEditing.value ? 'Category updated successfully' : 'Category created successfully')
     
     isModalOpen.value = false
     fetchCategories()
   } catch (err) {
-    console.error('Error saving category:', err)
-    toast.add({
-      title: 'Error',
-      description: err.message || 'Failed to save category',
-      color: 'red'
-    })
+    handleApiError(err, 'Failed to save category')
   } finally {
     isSaving.value = false
   }
 }
 
-const confirmDelete = (category) => {
+const confirmDelete = (category: CategoryDTO): void => {
   selectedCategory.value = category
   isDeleteModalOpen.value = true
 }
 
-const deleteCategory = async () => {
-  if (!selectedCategory.value) return
+const deleteCategory = async (): Promise<void> => {
+  if (!selectedCategory.value?.id) return
   
   isDeleting.value = true
   
   try {
-    const { error } = await api.delete(`/api/Category/${selectedCategory.value.id}`)
+    const res = await apiService.categoryApi.apiCategoryIdDelete({
+      id: selectedCategory.value.id
+    })
     
-    if (error) {
-      throw new Error(error.message || 'Failed to delete category')
+    if (res.status === 204 || res.status === 200) {
+      showSuccessToast('Category deleted successfully')
+      isDeleteModalOpen.value = false
+      fetchCategories()
+    } else {
+      showErrorToast('Failed to delete category')
     }
-    
-    // Success
-    toast.add({
-      title: 'Success',
-      description: 'Category deleted successfully',
-      color: 'green'
-    })
-    
-    isDeleteModalOpen.value = false
-    fetchCategories()
   } catch (err) {
-    console.error('Error deleting category:', err)
-    toast.add({
-      title: 'Error',
-      description: err.message || 'Failed to delete category',
-      color: 'red'
-    })
+    handleApiError(err, 'Failed to delete category')
   } finally {
     isDeleting.value = false
   }
 }
 
-const sortTable = (column, direction) => {
+const sortTable = (column: string, direction: string): void => {
   sortBy.value = { column, direction }
 }
 
 // Helper functions
-const formatDate = (dateString) => {
+const formatDate = (dateString: string): string => {
   if (!dateString) return ''
   const date = new Date(dateString)
   return date.toLocaleDateString('en-US', {
@@ -391,7 +383,7 @@ const formatDate = (dateString) => {
   })
 }
 
-const generateSlug = (name) => {
+const generateSlug = (name: string): string => {
   return name
     .toLowerCase()
     .replace(/[^\w\s-]/g, '') // Remove special characters

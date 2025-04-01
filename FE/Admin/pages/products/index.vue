@@ -9,6 +9,7 @@
         value-attribute="id"
         size="sm"
         class="w-48"
+        :nullable="true"
       />
       <UButton
         color="primary"
@@ -42,7 +43,7 @@
         </template>
         
         <template #category-data="{ row }">
-          {{ getCategoryName(row.category) }}
+          {{ getCategoryName(row.categoryId) }}
         </template>
         
         <template #createdAt-data="{ row }">
@@ -118,7 +119,7 @@
             
             <UFormGroup label="Price" name="price" required>
               <UInput
-                v-model="formState.price"
+                v-model.number="formState.price"
                 type="number"
                 min="0"
                 step="0.01"
@@ -129,20 +130,21 @@
           </div>
           
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <UFormGroup label="Category" name="category" required>
+            <UFormGroup label="Category" name="categoryId" required>
               <USelect
-                v-model="formState.category"
+                v-model="formState.categoryId"
                 :options="categories"
                 placeholder="Select category"
                 option-attribute="name"
                 value-attribute="id"
                 required
+                :nullable="true"
               />
             </UFormGroup>
             
-            <UFormGroup label="Stock" name="stock">
+            <UFormGroup label="Stock" name="stockQuantity">
               <UInput
-                v-model="formState.stock"
+                v-model.number="formState.stockQuantity"
                 type="number"
                 min="0"
                 step="1"
@@ -155,7 +157,7 @@
             <UTextarea
               v-model="formState.description"
               placeholder="Enter product description"
-              rows="3"
+              :rows="3"
             />
           </UFormGroup>
           
@@ -276,394 +278,341 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, reactive, computed, onMounted, watch } from 'vue'
-import { useApi } from '~/composables/useApi'
+import type { CategoryDTO, ProductDTO, ProductImageDTO } from '~/api-services'
+import { apiService, handleApiError, showSuccessToast, showErrorToast } from '~/api-services/api-service'
+import { useApiCompat } from '~/composables/useApi'
 
 // Define page meta
 definePageMeta({
   middleware: ['auth']
 })
 
-const api = useApi()
-const toast = useToast()
+const apiCompat = useApiCompat()
 
 // Table columns
 const columns = [
-  {
-    key: 'image',
-    label: 'Image',
-    sortable: false
-  },
-  {
-    key: 'name',
-    label: 'Name',
-    sortable: true
-  },
-  {
-    key: 'price',
-    label: 'Price',
-    sortable: true
-  },
-  {
-    key: 'category',
-    label: 'Category',
-    sortable: true
-  },
-  {
-    key: 'createdAt',
-    label: 'Created At',
-    sortable: true
-  },
-  {
-    key: 'actions',
-    label: 'Actions',
-    sortable: false
-  }
+  { key: 'image', label: 'Image', sortable: false },
+  { key: 'name', label: 'Name', sortable: true },
+  { key: 'price', label: 'Price', sortable: true },
+  { key: 'category', label: 'Category', sortable: true },
+  { key: 'createdAt', label: 'Created At', sortable: true },
+  { key: 'actions', label: 'Actions', sortable: false }
 ]
 
+// Define interface for form state
+interface ProductForm {
+  id?: number;
+  name: string;
+  description: string;
+  price: number;
+  stock?: number;
+  stockQuantity: number;
+  category?: number | null;
+  categoryId?: number | undefined;
+  images: FileList | null;
+  imageUrls: string[];
+  imageUrl: string;
+  isActive: boolean;
+}
+
 // State
-const products = ref([])
-const categories = ref([])
+const products = ref<ProductDTO[]>([])
+const categories = ref<CategoryDTO[]>([])
 const isLoading = ref(true)
 const isModalOpen = ref(false)
 const isDeleteModalOpen = ref(false)
 const isSaving = ref(false)
 const isDeleting = ref(false)
-const selectedProduct = ref(null)
-const selectedCategory = ref(null)
-const imagePreview = ref([])
+const selectedProduct = ref<ProductDTO | null>(null)
+const selectedCategory = ref<number | undefined>(undefined)
+const imagePreview = ref<string[]>([])
 const sortBy = ref({ column: 'createdAt', direction: 'desc' })
 const currentPage = ref(1)
 const perPage = ref(10)
 
 // Form state
-const formState = reactive({
-  id: null,
+const formState = reactive<ProductForm>({
+  id: undefined,
   name: '',
   description: '',
   price: 0,
   stock: 0,
+  stockQuantity: 0,
   category: null,
-  images: [],
+  categoryId: undefined,
+  images: null,
   imageUrls: [],
+  imageUrl: '',
   isActive: true
 })
 
-// Computed
+// Computed properties
 const isEditing = computed(() => !!formState.id)
 
-const categoryOptions = computed(() => {
-  return [{ id: null, name: 'All Categories' }, ...categories.value]
-})
+const categoryOptions = computed(() => [
+  { id: undefined, name: 'All Categories' },
+  ...categories.value
+])
 
 const filteredProducts = computed(() => {
-  let filtered = products.value
-  
-  // Filter by category if selected
-  if (selectedCategory.value) {
-    filtered = filtered.filter(product => product.category === selectedCategory.value)
-  }
-  
-  return filtered
+  return selectedCategory.value 
+    ? products.value.filter(product => product.categoryId === selectedCategory.value) 
+    : products.value
 })
 
-const pageCount = computed(() => {
-  return Math.ceil(filteredProducts.value.length / perPage.value)
-})
+const pageCount = computed(() => Math.ceil(filteredProducts.value.length / perPage.value))
 
 const paginationInfo = computed(() => {
   const total = filteredProducts.value.length
   const from = total === 0 ? 0 : (currentPage.value - 1) * perPage.value + 1
   const to = Math.min(from + perPage.value - 1, total)
-  
   return { from, to, total }
 })
 
 const paginatedProducts = computed(() => {
   const start = (currentPage.value - 1) * perPage.value
-  const end = start + perPage.value
-  
-  return filteredProducts.value.slice(start, end)
+  return filteredProducts.value.slice(start, start + perPage.value)
 })
 
 // Methods
-const fetchProducts = async () => {
+const fetchProducts = async (): Promise<void> => {
   isLoading.value = true
-  
   try {
-    const { data, error } = await api.get('/api/products')
-    
-    if (error) {
-      toast.add({
-        title: 'Error',
-        description: 'Failed to load products',
-        color: 'red'
-      })
-      return
+    const res = await apiService.productsApi.apiProductsGet()
+    if (res.status === 200) {
+      products.value = res.data
+    } else {
+      showErrorToast('Failed to load products')
     }
-    
-    products.value = data || []
   } catch (err) {
-    console.error('Error fetching products:', err)
-    toast.add({
-      title: 'Error',
-      description: 'Failed to load products',
-      color: 'red'
-    })
+    handleApiError(err, 'Failed to load products')
   } finally {
     isLoading.value = false
   }
 }
 
-const fetchCategories = async () => {
+const fetchCategories = async (): Promise<void> => {
   try {
-    const { data, error } = await api.get('/api/categories')
-    
-    if (error) {
-      toast.add({
-        title: 'Error',
-        description: 'Failed to load categories',
-        color: 'red'
-      })
-      return
+    const res = await apiService.categoryApi.apiCategoryGet()
+    if (res.status === 200) {
+      categories.value = res.data || []
+    } else {
+      showErrorToast('Failed to load categories')
     }
-    
-    categories.value = data || []
   } catch (err) {
-    console.error('Error fetching categories:', err)
-    toast.add({
-      title: 'Error',
-      description: 'Failed to load categories',
-      color: 'red'
-    })
+    handleApiError(err, 'Failed to load categories')
   }
 }
 
-const openAddModal = () => {
-  // Reset form
+const openAddModal = (): void => {
   Object.assign(formState, {
-    id: null,
+    id: undefined,
     name: '',
     description: '',
     price: 0,
     stock: 0,
+    stockQuantity: 0,
     category: null,
-    images: [],
+    categoryId: undefined,
+    images: null,
     imageUrls: [],
+    imageUrl: '',
     isActive: true
   })
-  
   imagePreview.value = []
   isModalOpen.value = true
 }
 
-const editProduct = (product) => {
-  // Populate form with product data
+const editProduct = (product: ProductDTO): void => {
   Object.assign(formState, {
     id: product.id,
-    name: product.name,
+    name: product.name || '',
     description: product.description || '',
-    price: product.price,
-    stock: product.stock || 0,
-    category: product.category,
-    images: [],
-    imageUrls: product.images || [],
-    isActive: product.isActive
+    price: product.price || 0,
+    stockQuantity: product.stockQuantity || 0,
+    categoryId: product.categoryId || undefined,
+    images: null,
+    imageUrls: product.images?.map(img => img.imageUrl || '') || [],
+    imageUrl: product.imageUrl || '',
+    isActive: product.isActive ?? true
   })
-  
   imagePreview.value = []
   isModalOpen.value = true
 }
 
-const saveProduct = async () => {
+const saveProduct = async (): Promise<void> => {
   isSaving.value = true
-  
   try {
-    // Create FormData for file upload
     const formData = new FormData()
-    formData.append('name', formState.name)
-    formData.append('description', formState.description)
-    formData.append('price', formState.price)
-    formData.append('stock', formState.stock)
-    formData.append('category', formState.category)
-    formData.append('isActive', formState.isActive)
     
-    // Add existing image URLs
-    formState.imageUrls.forEach((url, index) => {
+    // Thêm các trường cơ bản
+    formData.append('name', formState.name || '')
+    formData.append('description', formState.description || '')
+    formData.append('price', (formState.price || 0).toString())
+    formData.append('stockQuantity', (formState.stockQuantity || 0).toString())
+    
+    // Thêm categoryId nếu có
+    if (formState.categoryId !== undefined) {
+      formData.append('categoryId', formState.categoryId.toString())
+    }
+    
+    // Thêm trạng thái
+    formData.append('isActive', formState.isActive.toString())
+
+    // Thêm các hình ảnh đã tồn tại
+    formState.imageUrls.forEach((url: string, index: number) => {
       formData.append(`existingImages[${index}]`, url)
     })
-    
-    // Add new images
-    if (formState.images && formState.images.length) {
+
+    // Thêm các file hình ảnh mới
+    if (formState.images) {
       for (let i = 0; i < formState.images.length; i++) {
-        formData.append('images', formState.images[i])
+        const file = formState.images.item(i)
+        if (file) {
+          formData.append('images', file)
+        }
       }
     }
-    
+
     let result
-    
-    if (isEditing.value) {
-      // Update existing product
-      formData.append('id', formState.id)
-      result = await api.put(`/api/products/${formState.id}`, formData)
+    if (isEditing.value && formState.id !== undefined) {
+      formData.append('id', formState.id.toString())
+      result = await apiCompat.put(`/api/products/${formState.id}`, formData)
     } else {
-      // Create new product
-      result = await api.post('/api/products', formData)
+      result = await apiCompat.post('/api/products', formData)
     }
-    
+
     if (result.error) {
       throw new Error(result.error.message || 'Failed to save product')
     }
-    
-    // Success
-    toast.add({
-      title: 'Success',
-      description: isEditing.value ? 'Product updated successfully' : 'Product created successfully',
-      color: 'green'
-    })
-    
+
+    showSuccessToast(isEditing.value ? 'Product updated successfully' : 'Product created successfully')
     isModalOpen.value = false
     fetchProducts()
   } catch (err) {
-    console.error('Error saving product:', err)
-    toast.add({
-      title: 'Error',
-      description: err.message || 'Failed to save product',
-      color: 'red'
-    })
+    handleApiError(err, 'Failed to save product')
   } finally {
     isSaving.value = false
   }
 }
 
-const confirmDelete = (product) => {
+const confirmDelete = (product: ProductDTO): void => {
   selectedProduct.value = product
   isDeleteModalOpen.value = true
 }
 
-const deleteProduct = async () => {
-  if (!selectedProduct.value) return
-  
+const deleteProduct = async (): Promise<void> => {
+  if (!selectedProduct.value?.id) return
   isDeleting.value = true
-  
   try {
-    const { error } = await api.delete(`/api/products/${selectedProduct.value.id}`)
-    
-    if (error) {
-      throw new Error(error.message || 'Failed to delete product')
+    const res = await apiService.productsApi.apiProductsIdDelete({ id: selectedProduct.value.id })
+    if (res.status === 204 || res.status === 200) {
+      showSuccessToast('Product deleted successfully')
+      isDeleteModalOpen.value = false
+      fetchProducts()
+    } else {
+      showErrorToast('Failed to delete product')
     }
-    
-    // Success
-    toast.add({
-      title: 'Success',
-      description: 'Product deleted successfully',
-      color: 'green'
-    })
-    
-    isDeleteModalOpen.value = false
-    fetchProducts()
   } catch (err) {
-    console.error('Error deleting product:', err)
-    toast.add({
-      title: 'Error',
-      description: err.message || 'Failed to delete product',
-      color: 'red'
-    })
+    handleApiError(err, 'Failed to delete product')
   } finally {
     isDeleting.value = false
   }
 }
 
-const toggleStatus = async (product) => {
+const toggleStatus = async (product: ProductDTO): Promise<void> => {
   try {
-    const { error } = await api.put(`/api/products/${product.id}/toggle-status`, {
+    const updatedProduct = {
+      id: product.id,
+      name: product.name || '',
+      price: product.price || 0,
       isActive: !product.isActive
-    })
-    
-    if (error) {
-      throw new Error(error.message || 'Failed to update product status')
     }
-    
-    // Success
-    toast.add({
-      title: 'Success',
-      description: `Product ${product.isActive ? 'deactivated' : 'activated'} successfully`,
-      color: 'green'
-    })
-    
-    fetchProducts()
+    const res = await apiService.productsApi.apiProductsIdPut(updatedProduct)
+    if (res.status === 204 || res.status === 200) {
+      showSuccessToast(`Product ${product.isActive ? 'deactivated' : 'activated'} successfully`)
+      fetchProducts()
+    } else {
+      showErrorToast('Failed to update product status')
+    }
   } catch (err) {
-    console.error('Error toggling product status:', err)
-    toast.add({
-      title: 'Error',
-      description: err.message || 'Failed to update product status',
-      color: 'red'
-    })
+    handleApiError(err, 'Failed to update product status')
   }
 }
 
-const removeExistingImage = (index) => {
+const removeExistingImage = (index: number): void => {
   formState.imageUrls.splice(index, 1)
 }
 
-const removeNewImage = (index) => {
-  // Create a new FileList without the removed image
-  const dt = new DataTransfer()
-  const files = formState.images
+const removeNewImage = (index: number): void => {
+  if (!formState.images) return;
   
-  for (let i = 0; i < files.length; i++) {
-    if (i !== index) {
-      dt.items.add(files[i])
+  // Tạo DataTransfer object mới
+  const dt = new DataTransfer()
+  
+  // Thêm các file còn lại vào DataTransfer, bỏ qua file ở vị trí index
+  for (let i = 0; i < formState.images.length; i++) {
+    const file = formState.images.item(i)
+    if (i !== index && file) {
+      dt.items.add(file)
     }
   }
   
+  // Cập nhật formState.images với FileList mới
   formState.images = dt.files
+  
+  // Cập nhật preview
   imagePreview.value.splice(index, 1)
 }
 
-const sortTable = (column, direction) => {
+const sortTable = (column: string, direction: string): void => {
   sortBy.value = { column, direction }
 }
 
-const changePage = (page) => {
+const changePage = (page: number): void => {
   currentPage.value = page
 }
 
 // Helper functions
-const formatDate = (dateString) => {
+const formatDate = (dateString: string): string => {
   if (!dateString) return ''
-  const date = new Date(dateString)
-  return date.toLocaleDateString('en-US', {
+  return new Date(dateString).toLocaleDateString('en-US', {
     year: 'numeric',
     month: 'short',
     day: 'numeric'
   })
 }
 
-const formatPrice = (price) => {
+const formatPrice = (price: number): string => {
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency: 'USD'
-  }).format(price)
+  }).format(price || 0)
 }
 
-const getCategoryName = (id) => {
+const getCategoryName = (id: number): string => {
   const category = categories.value.find(c => c.id === id)
-  return category ? category.name : '-'
+  return category?.name || '-'
 }
 
 // Watch for image changes to create preview
 watch(() => formState.images, (newImages) => {
-  if (newImages && newImages.length) {
-    imagePreview.value = []
-    
+  imagePreview.value = []
+  
+  if (newImages) {
     for (let i = 0; i < newImages.length; i++) {
-      const reader = new FileReader()
-      reader.onload = (e) => {
-        imagePreview.value.push(e.target.result)
+      const file = newImages.item(i)
+      if (file) {
+        const reader = new FileReader()
+        reader.onload = (e: ProgressEvent<FileReader>) => {
+          if (e.target?.result) {
+            imagePreview.value.push(e.target.result as string)
+          }
+        }
+        reader.readAsDataURL(file)
       }
-      reader.readAsDataURL(newImages[i])
     }
   }
 }, { deep: true })

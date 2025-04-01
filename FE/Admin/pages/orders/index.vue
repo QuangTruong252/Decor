@@ -72,11 +72,11 @@
         <!-- Status column -->
         <template #status-data="{ row }">
           <UBadge
-            :color="getOrderStatusColor(row.status)"
+            :color="getOrderStatusColor(row.orderStatus)"
             variant="subtle"
             size="sm"
           >
-            {{ row.status }}
+            {{ row.orderStatus }}
           </UBadge>
         </template>
         
@@ -167,11 +167,11 @@
                     <td class="py-1 text-gray-500">Trạng thái:</td>
                     <td class="py-1">
                       <UBadge
-                        :color="getOrderStatusColor(selectedOrder.status)"
+                        :color="getOrderStatusColor(selectedOrder.orderStatus)"
                         variant="subtle"
                         size="sm"
                       >
-                        {{ selectedOrder.status }}
+                        {{ selectedOrder.orderStatus }}
                       </UBadge>
                     </td>
                   </tr>
@@ -189,15 +189,15 @@
                 <tbody>
                   <tr>
                     <td class="py-1 text-gray-500">Tên khách hàng:</td>
-                    <td class="py-1 font-medium">{{ selectedOrder.customerName }}</td>
+                    <td class="py-1 font-medium">{{ selectedOrder.userFullName }}</td>
                   </tr>
                   <tr>
                     <td class="py-1 text-gray-500">Email:</td>
-                    <td class="py-1">{{ selectedOrder.customerEmail }}</td>
+                    <td class="py-1">{{ selectedOrder.userEmail || 'N/A' }}</td>
                   </tr>
                   <tr>
                     <td class="py-1 text-gray-500">Số điện thoại:</td>
-                    <td class="py-1">{{ selectedOrder.customerPhone }}</td>
+                    <td class="py-1">{{ selectedOrder.userPhone || 'N/A' }}</td>
                   </tr>
                   <tr>
                     <td class="py-1 text-gray-500">Địa chỉ:</td>
@@ -235,9 +235,9 @@
                       <div class="flex items-center">
                         <div class="h-10 w-10 flex-shrink-0">
                           <img 
-                            v-if="item.productImage" 
-                            :src="item.productImage" 
-                            :alt="item.productName"
+                            v-if="item.productImageUrl" 
+                            :src="item.productImageUrl" 
+                            :alt="item.productName || ''"
                             class="h-10 w-10 object-cover rounded"
                           />
                           <div v-else class="h-10 w-10 rounded bg-gray-100 flex items-center justify-center">
@@ -248,8 +248,8 @@
                           <div class="text-sm font-medium text-gray-900">
                             {{ item.productName }}
                           </div>
-                          <div v-if="item.variant" class="text-xs text-gray-500">
-                            {{ item.variant }}
+                          <div v-if="item.variantName" class="text-xs text-gray-500">
+                            {{ item.variantName }}
                           </div>
                         </div>
                       </div>
@@ -261,7 +261,7 @@
                       {{ formatCurrency(item.unitPrice) }}
                     </td>
                     <td class="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900 text-right">
-                      {{ formatCurrency(item.unitPrice * item.quantity) }}
+                      {{ formatCurrency(item.unitPrice && item.quantity ? item.unitPrice * item.quantity : 0) }}
                     </td>
                   </tr>
                 </tbody>
@@ -316,7 +316,7 @@
               <UButton
                 color="primary"
                 :loading="updating"
-                :disabled="!newStatus || newStatus === selectedOrder.status || updating"
+                :disabled="!newStatus || newStatus === selectedOrder.orderStatus || updating"
                 @click="updateOrderStatus"
               >
                 Cập nhật
@@ -329,271 +329,316 @@
   </div>
 </template>
 
-<script setup>
-import { ref, computed, onMounted } from 'vue'
+<script setup lang="ts">
+import { ref, reactive, computed, onMounted } from 'vue'
+import type { OrderDTO } from '~/api-services'
+import { apiService, handleApiError, showSuccessToast, showErrorToast } from '~/api-services/api-service'
+import { useApiCompat } from '~/composables/useApi'
+import type { DropdownItem } from '#ui/types'
 
-
-// Meta
+// Define page meta
 definePageMeta({
-  layout: 'admin',
-  middleware: ['admin']
+  middleware: ['auth']
 })
 
-// State
-const orders = ref([])
-const loading = ref(true)
-const updating = ref(false)
-const selectedOrder = ref(null)
-const showDetailsModal = ref(false)
-const newStatus = ref(null)
+const apiCompat = useApiCompat()
 
-// Pagination
-const currentPage = ref(1)
-const pageSize = ref(10)
-const pageCount = ref(1)
-const totalItems = ref(0)
+// Define interfaces
+interface DateRange {
+  start?: Date;
+  end?: Date;
+}
 
-// Filters
-const statusFilter = ref(null)
-const dateRange = ref(null)
+interface OrderStatusUpdate {
+  orderId: number;
+  status: string;
+  notes?: string;
+}
 
-// Constants
-const statusOptions = [
-  { label: 'Tất cả trạng thái', value: null },
-  { label: 'Chờ xác nhận', value: 'Pending' },
-  { label: 'Đã xác nhận', value: 'Confirmed' },
-  { label: 'Đang xử lý', value: 'Processing' },
-  { label: 'Đang giao hàng', value: 'Shipping' },
-  { label: 'Hoàn thành', value: 'Completed' },
-  { label: 'Đã hủy', value: 'Cancelled' }
-]
-
-const allStatusOptions = statusOptions.filter(option => option.value !== null)
+// Extend OrderDTO with additional fields needed for UI
+interface ExtendedOrderDTO extends OrderDTO {
+  userEmail?: string | null;
+  userPhone?: string | null;
+  subtotal?: number;
+  shippingFee?: number;
+  discount?: number;
+  orderItems?: Array<{
+    id?: number;
+    productName?: string | null;
+    productImageUrl?: string | null;
+    quantity?: number;
+    unitPrice?: number;
+    variantName?: string | null;
+  }>;
+}
 
 // Table columns
 const columns = [
-  { key: 'id', label: 'Mã đơn', sortable: true },
-  { key: 'orderDate', label: 'Ngày đặt', sortable: true },
-  { key: 'customerName', label: 'Khách hàng', sortable: true },
-  { key: 'totalAmount', label: 'Tổng tiền', sortable: true },
-  { key: 'status', label: 'Trạng thái', sortable: true },
-  { key: 'paymentMethod', label: 'Thanh toán' },
-  { key: 'actions', label: 'Thao tác' }
+  {
+    key: 'id',
+    label: 'Mã đơn hàng',
+    sortable: true
+  },
+  {
+    key: 'userFullName',
+    label: 'Khách hàng',
+    sortable: true
+  },
+  {
+    key: 'orderDate',
+    label: 'Ngày đặt',
+    sortable: true
+  },
+  {
+    key: 'totalAmount',
+    label: 'Tổng tiền',
+    sortable: true
+  },
+  {
+    key: 'status',
+    label: 'Trạng thái',
+    sortable: true
+  },
+  {
+    key: 'paymentMethod',
+    label: 'Thanh toán',
+    sortable: true
+  },
+  {
+    key: 'actions',
+    label: 'Thao tác',
+    sortable: false
+  }
 ]
 
-// Composables
-const toast = useToast()
+// Status options
+const statusOptions = [
+  { value: '', label: 'Tất cả trạng thái' },
+  { value: 'Pending', label: 'Chờ xử lý' },
+  { value: 'Processing', label: 'Đang xử lý' },
+  { value: 'Shipped', label: 'Đã giao hàng' },
+  { value: 'Delivered', label: 'Đã nhận hàng' },
+  { value: 'Cancelled', label: 'Đã hủy' }
+]
+
+// Tạo danh sách không bao gồm tùy chọn trống cho dropdown thay đổi trạng thái
+const allStatusOptions = statusOptions.filter(option => option.value !== '')
+
+// State
+const orders = ref<ExtendedOrderDTO[]>([])
+const selectedOrder = ref<ExtendedOrderDTO | null>(null)
+const loading = ref(true)
+const updating = ref(false)
+const isDetailsModalOpen = ref(false)
+const isUpdateStatusModalOpen = ref(false)
+const showDetailsModal = ref(false) // Để tương thích với template
+const statusFilter = ref('')
+const dateRange = ref<DateRange>({})
+const currentPage = ref(1)
+const perPage = ref(10)
+const pageSize = ref(10) // Để tương thích với template
+const totalOrders = ref(0)
+const totalItems = ref(0) // Để tương thích với template
+const pageCount = ref(1)
+const newStatus = ref('')
+
+// Status update form
+const statusUpdateForm = reactive<OrderStatusUpdate>({
+  orderId: 0,
+  status: '',
+  notes: ''
+})
 
 // Computed
 const isFiltered = computed(() => {
-  return statusFilter.value !== null || dateRange.value !== null
+  return statusFilter.value !== '' || !!dateRange.value.start || !!dateRange.value.end
 })
 
 // Methods
-// Format date
-const formatDate = (dateString) => {
+const loadOrders = async (): Promise<void> => {
+  loading.value = true
+  
+  try {
+    // Build query parameters
+    const params: Record<string, any> = {
+      page: currentPage.value,
+      pageSize: perPage.value
+    }
+    
+    if (statusFilter.value) {
+      params.status = statusFilter.value
+    }
+    
+    if (dateRange.value.start) {
+      params.startDate = dateRange.value.start.toISOString().split('T')[0]
+    }
+    
+    if (dateRange.value.end) {
+      params.endDate = dateRange.value.end.toISOString().split('T')[0]
+    }
+    
+    const res = await apiService.orderApi.apiOrderGet(params)
+    
+    if (res.status === 200) {
+      orders.value = res.data
+      totalOrders.value = res.data.length // Adjust if API provides total count
+      pageCount.value = res.data.length // Adjust if API provides total count
+    } else {
+      showErrorToast('Failed to load orders')
+    }
+  } catch (err) {
+    handleApiError(err, 'Failed to load orders')
+  } finally {
+    loading.value = false
+  }
+}
+
+const viewOrderDetails = (order: ExtendedOrderDTO): void => {
+  selectedOrder.value = order
+  isDetailsModalOpen.value = true
+  showDetailsModal.value = true
+}
+
+const openUpdateStatusModal = (order: ExtendedOrderDTO): void => {
+  selectedOrder.value = order
+  
+  // Initialize the form with current order data
+  statusUpdateForm.orderId = order.id || 0
+  statusUpdateForm.status = order.orderStatus || ''
+  statusUpdateForm.notes = ''
+  
+  isUpdateStatusModalOpen.value = true
+}
+
+const updateOrderStatus = async (): Promise<void> => {
+  if (!selectedOrder.value || !statusUpdateForm.orderId) return
+  
+  try {
+    const res = await apiService.orderApi.apiOrderIdStatusPut({
+      id: statusUpdateForm.orderId,
+      updateOrderStatusDTO: {
+        orderStatus: statusUpdateForm.status,
+        notes: statusUpdateForm.notes
+      }
+    })
+    
+    if (res.status === 200 || res.status === 204) {
+      showSuccessToast('Order status updated successfully')
+      isUpdateStatusModalOpen.value = false
+      
+      // Refresh orders list
+      loadOrders()
+    } else {
+      showErrorToast('Failed to update order status')
+    }
+  } catch (err) {
+    handleApiError(err, 'Failed to update order status')
+  }
+}
+
+const resetFilters = (): void => {
+  statusFilter.value = ''
+  dateRange.value = {}
+  loadOrders()
+}
+
+const changePage = (page: number): void => {
+  currentPage.value = page
+  loadOrders()
+}
+
+// Helper functions
+const formatDate = (dateString: string | undefined): string => {
+  if (!dateString) return ''
   const date = new Date(dateString)
   return date.toLocaleDateString('vi-VN', {
-    day: '2-digit',
+    year: 'numeric',
     month: '2-digit',
-    year: 'numeric'
+    day: '2-digit'
   })
 }
 
-// Format currency
-const formatCurrency = (amount) => {
+const formatCurrency = (amount: number | undefined): string => {
   return new Intl.NumberFormat('vi-VN', {
     style: 'currency',
     currency: 'VND'
-  }).format(amount)
+  }).format(amount || 0)
 }
 
-// Get color for order status
-const getOrderStatusColor = (status) => {
-  switch (status) {
-    case 'Pending': return 'yellow'
-    case 'Confirmed': return 'blue'
-    case 'Processing': return 'indigo'
-    case 'Shipping': return 'purple'
-    case 'Completed': return 'green'
-    case 'Cancelled': return 'red'
-    default: return 'gray'
-  }
-}
+type BadgeColor = 'gray' | 'red' | 'yellow' | 'green' | 'blue' | 'indigo' | 'purple' | 'pink'
 
-// Get payment icon
-const getPaymentIcon = (method) => {
-  switch (method) {
-    case 'Credit Card': return 'i-heroicons-credit-card'
-    case 'PayPal': return 'i-heroicons-currency-dollar'
-    case 'Bank Transfer': return 'i-heroicons-building-library'
-    case 'Cash on Delivery': return 'i-heroicons-banknotes'
-    default: return 'i-heroicons-currency-dollar'
-  }
-}
-
-// Get status update actions
-const getStatusActions = (order) => {
-  // Return available status transitions based on current status
-  const actions = []
+const getOrderStatusColor = (status: string | null | undefined): BadgeColor => {
+  if (!status) return 'gray'
   
-  switch (order.status) {
+  const statusMap: Record<string, BadgeColor> = {
+    'Pending': 'yellow',
+    'Processing': 'blue',
+    'Shipped': 'indigo',
+    'Delivered': 'green',
+    'Cancelled': 'red'
+  }
+  
+  return statusMap[status] || 'gray'
+}
+
+const getPaymentIcon = (method: string | undefined): string => {
+  if (!method) return 'i-heroicons-credit-card'
+  
+  const iconMap: Record<string, string> = {
+    'Credit Card': 'i-heroicons-credit-card',
+    'PayPal': 'i-mdi-paypal',
+    'Bank Transfer': 'i-heroicons-building-library',
+    'Cash': 'i-heroicons-banknotes',
+    'Momo': 'i-heroicons-device-phone-mobile'
+  }
+  
+  return iconMap[method] || 'i-heroicons-credit-card'
+}
+
+// Get status update actions for dropdown menu
+const getStatusActions = (order: ExtendedOrderDTO): DropdownItem[][] => {
+  // Return available status transitions based on current status
+  const actions: DropdownItem[] = []
+  
+  switch (order.orderStatus) {
     case 'Pending':
       actions.push(
-        { label: 'Xác nhận đơn hàng', click: () => updateStatus(order, 'Confirmed') },
-        { label: 'Hủy đơn hàng', click: () => updateStatus(order, 'Cancelled') }
-      )
-      break
-    case 'Confirmed':
-      actions.push(
-        { label: 'Chuyển sang đang xử lý', click: () => updateStatus(order, 'Processing') },
-        { label: 'Hủy đơn hàng', click: () => updateStatus(order, 'Cancelled') }
+        { label: 'Chuyển sang đang xử lý', click: () => openUpdateStatusModal(order) },
+        { label: 'Hủy đơn hàng', click: () => openUpdateStatusModal(order) }
       )
       break
     case 'Processing':
       actions.push(
-        { label: 'Chuyển sang đang giao hàng', click: () => updateStatus(order, 'Shipping') },
-        { label: 'Hủy đơn hàng', click: () => updateStatus(order, 'Cancelled') }
+        { label: 'Chuyển sang đã giao hàng', click: () => openUpdateStatusModal(order) },
+        { label: 'Hủy đơn hàng', click: () => openUpdateStatusModal(order) }
       )
       break
-    case 'Shipping':
+    case 'Shipped':
       actions.push(
-        { label: 'Hoàn thành đơn hàng', click: () => updateStatus(order, 'Completed') }
+        { label: 'Chuyển sang đã nhận hàng', click: () => openUpdateStatusModal(order) }
       )
       break
-    case 'Completed':
+    case 'Delivered':
       // No further actions
       break
     case 'Cancelled':
       // No further actions
       break
+    default:
+      actions.push(
+        { label: 'Cập nhật trạng thái', click: () => openUpdateStatusModal(order) }
+      )
   }
   
-  return actions
+  return [actions]
 }
 
-// Load orders
-const loadOrders = async () => {
-  try {
-    loading.value = true
-    
-    // Prepare query parameters
-    const params = {
-      page: currentPage.value,
-      pageSize: pageSize.value,
-      status: statusFilter.value
-    }
-    
-    // Add date range if selected
-    if (dateRange.value && dateRange.value.length === 2) {
-      params.startDate = dateRange.value[0]
-      params.endDate = dateRange.value[1]
-    }
-    
-    // Call API
-    const response = await $fetch('/api/orders', {
-      method: 'GET',
-      params
-    })
-    
-    orders.value = response.items || []
-    totalItems.value = response.totalItems || 0
-    pageCount.value = response.pageCount || 1
-    
-  } catch (error) {
-    toast.error('Không thể tải danh sách đơn hàng')
-    console.error(error)
-  } finally {
-    loading.value = false
-  }
+// Compatibility with template
+const handlePageChange = (page: number): void => {
+  changePage(page)
 }
 
-// Reset filters
-const resetFilters = () => {
-  statusFilter.value = null
-  dateRange.value = null
-  loadOrders()
-}
-
-// Handle page change
-const handlePageChange = (page) => {
-  currentPage.value = page
-  loadOrders()
-}
-
-// View order details
-const viewOrderDetails = async (order) => {
-  try {
-    loading.value = true
-    
-    // In a real app, you would fetch the full order details here
-    // For now, we'll use the existing order data
-    selectedOrder.value = order
-    newStatus.value = order.status
-    showDetailsModal.value = true
-    
-  } catch (error) {
-    toast.error('Không thể tải chi tiết đơn hàng')
-  } finally {
-    loading.value = false
-  }
-}
-
-// Update order status (quick update)
-const updateStatus = async (order, newStatus) => {
-  try {
-    updating.value = true
-    
-    // Call API to update order status
-    await $fetch(`/api/orders/${order.id}/status`, {
-      method: 'PATCH',
-      body: { status: newStatus }
-    })
-    
-    // Update local order status
-    order.status = newStatus
-    
-    toast.success(`Đã cập nhật trạng thái đơn hàng thành ${newStatus}`)
-    
-  } catch (error) {
-    toast.error('Không thể cập nhật trạng thái đơn hàng')
-  } finally {
-    updating.value = false
-  }
-}
-
-// Update order status from modal
-const updateOrderStatus = async () => {
-  if (!selectedOrder.value || !newStatus.value) return
-  
-  try {
-    updating.value = true
-    
-    // Call API to update order status
-    await $fetch(`/api/orders/${selectedOrder.value.id}/status`, {
-      method: 'PATCH',
-      body: { status: newStatus.value }
-    })
-    
-    // Update local order status
-    selectedOrder.value.status = newStatus.value
-    
-    // Also update in the orders list
-    const orderInList = orders.value.find(o => o.id === selectedOrder.value.id)
-    if (orderInList) {
-      orderInList.status = newStatus.value
-    }
-    
-    toast.success(`Đã cập nhật trạng thái đơn hàng thành ${newStatus.value}`)
-    
-  } catch (error) {
-    toast.error('Không thể cập nhật trạng thái đơn hàng')
-  } finally {
-    updating.value = false
-  }
-}
-
-// Load initial data
+// Initialize
 onMounted(() => {
   loadOrders()
 })

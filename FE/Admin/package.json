@@ -7,11 +7,14 @@
     "dev": "nuxt dev",
     "generate": "nuxt generate",
     "preview": "nuxt preview",
-    "postinstall": "nuxt prepare"
+    "postinstall": "nuxt prepare",
+    "generate-api": "openapi-generator-cli generate -i http://localhost:5000/swagger/v1/swagger.json -g typescript-axios -t ./template-base-api --additional-properties=useSingleRequestParameter=true --global-property= -o ./api-services --type-mappings=DateTime=string --type-mappings=Datetime=string  --skip-validate-spec"
   },
   "dependencies": {
     "@nuxt/ui": "2.21.1",
+    "@openapitools/openapi-generator-cli": "^2.17.0",
     "@pinia/nuxt": "^0.10.1",
+    "axios": "^1.8.3",
     "nuxt": "^3.16.0",
     "pinia": "^3.0.1",
     "vue": "^3.5.13",
