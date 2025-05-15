@@ -173,14 +173,14 @@
 import { ref, reactive, computed, onMounted, watch } from 'vue'
 import type { CategoryDTO } from '~/api-services'
 import { apiService, handleApiError, showSuccessToast, showErrorToast } from '~/api-services/api-service'
-import { useApiCompat } from '~/composables/useApi'
+import { useApi } from '~/composables/useApi'
 
 // Define page meta
 definePageMeta({
   middleware: ['auth']
 })
 
-const apiCompat = useApiCompat()
+const apiCompat = useApi()
 
 // Define interface for form state
 interface CategoryForm {

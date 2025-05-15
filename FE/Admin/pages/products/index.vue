@@ -19,7 +19,7 @@
         Add Product
       </UButton>
     </div>
-    
+
     <!-- Products Table -->
     <UCard class="mt-6">
       <UTable
@@ -32,24 +32,24 @@
       >
         <template #image-data="{ row }">
           <img
-            :src="row.imageUrl || '/images/placeholder.png'"
+            :src="imageService.getImageUrl(row.images?.[0]) || '/images/placeholder.png'"
             :alt="row.name"
             class="h-12 w-12 object-cover rounded"
           />
         </template>
-        
+
         <template #price-data="{ row }">
           {{ formatPrice(row.price) }}
         </template>
-        
+
         <template #category-data="{ row }">
           {{ getCategoryName(row.categoryId) }}
         </template>
-        
+
         <template #createdAt-data="{ row }">
           {{ formatDate(row.createdAt) }}
         </template>
-        
+
         <template #actions-data="{ row }">
           <div class="flex space-x-2">
             <UButton
@@ -76,7 +76,7 @@
           </div>
         </template>
       </UTable>
-      
+
       <!-- Pagination -->
       <div class="mt-4 flex items-center justify-between">
         <div class="text-sm text-gray-600 dark:text-gray-400">
@@ -91,7 +91,7 @@
         />
       </div>
     </UCard>
-    
+
     <!-- Add/Edit Product Modal -->
     <UModal v-model="isModalOpen" :ui="{ width: 'max-w-3xl' }">
       <UCard>
@@ -106,7 +106,7 @@
             />
           </div>
         </template>
-        
+
         <UForm :state="formState" class="space-y-4" @submit="saveProduct">
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <UFormGroup label="Name" name="name" required>
@@ -116,7 +116,17 @@
                 required
               />
             </UFormGroup>
-            
+
+            <UFormGroup label="SKU" name="sku" required>
+              <UInput
+                v-model="formState.sku"
+                placeholder="Enter product SKU"
+                required
+              />
+            </UFormGroup>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <UFormGroup label="Price" name="price" required>
               <UInput
                 v-model.number="formState.price"
@@ -127,8 +137,18 @@
                 required
               />
             </UFormGroup>
+
+            <UFormGroup label="Original Price" name="originalPrice">
+              <UInput
+                v-model.number="formState.originalPrice"
+                type="number"
+                min="0"
+                step="0.01"
+                placeholder="0.00"
+              />
+            </UFormGroup>
           </div>
-          
+
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <UFormGroup label="Category" name="categoryId" required>
               <USelect
@@ -141,7 +161,7 @@
                 :nullable="true"
               />
             </UFormGroup>
-            
+
             <UFormGroup label="Stock" name="stockQuantity">
               <UInput
                 v-model.number="formState.stockQuantity"
@@ -152,7 +172,7 @@
               />
             </UFormGroup>
           </div>
-          
+
           <UFormGroup label="Description" name="description">
             <UTextarea
               v-model="formState.description"
@@ -160,53 +180,96 @@
               :rows="3"
             />
           </UFormGroup>
-          
+
           <UFormGroup label="Product Images" name="images">
             <div class="space-y-2">
-              <UFileInput
-                v-model="formState.images"
-                placeholder="Select images"
-                accept="image/*"
-                multiple
-                :ui="{ base: 'w-full' }"
-              />
-              
-              <div v-if="formState.imageUrls.length || imagePreview.length" class="mt-2 grid grid-cols-4 gap-2">
-                <div v-for="(url, index) in formState.imageUrls" :key="`existing-${index}`" class="relative">
-                  <img
-                    :src="url"
-                    alt="Product image"
-                    class="h-24 w-full object-cover rounded border"
-                  />
-                  <UButton
-                    color="red"
-                    variant="solid"
-                    icon="i-heroicons-x-mark"
-                    size="xs"
-                    class="absolute top-1 right-1"
-                    @click="removeExistingImage(index)"
-                  />
+              <div class="flex items-center space-x-2">
+                <div class="relative flex-grow" ref="fileInputRef">
+                  <input type="file" multiple @change="handleFileChange" class="hidden" />
                 </div>
-                
-                <div v-for="(preview, index) in imagePreview" :key="`preview-${index}`" class="relative">
-                  <img
-                    :src="preview"
-                    alt="Image preview"
-                    class="h-24 w-full object-cover rounded border"
-                  />
-                  <UButton
-                    color="red"
-                    variant="solid"
-                    icon="i-heroicons-x-mark"
-                    size="xs"
-                    class="absolute top-1 right-1"
-                    @click="removeNewImage(index)"
-                  />
+                <UButton
+                  color="primary"
+                  icon="i-heroicons-photo"
+                  @click="triggerFileInput"
+                  title="Upload Images"
+                >
+                  Choose Images
+                </UButton>
+              </div>
+
+              <div class="mt-2">
+                <p class="text-sm text-gray-500 mb-2">
+                  {{ isEditing ? 'Current and new images will be displayed below. You can remove images or set a default image.' : 'New images will be displayed below.' }}
+                </p>
+
+                <!-- Existing images section -->
+                <div v-if="formState.existingImages.length > 0" class="mb-4">
+                  <h4 class="text-sm font-medium mb-2">Current Images</h4>
+                  <div class="grid grid-cols-4 gap-2">
+                    <div v-for="(imageUrl, index) in formState.existingImages" :key="`existing-${index}`" class="relative">
+                      <img
+                        :src="imageService.getImageUrl(imageUrl)"
+                        alt="Product image"
+                        class="h-24 w-full object-cover rounded border"
+                      />
+                      <UButton
+                        color="red"
+                        variant="solid"
+                        icon="i-heroicons-x-mark"
+                        size="xs"
+                        class="absolute top-1 right-1"
+                        @click="removeExistingImage(index)"
+                      />
+                      <UButton
+                        v-if="formState.defaultImageIndex !== index"
+                        color="green"
+                        variant="solid"
+                        icon="i-heroicons-star"
+                        size="xs"
+                        class="absolute top-1 left-1"
+                        @click="setDefaultImage(index)"
+                        title="Set as default image"
+                      />
+                      <div
+                        v-if="formState.defaultImageIndex === index"
+                        class="absolute top-1 left-1 bg-green-500 text-white text-xs px-1 rounded"
+                        title="Default image"
+                      >
+                        Default
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- New images preview section -->
+                <div v-if="imagePreview.length > 0" class="mb-2">
+                  <h4 class="text-sm font-medium mb-2">New Images</h4>
+                  <div class="grid grid-cols-4 gap-2">
+                    <div v-for="(preview, index) in imagePreview" :key="`preview-${index}`" class="relative">
+                      <img
+                        :src="preview"
+                        alt="Image preview"
+                        class="h-24 w-full object-cover rounded border"
+                      />
+                      <UButton
+                        color="red"
+                        variant="solid"
+                        icon="i-heroicons-x-mark"
+                        size="xs"
+                        class="absolute top-1 right-1"
+                        @click="removeNewImage(index)"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div v-if="!formState.existingImages.length && !imagePreview.length" class="text-center p-4 border border-dashed rounded">
+                  <p class="text-gray-500">No images selected</p>
                 </div>
               </div>
             </div>
           </UFormGroup>
-          
+
           <UFormGroup name="isActive">
             <UCheckbox
               v-model="formState.isActive"
@@ -214,7 +277,7 @@
               name="isActive"
             />
           </UFormGroup>
-          
+
           <div class="flex justify-end space-x-2">
             <UButton
               color="gray"
@@ -235,7 +298,7 @@
         </UForm>
       </UCard>
     </UModal>
-    
+
     <!-- Delete Confirmation Modal -->
     <UModal v-model="isDeleteModalOpen">
       <UCard>
@@ -250,10 +313,10 @@
             />
           </div>
         </template>
-        
+
         <p>Are you sure you want to delete the product "{{ selectedProduct?.name }}"?</p>
         <p class="mt-2 text-sm text-red-600">This action cannot be undone.</p>
-        
+
         <template #footer>
           <div class="flex justify-end space-x-2">
             <UButton
@@ -280,16 +343,18 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, watch } from 'vue'
-import type { CategoryDTO, ProductDTO, ProductImageDTO } from '~/api-services'
+import type { CategoryDTO, ProductDTO } from '~/api-services'
 import { apiService, handleApiError, showSuccessToast, showErrorToast } from '~/api-services/api-service'
-import { useApiCompat } from '~/composables/useApi'
+import { useApi } from '~/composables/useApi'
+import { useImage } from '~/composables/useImage'
 
 // Define page meta
 definePageMeta({
   middleware: ['auth']
 })
 
-const apiCompat = useApiCompat()
+const apiCompat = useApi()
+const imageService = useImage()
 
 // Table columns
 const columns = [
@@ -312,9 +377,13 @@ interface ProductForm {
   category?: number | null;
   categoryId?: number | undefined;
   images: FileList | null;
-  imageUrls: string[];
-  imageUrl: string;
+  existingImages: string[];
+  defaultImageIndex?: number;
   isActive: boolean;
+  slug?: string;
+  sku?: string;
+  originalPrice?: number;
+  isFeatured?: boolean;
 }
 
 // State
@@ -343,9 +412,13 @@ const formState = reactive<ProductForm>({
   category: null,
   categoryId: undefined,
   images: null,
-  imageUrls: [],
-  imageUrl: '',
-  isActive: true
+  existingImages: [],
+  defaultImageIndex: undefined,
+  isActive: true,
+  slug: '',
+  sku: '',
+  originalPrice: 0,
+  isFeatured: false
 })
 
 // Computed properties
@@ -353,12 +426,12 @@ const isEditing = computed(() => !!formState.id)
 
 const categoryOptions = computed(() => [
   { id: undefined, name: 'All Categories' },
-  ...categories.value
+  ...categories?.value
 ])
 
 const filteredProducts = computed(() => {
-  return selectedCategory.value 
-    ? products.value.filter(product => product.categoryId === selectedCategory.value) 
+  return selectedCategory.value
+    ? products.value.filter(product => product.categoryId === selectedCategory.value)
     : products.value
 })
 
@@ -417,15 +490,27 @@ const openAddModal = (): void => {
     category: null,
     categoryId: undefined,
     images: null,
-    imageUrls: [],
-    imageUrl: '',
-    isActive: true
+    existingImages: [],
+    defaultImageIndex: undefined,
+    isActive: true,
+    slug: '',
+    sku: '', // SKU sẽ được người dùng nhập, là trường bắt buộc
+    originalPrice: 0,
+    isFeatured: false
   })
   imagePreview.value = []
   isModalOpen.value = true
 }
 
 const editProduct = (product: ProductDTO): void => {
+  // Lấy danh sách URL hình ảnh từ product.images
+  const existingImages = product.images?.map(img => typeof img === 'string' ? img : img.imageUrl) || []
+
+  // Tìm hình ảnh mặc định (nếu có)
+  const defaultImageIndex = product.images?.findIndex(img =>
+    typeof img === 'object' && img.isDefault === true
+  )
+
   Object.assign(formState, {
     id: product.id,
     name: product.name || '',
@@ -434,9 +519,13 @@ const editProduct = (product: ProductDTO): void => {
     stockQuantity: product.stockQuantity || 0,
     categoryId: product.categoryId || undefined,
     images: null,
-    imageUrls: product.images?.map(img => img.imageUrl || '') || [],
-    imageUrl: product.imageUrl || '',
-    isActive: product.isActive ?? true
+    existingImages: existingImages.filter(Boolean) as string[],
+    defaultImageIndex: defaultImageIndex !== -1 ? defaultImageIndex : undefined,
+    isActive: product.isActive ?? true,
+    slug: product.slug || '',
+    sku: product.sku || '',
+    originalPrice: product.originalPrice || 0,
+    isFeatured: product.isFeatured || false
   })
   imagePreview.value = []
   isModalOpen.value = true
@@ -446,30 +535,56 @@ const saveProduct = async (): Promise<void> => {
   isSaving.value = true
   try {
     const formData = new FormData()
-    
+
     // Thêm các trường cơ bản
     formData.append('name', formState.name || '')
     formData.append('description', formState.description || '')
     formData.append('price', (formState.price || 0).toString())
     formData.append('stockQuantity', (formState.stockQuantity || 0).toString())
-    
+
+    // Thêm các trường bổ sung
+    if (formState.slug) {
+      formData.append('slug', formState.slug)
+    } else {
+      // Tạo slug từ tên sản phẩm nếu không có
+      formData.append('slug', formState.name.toLowerCase().replace(/\s+/g, '-'))
+    }
+
+    // SKU là trường bắt buộc
+    formData.append('sku', formState.sku || '')
+
+    if (formState.originalPrice !== undefined) {
+      formData.append('originalPrice', formState.originalPrice.toString())
+    }
+
+    if (formState.isFeatured !== undefined) {
+      formData.append('isFeatured', formState.isFeatured.toString())
+    }
+
     // Thêm categoryId nếu có
     if (formState.categoryId !== undefined) {
       formData.append('categoryId', formState.categoryId.toString())
     }
-    
+
     // Thêm trạng thái
     formData.append('isActive', formState.isActive.toString())
 
-    // Thêm các hình ảnh đã tồn tại
-    formState.imageUrls.forEach((url: string, index: number) => {
-      formData.append(`existingImages[${index}]`, url)
-    })
+    // Thêm thông tin về hình ảnh đã tồn tại
+    if (formState.existingImages.length > 0) {
+      formState.existingImages.forEach((imageUrl, index) => {
+        formData.append(`existingImages[${index}]`, imageUrl)
+
+        // Đánh dấu hình ảnh mặc định
+        if (formState.defaultImageIndex === index) {
+          formData.append('defaultImageIndex', index.toString())
+        }
+      })
+    }
 
     // Thêm các file hình ảnh mới
     if (formState.images) {
       for (let i = 0; i < formState.images.length; i++) {
-        const file = formState.images.item(i)
+        const file = formState.images[i]
         if (file) {
           formData.append('images', file)
         }
@@ -543,28 +658,56 @@ const toggleStatus = async (product: ProductDTO): Promise<void> => {
 }
 
 const removeExistingImage = (index: number): void => {
-  formState.imageUrls.splice(index, 1)
+  // Nếu xóa hình ảnh mặc định, cần reset defaultImageIndex
+  if (formState.defaultImageIndex === index) {
+    formState.defaultImageIndex = undefined
+  } else if (formState.defaultImageIndex !== undefined && formState.defaultImageIndex > index) {
+    // Nếu xóa hình ảnh trước hình ảnh mặc định, cần giảm defaultImageIndex
+    formState.defaultImageIndex--
+  }
+
+  formState.existingImages.splice(index, 1)
+}
+
+const setDefaultImage = (index: number): void => {
+  formState.defaultImageIndex = index
 }
 
 const removeNewImage = (index: number): void => {
   if (!formState.images) return;
-  
-  // Tạo DataTransfer object mới
-  const dt = new DataTransfer()
-  
-  // Thêm các file còn lại vào DataTransfer, bỏ qua file ở vị trí index
-  for (let i = 0; i < formState.images.length; i++) {
-    const file = formState.images.item(i)
-    if (i !== index && file) {
-      dt.items.add(file)
+
+  const newArr = formState.images.filter((_, i) => i !== index);
+  formState.images = newArr
+  imagePreview.value = Array.from(newArr || []).map((file) => URL.createObjectURL(file));
+  console.log(formState.images, imagePreview.value)
+}
+
+// Ref cho input file
+const fileInputRef = ref<HTMLElement | null>(null)
+
+// Hàm kích hoạt sự kiện click trên input file
+const triggerFileInput = (): void => {
+  // Sử dụng ref để truy cập input file
+  if (fileInputRef.value) {
+    // Tìm input trong component
+    const inputElement = fileInputRef.value.querySelector('input[type="file"]')
+    if (inputElement) {
+      // Kích hoạt sự kiện click
+      inputElement.click()
     }
   }
-  
-  // Cập nhật formState.images với FileList mới
-  formState.images = dt.files
-  
-  // Cập nhật preview
-  imagePreview.value.splice(index, 1)
+}
+
+const handleFileChange = (event: Event): void => {
+  const target = event.target as HTMLInputElement
+  if (target.files) {
+    const files = Array.from(target.files)
+    const newImages = Array.from(formState.images || [])
+    newImages.push(...files)
+    formState.images = newImages
+    imagePreview.value = Array.from(formState.images || []).map((file) => URL.createObjectURL(file))
+  }
+  target.value = ''
 }
 
 const sortTable = (column: string, direction: string): void => {
@@ -585,6 +728,10 @@ const formatDate = (dateString: string): string => {
   })
 }
 
+const isDefaultImage = (index: number): boolean => {
+  return formState.defaultImageIndex === index
+}
+
 const formatPrice = (price: number): string => {
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
@@ -599,22 +746,7 @@ const getCategoryName = (id: number): string => {
 
 // Watch for image changes to create preview
 watch(() => formState.images, (newImages) => {
-  imagePreview.value = []
-  
-  if (newImages) {
-    for (let i = 0; i < newImages.length; i++) {
-      const file = newImages.item(i)
-      if (file) {
-        const reader = new FileReader()
-        reader.onload = (e: ProgressEvent<FileReader>) => {
-          if (e.target?.result) {
-            imagePreview.value.push(e.target.result as string)
-          }
-        }
-        reader.readAsDataURL(file)
-      }
-    }
-  }
+
 }, { deep: true })
 
 // Fetch data on component mount
@@ -622,4 +754,4 @@ onMounted(() => {
   fetchCategories()
   fetchProducts()
 })
-</script> 
+</script>

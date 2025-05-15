@@ -24,39 +24,38 @@ namespace DecorStore.API.Repositories
 
             var query = _context.Products
                 .Include(p => p.Category)
-                .Include(p => p.Images)
                 .Include(p => p.Reviews)
                 .AsQueryable();
-            
+
             // Apply filters
             if (!string.IsNullOrEmpty(filter.SearchTerm))
             {
-                query = query.Where(p => 
-                    p.Name.Contains(filter.SearchTerm) || 
+                query = query.Where(p =>
+                    p.Name.Contains(filter.SearchTerm) ||
                     p.Description.Contains(filter.SearchTerm) ||
                     p.SKU.Contains(filter.SearchTerm));
             }
-            
+
             if (filter.CategoryId.HasValue)
             {
                 query = query.Where(p => p.CategoryId == filter.CategoryId.Value);
             }
-            
+
             if (filter.MinPrice.HasValue)
             {
                 query = query.Where(p => p.Price >= filter.MinPrice.Value);
             }
-            
+
             if (filter.MaxPrice.HasValue)
             {
                 query = query.Where(p => p.Price <= filter.MaxPrice.Value);
             }
-            
+
             if (filter.IsFeatured.HasValue)
             {
                 query = query.Where(p => p.IsFeatured == filter.IsFeatured.Value);
             }
-            
+
             // Apply pagination
             return await query
                 .OrderByDescending(p => p.CreatedAt)
@@ -68,36 +67,36 @@ namespace DecorStore.API.Repositories
         public async Task<int> GetTotalCountAsync(ProductFilterDTO filter)
         {
             var query = _context.Products.AsQueryable();
-            
+
             // Apply filters
             if (!string.IsNullOrEmpty(filter.SearchTerm))
             {
-                query = query.Where(p => 
-                    p.Name.Contains(filter.SearchTerm) || 
+                query = query.Where(p =>
+                    p.Name.Contains(filter.SearchTerm) ||
                     p.Description.Contains(filter.SearchTerm) ||
                     p.SKU.Contains(filter.SearchTerm));
             }
-            
+
             if (filter.CategoryId.HasValue)
             {
                 query = query.Where(p => p.CategoryId == filter.CategoryId.Value);
             }
-            
+
             if (filter.MinPrice.HasValue)
             {
                 query = query.Where(p => p.Price >= filter.MinPrice.Value);
             }
-            
+
             if (filter.MaxPrice.HasValue)
             {
                 query = query.Where(p => p.Price <= filter.MaxPrice.Value);
             }
-            
+
             if (filter.IsFeatured.HasValue)
             {
                 query = query.Where(p => p.IsFeatured == filter.IsFeatured.Value);
             }
-            
+
             return await query.CountAsync();
         }
 
@@ -105,7 +104,6 @@ namespace DecorStore.API.Repositories
         {
             return await _context.Products
                 .Include(p => p.Category)
-                .Include(p => p.Images)
                 .Include(p => p.Reviews)
                 .ThenInclude(r => r.User)
                 .FirstOrDefaultAsync(p => p.Id == id);
@@ -115,7 +113,6 @@ namespace DecorStore.API.Repositories
         {
             return await _context.Products
                 .Include(p => p.Category)
-                .Include(p => p.Images)
                 .Include(p => p.Reviews)
                 .ThenInclude(r => r.User)
                 .FirstOrDefaultAsync(p => p.Slug == slug);
@@ -161,4 +158,4 @@ namespace DecorStore.API.Repositories
             }
         }
     }
-} 
+}

@@ -734,10 +734,10 @@ export interface Product {
     'category'?: Category;
     /**
      * 
-     * @type {Array<ProductImage>}
+     * @type {Array<string>}
      * @memberof Product
      */
-    'images'?: Array<ProductImage> | null;
+    'images'?: Array<string> | null;
     /**
      * 
      * @type {Array<Review>}
@@ -849,90 +849,10 @@ export interface ProductDTO {
     'updatedAt'?: string;
     /**
      * 
-     * @type {string}
+     * @type {Array<string>}
      * @memberof ProductDTO
      */
-    'imageUrl'?: string | null;
-    /**
-     * 
-     * @type {Array<ProductImageDTO>}
-     * @memberof ProductDTO
-     */
-    'images'?: Array<ProductImageDTO> | null;
-}
-/**
- * 
- * @export
- * @interface ProductImage
- */
-export interface ProductImage {
-    /**
-     * 
-     * @type {number}
-     * @memberof ProductImage
-     */
-    'id'?: number;
-    /**
-     * 
-     * @type {number}
-     * @memberof ProductImage
-     */
-    'productId'?: number;
-    /**
-     * 
-     * @type {string}
-     * @memberof ProductImage
-     */
-    'imageUrl': string;
-    /**
-     * 
-     * @type {boolean}
-     * @memberof ProductImage
-     */
-    'isDefault'?: boolean;
-    /**
-     * 
-     * @type {boolean}
-     * @memberof ProductImage
-     */
-    'isDeleted'?: boolean;
-    /**
-     * 
-     * @type {Product}
-     * @memberof ProductImage
-     */
-    'product'?: Product;
-}
-/**
- * 
- * @export
- * @interface ProductImageDTO
- */
-export interface ProductImageDTO {
-    /**
-     * 
-     * @type {number}
-     * @memberof ProductImageDTO
-     */
-    'id'?: number;
-    /**
-     * 
-     * @type {number}
-     * @memberof ProductImageDTO
-     */
-    'productId'?: number;
-    /**
-     * 
-     * @type {string}
-     * @memberof ProductImageDTO
-     */
-    'imageUrl'?: string | null;
-    /**
-     * 
-     * @type {boolean}
-     * @memberof ProductImageDTO
-     */
-    'isDefault'?: boolean;
+    'images'?: Array<string> | null;
 }
 /**
  * 
@@ -3593,11 +3513,11 @@ export const ProductsApiAxiosParamCreator = function (configuration?: Configurat
          * @param {number} [categoryId] 
          * @param {boolean} [isFeatured] 
          * @param {boolean} [isActive] 
-         * @param {Array<File>} [imageFiles] 
+         * @param {Array<File>} [images] 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        apiProductsIdPut: async (id: number, name: string, price: number, slug?: string, description?: string, originalPrice?: number, stockQuantity?: number, sKU?: string, categoryId?: number, isFeatured?: boolean, isActive?: boolean, imageFiles?: Array<File>, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+        apiProductsIdPut: async (id: number, name: string, price: number, slug?: string, description?: string, originalPrice?: number, stockQuantity?: number, sKU?: string, categoryId?: number, isFeatured?: boolean, isActive?: boolean, images?: Array<File>, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'id' is not null or undefined
             assertParamExists('apiProductsIdPut', 'id', id)
             // verify required parameter 'name' is not null or undefined
@@ -3661,9 +3581,9 @@ export const ProductsApiAxiosParamCreator = function (configuration?: Configurat
                 localVarQueryParameter['IsActive'] = isActive;
             }
 
-            if (imageFiles) {
-                imageFiles.forEach((element) => {
-                    localVarFormParams.append('ImageFiles', element as any);
+            if (images) {
+                images.forEach((element) => {
+                    localVarFormParams.append('Images', element as any);
                 })
             }
 
@@ -3693,11 +3613,11 @@ export const ProductsApiAxiosParamCreator = function (configuration?: Configurat
          * @param {number} [originalPrice] 
          * @param {boolean} [isFeatured] 
          * @param {boolean} [isActive] 
-         * @param {Array<File>} [imageFiles] 
+         * @param {Array<File>} [images] 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        apiProductsPost: async (name: string, slug: string, price: number, stockQuantity: number, sKU: string, categoryId: number, description?: string, originalPrice?: number, isFeatured?: boolean, isActive?: boolean, imageFiles?: Array<File>, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+        apiProductsPost: async (name: string, slug: string, price: number, stockQuantity: number, sKU: string, categoryId: number, description?: string, originalPrice?: number, isFeatured?: boolean, isActive?: boolean, images?: Array<File>, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'name' is not null or undefined
             assertParamExists('apiProductsPost', 'name', name)
             // verify required parameter 'slug' is not null or undefined
@@ -3766,9 +3686,9 @@ export const ProductsApiAxiosParamCreator = function (configuration?: Configurat
                 localVarQueryParameter['IsActive'] = isActive;
             }
 
-            if (imageFiles) {
-                imageFiles.forEach((element) => {
-                    localVarFormParams.append('ImageFiles', element as any);
+            if (images) {
+                images.forEach((element) => {
+                    localVarFormParams.append('Images', element as any);
                 })
             }
 
@@ -3856,12 +3776,12 @@ export const ProductsApiFp = function(configuration?: Configuration) {
          * @param {number} [categoryId] 
          * @param {boolean} [isFeatured] 
          * @param {boolean} [isActive] 
-         * @param {Array<File>} [imageFiles] 
+         * @param {Array<File>} [images] 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async apiProductsIdPut(id: number, name: string, price: number, slug?: string, description?: string, originalPrice?: number, stockQuantity?: number, sKU?: string, categoryId?: number, isFeatured?: boolean, isActive?: boolean, imageFiles?: Array<File>, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.apiProductsIdPut(id, name, price, slug, description, originalPrice, stockQuantity, sKU, categoryId, isFeatured, isActive, imageFiles, options);
+        async apiProductsIdPut(id: number, name: string, price: number, slug?: string, description?: string, originalPrice?: number, stockQuantity?: number, sKU?: string, categoryId?: number, isFeatured?: boolean, isActive?: boolean, images?: Array<File>, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.apiProductsIdPut(id, name, price, slug, description, originalPrice, stockQuantity, sKU, categoryId, isFeatured, isActive, images, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['ProductsApi.apiProductsIdPut']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
@@ -3878,12 +3798,12 @@ export const ProductsApiFp = function(configuration?: Configuration) {
          * @param {number} [originalPrice] 
          * @param {boolean} [isFeatured] 
          * @param {boolean} [isActive] 
-         * @param {Array<File>} [imageFiles] 
+         * @param {Array<File>} [images] 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async apiProductsPost(name: string, slug: string, price: number, stockQuantity: number, sKU: string, categoryId: number, description?: string, originalPrice?: number, isFeatured?: boolean, isActive?: boolean, imageFiles?: Array<File>, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<Product>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.apiProductsPost(name, slug, price, stockQuantity, sKU, categoryId, description, originalPrice, isFeatured, isActive, imageFiles, options);
+        async apiProductsPost(name: string, slug: string, price: number, stockQuantity: number, sKU: string, categoryId: number, description?: string, originalPrice?: number, isFeatured?: boolean, isActive?: boolean, images?: Array<File>, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<Product>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.apiProductsPost(name, slug, price, stockQuantity, sKU, categoryId, description, originalPrice, isFeatured, isActive, images, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['ProductsApi.apiProductsPost']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
@@ -3940,7 +3860,7 @@ export const ProductsApiFactory = function (configuration?: Configuration, baseP
          * @throws {RequiredError}
          */
         apiProductsIdPut(requestParameters: ProductsApiApiProductsIdPutRequest, options?: RawAxiosRequestConfig): AxiosPromise<void> {
-            return localVarFp.apiProductsIdPut(requestParameters.id, requestParameters.name, requestParameters.price, requestParameters.slug, requestParameters.description, requestParameters.originalPrice, requestParameters.stockQuantity, requestParameters.sKU, requestParameters.categoryId, requestParameters.isFeatured, requestParameters.isActive, requestParameters.imageFiles, options).then((request) => request(axios, basePath));
+            return localVarFp.apiProductsIdPut(requestParameters.id, requestParameters.name, requestParameters.price, requestParameters.slug, requestParameters.description, requestParameters.originalPrice, requestParameters.stockQuantity, requestParameters.sKU, requestParameters.categoryId, requestParameters.isFeatured, requestParameters.isActive, requestParameters.images, options).then((request) => request(axios, basePath));
         },
         /**
          * 
@@ -3949,7 +3869,7 @@ export const ProductsApiFactory = function (configuration?: Configuration, baseP
          * @throws {RequiredError}
          */
         apiProductsPost(requestParameters: ProductsApiApiProductsPostRequest, options?: RawAxiosRequestConfig): AxiosPromise<Product> {
-            return localVarFp.apiProductsPost(requestParameters.name, requestParameters.slug, requestParameters.price, requestParameters.stockQuantity, requestParameters.sKU, requestParameters.categoryId, requestParameters.description, requestParameters.originalPrice, requestParameters.isFeatured, requestParameters.isActive, requestParameters.imageFiles, options).then((request) => request(axios, basePath));
+            return localVarFp.apiProductsPost(requestParameters.name, requestParameters.slug, requestParameters.price, requestParameters.stockQuantity, requestParameters.sKU, requestParameters.categoryId, requestParameters.description, requestParameters.originalPrice, requestParameters.isFeatured, requestParameters.isActive, requestParameters.images, options).then((request) => request(axios, basePath));
         },
     };
 };
@@ -4084,7 +4004,7 @@ export interface ProductsApiApiProductsIdPutRequest {
      * @type {Array<File>}
      * @memberof ProductsApiApiProductsIdPut
      */
-    readonly imageFiles?: Array<File>
+    readonly images?: Array<File>
 }
 
 /**
@@ -4168,7 +4088,7 @@ export interface ProductsApiApiProductsPostRequest {
      * @type {Array<File>}
      * @memberof ProductsApiApiProductsPost
      */
-    readonly imageFiles?: Array<File>
+    readonly images?: Array<File>
 }
 
 /**
@@ -4229,7 +4149,7 @@ export class ProductsApi extends BaseAPI {
      * @memberof ProductsApi
      */
     public apiProductsIdPut(requestParameters: ProductsApiApiProductsIdPutRequest, options?: RawAxiosRequestConfig) {
-        return ProductsApiFp(this.configuration).apiProductsIdPut(requestParameters.id, requestParameters.name, requestParameters.price, requestParameters.slug, requestParameters.description, requestParameters.originalPrice, requestParameters.stockQuantity, requestParameters.sKU, requestParameters.categoryId, requestParameters.isFeatured, requestParameters.isActive, requestParameters.imageFiles, options).then((request) => request(this.axios, this.basePath));
+        return ProductsApiFp(this.configuration).apiProductsIdPut(requestParameters.id, requestParameters.name, requestParameters.price, requestParameters.slug, requestParameters.description, requestParameters.originalPrice, requestParameters.stockQuantity, requestParameters.sKU, requestParameters.categoryId, requestParameters.isFeatured, requestParameters.isActive, requestParameters.images, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**
@@ -4240,7 +4160,7 @@ export class ProductsApi extends BaseAPI {
      * @memberof ProductsApi
      */
     public apiProductsPost(requestParameters: ProductsApiApiProductsPostRequest, options?: RawAxiosRequestConfig) {
-        return ProductsApiFp(this.configuration).apiProductsPost(requestParameters.name, requestParameters.slug, requestParameters.price, requestParameters.stockQuantity, requestParameters.sKU, requestParameters.categoryId, requestParameters.description, requestParameters.originalPrice, requestParameters.isFeatured, requestParameters.isActive, requestParameters.imageFiles, options).then((request) => request(this.axios, this.basePath));
+        return ProductsApiFp(this.configuration).apiProductsPost(requestParameters.name, requestParameters.slug, requestParameters.price, requestParameters.stockQuantity, requestParameters.sKU, requestParameters.categoryId, requestParameters.description, requestParameters.originalPrice, requestParameters.isFeatured, requestParameters.isActive, requestParameters.images, options).then((request) => request(this.axios, this.basePath));
     }
 }
 

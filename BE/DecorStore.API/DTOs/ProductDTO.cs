@@ -23,8 +23,7 @@ namespace DecorStore.API.DTOs
         public float AverageRating { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime UpdatedAt { get; set; }
-        public string? ImageUrl { get; set; }
-        public List<ProductImageDTO> Images { get; set; } = new();
+        public string[] Images { get; set; }
     }
     
     // DTO for creating a new product
@@ -61,7 +60,7 @@ namespace DecorStore.API.DTOs
         public bool IsActive { get; set; } = true;
         
         // For image upload
-        public List<IFormFile>? ImageFiles { get; set; }
+        public List<IFormFile>? Images { get; set; }
     }
     
     // DTO for updating a product
@@ -94,7 +93,7 @@ namespace DecorStore.API.DTOs
         public bool IsActive { get; set; }
         
         // For image upload
-        public List<IFormFile> ImageFiles { get; set; }
+        public List<IFormFile> Images { get; set; }
     }
     
     // DTO for product filtering/searching

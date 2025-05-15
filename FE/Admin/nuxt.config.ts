@@ -9,7 +9,8 @@ export default defineNuxtConfig({
   ],
   runtimeConfig: {
     public: {
-      apiBaseUrl: 'http://localhost:5000'
+      apiBaseUrl: 'http://localhost:5000',
+      apiImageResourceUrl: 'http://localhost:5000/resources'
     }
   }
 })

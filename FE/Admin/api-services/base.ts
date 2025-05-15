@@ -80,7 +80,7 @@ export class BaseAPI {
 
     public async get<T>(url: string, config?: AxiosRequestConfig) {
         try {
-            const response = await this.axios.get(this.basePath + '/api' + url, config);
+            const response = await this.axios.get(this.basePath + '/api/' + url, config);
             return response;
         } catch (error) {
             console.log('error: ', error);

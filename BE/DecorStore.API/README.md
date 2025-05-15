@@ -53,7 +53,6 @@ DecorStore.API/
 │   ├── OrderItem.cs              # Model mặt hàng trong đơn hàng
 │   ├── Review.cs                 # Model đánh giá
 │   ├── Banner.cs                 # Model banner
-│   └── ProductImage.cs           # Model hình ảnh sản phẩm
 ├── Repositories/                 # Repository pattern
 │   ├── IProductRepository.cs     # Interface cho repository sản phẩm
 │   ├── ProductRepository.cs      # Repository sản phẩm

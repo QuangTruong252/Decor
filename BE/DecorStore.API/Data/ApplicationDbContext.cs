@@ -17,7 +17,6 @@ namespace DecorStore.API.Data
         public DbSet<Category> Categories { get; set; }
         public DbSet<Order> Orders { get; set; }
         public DbSet<OrderItem> OrderItems { get; set; }
-        public DbSet<ProductImage> ProductImages { get; set; }
         public DbSet<Review> Reviews { get; set; }
         public DbSet<Banner> Banners { get; set; }
         
@@ -31,7 +30,6 @@ namespace DecorStore.API.Data
             modelBuilder.Entity<Category>().HasQueryFilter(c => !c.IsDeleted);
             modelBuilder.Entity<Order>().HasQueryFilter(o => !o.IsDeleted);
             modelBuilder.Entity<OrderItem>().HasQueryFilter(oi => !oi.IsDeleted);
-            modelBuilder.Entity<ProductImage>().HasQueryFilter(pi => !pi.IsDeleted);
             modelBuilder.Entity<Review>().HasQueryFilter(r => !r.IsDeleted);
             modelBuilder.Entity<Banner>().HasQueryFilter(b => !b.IsDeleted);
             
@@ -62,12 +60,6 @@ namespace DecorStore.API.Data
                 .WithMany(c => c.Products)
                 .HasForeignKey(p => p.CategoryId)
                 .OnDelete(DeleteBehavior.Restrict);
-                
-            modelBuilder.Entity<Product>()
-                .HasMany(p => p.Images)
-                .WithOne(i => i.Product)
-                .HasForeignKey(i => i.ProductId)
-                .OnDelete(DeleteBehavior.Cascade);
                 
             modelBuilder.Entity<Product>()
                 .HasMany(p => p.Reviews)

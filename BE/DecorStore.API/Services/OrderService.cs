@@ -144,7 +144,7 @@ namespace DecorStore.API.Services
                     OrderId = oi.OrderId,
                     ProductId = oi.ProductId,
                     ProductName = oi.Product?.Name ?? string.Empty,
-                    ProductImageUrl = oi.Product?.Images?.FirstOrDefault(i => i.IsDefault)?.ImageUrl ?? string.Empty,
+                    ProductImageUrl = oi.Product?.Images.FirstOrDefault() ?? string.Empty,
                     Quantity = oi.Quantity,
                     UnitPrice = oi.UnitPrice,
                     Subtotal = oi.UnitPrice * oi.Quantity
@@ -154,7 +154,6 @@ namespace DecorStore.API.Services
 
         private bool IsValidOrderStatus(string status)
         {
-            // Danh sách các trạng thái hợp lệ
             string[] validStatuses = { "Pending", "Processing", "Shipped", "Delivered", "Cancelled" };
             return validStatuses.Contains(status);
         }

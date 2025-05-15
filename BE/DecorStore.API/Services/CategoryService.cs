@@ -8,25 +8,20 @@ using DecorStore.API.Exceptions;
 using System;
 using Microsoft.AspNetCore.Http;
 using System.IO;
+using DecorStore.API.Interfaces;
 
 namespace DecorStore.API.Services
 {
     public class CategoryService : ICategoryService
     {
         private readonly ICategoryRepository _categoryRepository;
-        private readonly string _uploadDirectory;
+        private readonly string _folderImageName = "categories";
+        private readonly IImageService _imageService;
 
-        public CategoryService(ICategoryRepository categoryRepository, IHttpContextAccessor httpContextAccessor)
+        public CategoryService(ICategoryRepository categoryRepository, IHttpContextAccessor httpContextAccessor, IImageService imageService)
         {
             _categoryRepository = categoryRepository;
-            // Đặt thư mục uploads trong wwwroot
-            _uploadDirectory = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads", "categories");
-            
-            // Đảm bảo thư mục tồn tại
-            if (!Directory.Exists(_uploadDirectory))
-            {
-                Directory.CreateDirectory(_uploadDirectory);
-            }
+            _imageService = imageService;
         }
 
         public async Task<IEnumerable<CategoryDTO>> GetAllCategoriesAsync()
@@ -45,7 +40,7 @@ namespace DecorStore.API.Services
         {
             var category = await _categoryRepository.GetByIdWithChildrenAsync(id);
             if (category == null)
-                return null;
+                throw new NotFoundException("Category not found");
 
             return MapCategoryToDto(category, true);
         }
@@ -54,14 +49,13 @@ namespace DecorStore.API.Services
         {
             var category = await _categoryRepository.GetBySlugAsync(slug);
             if (category == null)
-                return null;
+                throw new NotFoundException("Category not found");
 
             return MapCategoryToDto(category, false);
         }
 
         public async Task<Category> CreateAsync(CreateCategoryDTO categoryDto)
         {
-            // Kiểm tra xem slug đã tồn tại chưa
             if (await _categoryRepository.SlugExistsAsync(categoryDto.Slug))
             {
                 throw new InvalidOperationException("Slug already exists");
@@ -76,19 +70,11 @@ namespace DecorStore.API.Services
                 CreatedAt = DateTime.UtcNow
             };
 
-            // Xử lý upload ảnh nếu có
+            // Handle image upload
             if (categoryDto.ImageFile != null)
             {
-                string fileName = Guid.NewGuid().ToString() + Path.GetExtension(categoryDto.ImageFile.FileName);
-                string filePath = Path.Combine(_uploadDirectory, fileName);
-                
-                using (var stream = new FileStream(filePath, FileMode.Create))
-                {
-                    await categoryDto.ImageFile.CopyToAsync(stream);
-                }
-                
-                // Lưu đường dẫn tương đối
-                category.ImageUrl = "/uploads/categories/" + fileName;
+                var imagePath = await _imageService.UploadImageAsync(categoryDto.ImageFile, _folderImageName);
+                category.ImageUrl = imagePath;
             }
 
             return await _categoryRepository.CreateAsync(category);
@@ -100,7 +86,7 @@ namespace DecorStore.API.Services
             if (category == null)
                 throw new NotFoundException("Category not found");
 
-            // Kiểm tra xem slug đã tồn tại ở category khác chưa
+            // Check slug uniqueness
             if (!string.IsNullOrEmpty(categoryDto.Slug) && 
                 categoryDto.Slug != category.Slug && 
                 await _categoryRepository.SlugExistsAsync(categoryDto.Slug))
@@ -115,31 +101,11 @@ namespace DecorStore.API.Services
             category.Description = categoryDto.Description;
             category.ParentId = categoryDto.ParentId;
 
-            // Xử lý upload ảnh mới nếu có
+            // Handle image update if new image is provided
             if (categoryDto.ImageFile != null)
             {
-                // Xóa ảnh cũ nếu có
-                if (!string.IsNullOrEmpty(category.ImageUrl))
-                {
-                    string oldFilePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", 
-                        category.ImageUrl.TrimStart('/'));
-                    if (File.Exists(oldFilePath))
-                    {
-                        File.Delete(oldFilePath);
-                    }
-                }
-
-                // Lưu ảnh mới
-                string fileName = Guid.NewGuid().ToString() + Path.GetExtension(categoryDto.ImageFile.FileName);
-                string filePath = Path.Combine(_uploadDirectory, fileName);
-                
-                using (var stream = new FileStream(filePath, FileMode.Create))
-                {
-                    await categoryDto.ImageFile.CopyToAsync(stream);
-                }
-                
-                // Cập nhật đường dẫn
-                category.ImageUrl = "/uploads/categories/" + fileName;
+                var imagePath = await _imageService.UpdateImageAsync(category.ImageUrl, categoryDto.ImageFile, _folderImageName);
+                category.ImageUrl = imagePath;
             }
 
             await _categoryRepository.UpdateAsync(category);
@@ -151,10 +117,17 @@ namespace DecorStore.API.Services
             if (category == null)
                 throw new NotFoundException("Category not found");
 
-            // Kiểm tra xem có danh mục con không
+            // Check if the category has subcategories
             if (category.Subcategories != null && category.Subcategories.Any())
                 throw new InvalidOperationException("Cannot delete category with subcategories");
-
+            // Check if the category is used in any products
+            if (category.Products != null && category.Products.Any())
+                throw new InvalidOperationException("Cannot delete category that is used in products");
+            // Delete the image if it exists
+            if (!string.IsNullOrEmpty(category.ImageUrl))
+            {
+                await _imageService.DeleteImageAsync(category.ImageUrl);
+            }
             await _categoryRepository.DeleteAsync(id);
         }
 

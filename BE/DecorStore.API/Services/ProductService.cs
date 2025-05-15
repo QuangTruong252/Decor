@@ -6,16 +6,22 @@ using DecorStore.API.Models;
 using DecorStore.API.Repositories;
 using System;
 using DecorStore.API.Exceptions;
+using DecorStore.API.Interfaces;
+using Azure.Core;
 
 namespace DecorStore.API.Services
 {
     public class ProductService : IProductService
     {
         private readonly IProductRepository _productRepository;
-
-        public ProductService(IProductRepository productRepository)
+        private readonly IImageService _imageService;
+        private readonly ICategoryRepository _categoryRepository;
+        private readonly string _folderImageName = "products";
+        public ProductService(IProductRepository productRepository, IImageService imageService, ICategoryRepository categoryRepository)
         {
             _productRepository = productRepository;
+            _categoryRepository = categoryRepository;
+            _imageService = imageService;
         }
 
         public async Task<IEnumerable<Product>> GetAllAsync(ProductFilterDTO filter)
@@ -25,6 +31,20 @@ namespace DecorStore.API.Services
 
         public async Task<Product> CreateAsync(CreateProductDTO productDto)
         {
+            var category  = await _categoryRepository.GetByIdAsync(productDto.CategoryId);
+            if (category == null)
+                throw new NotFoundException("Category not found");
+            // upload images
+            string[] images = null!;
+            if (productDto.Images != null && productDto.Images.Count > 0)
+            {
+                images = new string[productDto.Images.Count];
+                for (int i = 0; i < productDto.Images.Count; i++)
+                {
+                    var image = await _imageService.UploadImageAsync(productDto.Images[i], _folderImageName);
+                    images[i] = image;
+                }
+            }
             var product = new Product
             {
                 Name = productDto.Name,
@@ -36,7 +56,10 @@ namespace DecorStore.API.Services
                 SKU = productDto.SKU,
                 CategoryId = productDto.CategoryId,
                 IsFeatured = productDto.IsFeatured,
-                IsActive = productDto.IsActive
+                IsActive = productDto.IsActive,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow,
+                Images = images
             };
 
             return await _productRepository.CreateAsync(product);
@@ -44,9 +67,23 @@ namespace DecorStore.API.Services
 
         public async Task UpdateAsync(int id, UpdateProductDTO productDto)
         {
+            var category = await _categoryRepository.GetByIdAsync(productDto.CategoryId);
+            if (category == null)
+                throw new NotFoundException("Category not found");
             var product = await _productRepository.GetByIdAsync(id);
             if (product == null)
                 throw new NotFoundException("Product not found");
+            // Handle image update if new image is provided
+            string[] images = null!;
+            if (productDto.Images != null && productDto.Images.Count > 0)
+            {
+                images = new string[productDto.Images.Count];
+                for (int i = 0; i < productDto.Images.Count; i++)
+                {
+                    var image = await _imageService.UpdateImageAsync(product.Images[i], productDto.Images[i], _folderImageName);
+                    images[i] = image;
+                }
+            }
 
             product.Name = productDto.Name;
             product.Slug = productDto.Slug;
@@ -59,6 +96,7 @@ namespace DecorStore.API.Services
             product.IsFeatured = productDto.IsFeatured;
             product.IsActive = productDto.IsActive;
             product.UpdatedAt = DateTime.UtcNow;
+            product.Images = images ?? product.Images;
 
             await _productRepository.UpdateAsync(product);
         }
@@ -78,6 +116,17 @@ namespace DecorStore.API.Services
 
         public async Task<bool> DeleteProductAsync(int id)
         {
+            var product = await _productRepository.GetByIdAsync(id);
+            if (product == null)
+                throw new NotFoundException("Product not found");
+            // Delete images from storage
+            if (product.Images != null && product.Images.Length > 0)
+            {
+                foreach (var image in product.Images)
+                {
+                    await _imageService.DeleteImageAsync(image);
+                }
+            }
             await _productRepository.DeleteAsync(id);
             return true;
         }
@@ -102,13 +151,7 @@ namespace DecorStore.API.Services
                 AverageRating = product.AverageRating,
                 CreatedAt = product.CreatedAt,
                 UpdatedAt = product.UpdatedAt,
-                Images = product.Images?.Select(i => new ProductImageDTO
-                {
-                    Id = i.Id,
-                    ProductId = i.ProductId,
-                    ImageUrl = i.ImageUrl,
-                    IsDefault = i.IsDefault
-                }).ToList() ?? new List<ProductImageDTO>()
+                Images = product.Images ?? Array.Empty<string>()
             };
         }
     }
