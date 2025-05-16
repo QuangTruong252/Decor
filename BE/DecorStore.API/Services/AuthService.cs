@@ -13,16 +13,10 @@ using Microsoft.IdentityModel.Tokens;
 
 namespace DecorStore.API.Services
 {
-    public class AuthService : IAuthService
+    public class AuthService(ApplicationDbContext context, IConfiguration configuration) : IAuthService
     {
-        private readonly ApplicationDbContext _context;
-        private readonly IConfiguration _configuration;
-
-        public AuthService(ApplicationDbContext context, IConfiguration configuration)
-        {
-            _context = context;
-            _configuration = configuration;
-        }
+        private readonly ApplicationDbContext _context = context;
+        private readonly IConfiguration _configuration = configuration;
 
         public async Task<AuthResponseDTO> RegisterAsync(RegisterDTO registerDto)
         {
@@ -95,7 +89,7 @@ namespace DecorStore.API.Services
             };
         }
 
-        public async Task<UserDTO> GetUserByIdAsync(int id)
+        public async Task<UserDTO?> GetUserByIdAsync(int id)
         {
             var user = await _context.Users.FindAsync(id);
             return user != null ? MapUserToDto(user) : null;
@@ -105,7 +99,8 @@ namespace DecorStore.API.Services
         private string GenerateJwtToken(User user)
         {
             var jwtSettings = _configuration.GetSection("JWT");
-            var key = Encoding.ASCII.GetBytes(jwtSettings["SecretKey"]);
+            var secretKey = jwtSettings["SecretKey"] ?? throw new InvalidOperationException("JWT:SecretKey is not configured");
+            var key = Encoding.ASCII.GetBytes(secretKey);
 
             var tokenHandler = new JwtSecurityTokenHandler();
             var tokenDescriptor = new SecurityTokenDescriptor
@@ -117,7 +112,7 @@ namespace DecorStore.API.Services
                     new Claim(ClaimTypes.Name, user.Username),
                     new Claim(ClaimTypes.Role, user.Role)
                 }),
-                Expires = DateTime.UtcNow.AddMinutes(double.Parse(jwtSettings["ExpiryInMinutes"])),
+                Expires = DateTime.UtcNow.AddMinutes(double.Parse(jwtSettings["ExpiryInMinutes"] ?? "60")),
                 SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature),
                 Issuer = jwtSettings["Issuer"],
                 Audience = jwtSettings["Audience"]
@@ -139,4 +134,4 @@ namespace DecorStore.API.Services
             };
         }
     }
-} 
+}

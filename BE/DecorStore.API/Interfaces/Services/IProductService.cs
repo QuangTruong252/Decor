@@ -11,7 +11,7 @@ namespace DecorStore.API.Services
         Task<Product> CreateAsync(CreateProductDTO productDto);
         Task UpdateAsync(int id, UpdateProductDTO productDto);
         Task<IEnumerable<ProductDTO>> GetAllProductsAsync();
-        Task<ProductDTO> GetProductByIdAsync(int id);
+        Task<ProductDTO?> GetProductByIdAsync(int id);
         Task<bool> DeleteProductAsync(int id);
     }
-} 
+}

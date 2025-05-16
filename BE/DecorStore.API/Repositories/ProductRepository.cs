@@ -136,7 +136,6 @@ namespace DecorStore.API.Repositories
         public async Task<Product> CreateAsync(Product product)
         {
             _context.Products.Add(product);
-            await _context.SaveChangesAsync();
             return product;
         }
 
@@ -144,7 +143,6 @@ namespace DecorStore.API.Repositories
         {
             product.UpdatedAt = System.DateTime.UtcNow;
             _context.Products.Update(product);
-            await _context.SaveChangesAsync();
         }
 
         public async Task DeleteAsync(int id)
@@ -154,7 +152,6 @@ namespace DecorStore.API.Repositories
             {
                 product.IsDeleted = true;
                 product.UpdatedAt = System.DateTime.UtcNow;
-                await _context.SaveChangesAsync();
             }
         }
     }

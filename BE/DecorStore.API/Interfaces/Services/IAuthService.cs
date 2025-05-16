@@ -7,6 +7,6 @@ namespace DecorStore.API.Services
     {
         Task<AuthResponseDTO> RegisterAsync(RegisterDTO registerDto);
         Task<AuthResponseDTO> LoginAsync(LoginDTO loginDto);
-        Task<UserDTO> GetUserByIdAsync(int id);
+        Task<UserDTO?> GetUserByIdAsync(int id);
     }
-} 
+}

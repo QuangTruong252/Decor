@@ -1,124 +1,96 @@
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using DecorStore.API.DTOs;
 using DecorStore.API.Models;
-using DecorStore.API.Repositories;
-using System;
 using DecorStore.API.Exceptions;
 using DecorStore.API.Interfaces;
-using Azure.Core;
+using AutoMapper;
 
 namespace DecorStore.API.Services
 {
-    public class ProductService : IProductService
+    public class ProductService(IUnitOfWork unitOfWork, IImageService imageService, IMapper mapper) : IProductService
     {
-        private readonly IProductRepository _productRepository;
-        private readonly IImageService _imageService;
-        private readonly ICategoryRepository _categoryRepository;
+        private readonly IUnitOfWork _unitOfWork = unitOfWork;
+        private readonly IImageService _imageService = imageService;
+        private readonly IMapper _mapper = mapper;
         private readonly string _folderImageName = "products";
-        public ProductService(IProductRepository productRepository, IImageService imageService, ICategoryRepository categoryRepository)
-        {
-            _productRepository = productRepository;
-            _categoryRepository = categoryRepository;
-            _imageService = imageService;
-        }
 
         public async Task<IEnumerable<Product>> GetAllAsync(ProductFilterDTO filter)
         {
-            return await _productRepository.GetAllAsync(filter);
+            return await _unitOfWork.Products.GetAllAsync(filter);
         }
 
         public async Task<Product> CreateAsync(CreateProductDTO productDto)
         {
-            var category  = await _categoryRepository.GetByIdAsync(productDto.CategoryId);
-            if (category == null)
-                throw new NotFoundException("Category not found");
-            // upload images
-            string[] images = null!;
+            // Verify category exists
+            _ = await _unitOfWork.Categories.GetByIdAsync(productDto.CategoryId)
+                ?? throw new NotFoundException("Category not found");
+
+            // Map DTO to entity
+            var product = _mapper.Map<Product>(productDto);
+
+            // Upload images
             if (productDto.Images != null && productDto.Images.Count > 0)
             {
-                images = new string[productDto.Images.Count];
+                var images = new string[productDto.Images.Count];
                 for (int i = 0; i < productDto.Images.Count; i++)
                 {
                     var image = await _imageService.UploadImageAsync(productDto.Images[i], _folderImageName);
                     images[i] = image;
                 }
+                product.Images = images;
             }
-            var product = new Product
-            {
-                Name = productDto.Name,
-                Slug = productDto.Slug,
-                Description = productDto.Description ?? string.Empty,
-                Price = productDto.Price,
-                OriginalPrice = productDto.OriginalPrice,
-                StockQuantity = productDto.StockQuantity,
-                SKU = productDto.SKU,
-                CategoryId = productDto.CategoryId,
-                IsFeatured = productDto.IsFeatured,
-                IsActive = productDto.IsActive,
-                CreatedAt = DateTime.UtcNow,
-                UpdatedAt = DateTime.UtcNow,
-                Images = images
-            };
 
-            return await _productRepository.CreateAsync(product);
+            await _unitOfWork.Products.CreateAsync(product);
+            await _unitOfWork.SaveChangesAsync();
+            return product;
         }
 
         public async Task UpdateAsync(int id, UpdateProductDTO productDto)
         {
-            var category = await _categoryRepository.GetByIdAsync(productDto.CategoryId);
-            if (category == null)
-                throw new NotFoundException("Category not found");
-            var product = await _productRepository.GetByIdAsync(id);
-            if (product == null)
-                throw new NotFoundException("Product not found");
+            // Verify category exists
+            _ = await _unitOfWork.Categories.GetByIdAsync(productDto.CategoryId)
+                ?? throw new NotFoundException("Category not found");
+
+            // Get product or throw if not found
+            var product = await _unitOfWork.Products.GetByIdAsync(id)
+                ?? throw new NotFoundException("Product not found");
+
+            // Map DTO to entity
+            _mapper.Map(productDto, product);
+
             // Handle image update if new image is provided
-            string[] images = null!;
             if (productDto.Images != null && productDto.Images.Count > 0)
             {
-                images = new string[productDto.Images.Count];
+                var images = new string[productDto.Images.Count];
                 for (int i = 0; i < productDto.Images.Count; i++)
                 {
                     var image = await _imageService.UpdateImageAsync(product.Images[i], productDto.Images[i], _folderImageName);
                     images[i] = image;
                 }
+                product.Images = images;
             }
 
-            product.Name = productDto.Name;
-            product.Slug = productDto.Slug;
-            product.Description = productDto.Description;
-            product.Price = productDto.Price;
-            product.OriginalPrice = productDto.OriginalPrice;
-            product.StockQuantity = productDto.StockQuantity;
-            product.SKU = productDto.SKU;
-            product.CategoryId = productDto.CategoryId;
-            product.IsFeatured = productDto.IsFeatured;
-            product.IsActive = productDto.IsActive;
-            product.UpdatedAt = DateTime.UtcNow;
-            product.Images = images ?? product.Images;
-
-            await _productRepository.UpdateAsync(product);
+            await _unitOfWork.Products.UpdateAsync(product);
+            await _unitOfWork.SaveChangesAsync();
         }
 
         public async Task<IEnumerable<ProductDTO>> GetAllProductsAsync()
         {
             var filter = new ProductFilterDTO { PageNumber = 1, PageSize = 100 };
-            var products = await _productRepository.GetAllAsync(filter);
-            return products.Select(p => MapProductToDto(p));
+            var products = await _unitOfWork.Products.GetAllAsync(filter);
+            return _mapper.Map<IEnumerable<ProductDTO>>(products);
         }
 
-        public async Task<ProductDTO> GetProductByIdAsync(int id)
+        public async Task<ProductDTO?> GetProductByIdAsync(int id)
         {
-            var product = await _productRepository.GetByIdAsync(id);
-            return product != null ? MapProductToDto(product) : null;
+            var product = await _unitOfWork.Products.GetByIdAsync(id);
+            return product != null ? _mapper.Map<ProductDTO>(product) : null;
         }
 
         public async Task<bool> DeleteProductAsync(int id)
         {
-            var product = await _productRepository.GetByIdAsync(id);
-            if (product == null)
-                throw new NotFoundException("Product not found");
+            var product = await _unitOfWork.Products.GetByIdAsync(id)
+                ?? throw new NotFoundException("Product not found");
+
             // Delete images from storage
             if (product.Images != null && product.Images.Length > 0)
             {
@@ -127,32 +99,10 @@ namespace DecorStore.API.Services
                     await _imageService.DeleteImageAsync(image);
                 }
             }
-            await _productRepository.DeleteAsync(id);
+
+            await _unitOfWork.Products.DeleteAsync(id);
+            await _unitOfWork.SaveChangesAsync();
             return true;
         }
-
-        // Helper method to map Product entity to ProductDTO
-        private ProductDTO MapProductToDto(Product product)
-        {
-            return new ProductDTO
-            {
-                Id = product.Id,
-                Name = product.Name,
-                Slug = product.Slug,
-                Description = product.Description,
-                Price = product.Price,
-                OriginalPrice = product.OriginalPrice,
-                StockQuantity = product.StockQuantity,
-                SKU = product.SKU,
-                CategoryId = product.CategoryId,
-                CategoryName = product.Category?.Name ?? string.Empty,
-                IsFeatured = product.IsFeatured,
-                IsActive = product.IsActive,
-                AverageRating = product.AverageRating,
-                CreatedAt = product.CreatedAt,
-                UpdatedAt = product.UpdatedAt,
-                Images = product.Images ?? Array.Empty<string>()
-            };
-        }
     }
-} 
+}

@@ -14,5 +14,6 @@ namespace DecorStore.API.Repositories
         Task UpdateAsync(Order order);
         Task UpdateStatusAsync(int id, string status);
         Task DeleteAsync(int id);
+        void AddOrderItem(OrderItem orderItem);
     }
-} 
+}

@@ -1,16 +1,10 @@
 using DecorStore.API.Models;
 using Microsoft.EntityFrameworkCore;
-using System;
-using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 namespace DecorStore.API.Data
 {
-    public class ApplicationDbContext : DbContext
+    public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : DbContext(options)
     {
-        public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
-            : base(options)
-        {
-        }
 
         public DbSet<Product> Products { get; set; }
         public DbSet<User> Users { get; set; }
@@ -19,11 +13,11 @@ namespace DecorStore.API.Data
         public DbSet<OrderItem> OrderItems { get; set; }
         public DbSet<Review> Reviews { get; set; }
         public DbSet<Banner> Banners { get; set; }
-        
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
-            
+
             // Global query filter for soft delete
             modelBuilder.Entity<Product>().HasQueryFilter(p => !p.IsDeleted);
             modelBuilder.Entity<User>().HasQueryFilter(u => !u.IsDeleted);
@@ -32,89 +26,89 @@ namespace DecorStore.API.Data
             modelBuilder.Entity<OrderItem>().HasQueryFilter(oi => !oi.IsDeleted);
             modelBuilder.Entity<Review>().HasQueryFilter(r => !r.IsDeleted);
             modelBuilder.Entity<Banner>().HasQueryFilter(b => !b.IsDeleted);
-            
+
             // Configure unique indexes
             modelBuilder.Entity<User>()
                 .HasIndex(u => u.Email)
                 .IsUnique();
-                
+
             modelBuilder.Entity<User>()
                 .HasIndex(u => u.Username)
                 .IsUnique();
-                
+
             modelBuilder.Entity<Product>()
                 .HasIndex(p => p.Slug)
                 .IsUnique();
-                
+
             modelBuilder.Entity<Product>()
                 .HasIndex(p => p.SKU)
                 .IsUnique();
-                
+
             modelBuilder.Entity<Category>()
                 .HasIndex(c => c.Slug)
                 .IsUnique();
-            
+
             // Configure relationships
             modelBuilder.Entity<Product>()
                 .HasOne(p => p.Category)
                 .WithMany(c => c.Products)
                 .HasForeignKey(p => p.CategoryId)
                 .OnDelete(DeleteBehavior.Restrict);
-                
+
             modelBuilder.Entity<Product>()
                 .HasMany(p => p.Reviews)
                 .WithOne(r => r.Product)
                 .HasForeignKey(r => r.ProductId)
                 .OnDelete(DeleteBehavior.Cascade);
-                
+
             modelBuilder.Entity<User>()
                 .HasMany(u => u.Orders)
                 .WithOne(o => o.User)
                 .HasForeignKey(o => o.UserId)
                 .OnDelete(DeleteBehavior.Restrict);
-                
+
             modelBuilder.Entity<User>()
                 .HasMany(u => u.Reviews)
                 .WithOne(r => r.User)
                 .HasForeignKey(r => r.UserId)
                 .OnDelete(DeleteBehavior.Restrict);
-                
+
             modelBuilder.Entity<Order>()
                 .HasMany(o => o.OrderItems)
                 .WithOne(oi => oi.Order)
                 .HasForeignKey(oi => oi.OrderId)
                 .OnDelete(DeleteBehavior.Cascade);
-                
+
             modelBuilder.Entity<Category>()
                 .HasOne(c => c.ParentCategory)
                 .WithMany(c => c.Subcategories)
                 .HasForeignKey(c => c.ParentId)
                 .OnDelete(DeleteBehavior.Restrict)
                 .IsRequired(false);
-            
+
             // Configure decimal precision
             modelBuilder.Entity<Product>()
                 .Property(p => p.Price)
                 .HasColumnType("decimal(18,2)");
-                
+
             modelBuilder.Entity<Product>()
                 .Property(p => p.OriginalPrice)
                 .HasColumnType("decimal(18,2)");
-                
+
             modelBuilder.Entity<Order>()
                 .Property(o => o.TotalAmount)
                 .HasColumnType("decimal(18,2)");
-                
+
             modelBuilder.Entity<OrderItem>()
                 .Property(oi => oi.UnitPrice)
                 .HasColumnType("decimal(18,2)");
-            
+
             // Use identity columns in PostgreSQL
             modelBuilder.UseIdentityByDefaultColumns();
-                
+
             // Seed data with a fixed date converted to UTC
             var seedDate = new DateTime(2024, 3, 7, 0, 0, 0, DateTimeKind.Utc);
-                
+
             // Seed sample data (English)
             modelBuilder.Entity<Category>()
                 .HasData(
@@ -165,4 +159,4 @@ namespace DecorStore.API.Data
                 );
         }
     }
-} 
+}

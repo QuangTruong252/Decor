@@ -13,7 +13,8 @@ namespace DecorStore.API.Services
             _configuration = configuration;
             _baseImagePath = _configuration["ImageSettings:BasePath"] ?? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "images");
             _allowedExtensions = _configuration["ImageSettings:AllowedExtensions"]?.Split(",") ?? new[] { ".jpg", ".jpeg", ".png", ".gif" };
-            _maxFileSize = _configuration["ImageSettings:MaxFileSize"] != null ? long.Parse(_configuration["ImageSettings:MaxFileSize"]) : 5 * 1024 * 1024; // 5 MB
+            _maxFileSize = !string.IsNullOrEmpty(_configuration["ImageSettings:MaxFileSize"]) ?
+                long.Parse(_configuration["ImageSettings:MaxFileSize"]) : 5 * 1024 * 1024; // 5 MB
             if(!Directory.Exists(_baseImagePath))
             {
                 Directory.CreateDirectory(_baseImagePath);

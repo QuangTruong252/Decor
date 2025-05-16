@@ -41,7 +41,6 @@ if (!string.IsNullOrEmpty(databaseUrl))
             Username = userInfo[0],
             Password = userInfo[1],
             SslMode = SslMode.Require,
-            TrustServerCertificate = true,
             Pooling = true,
             MinPoolSize = 0,
             MaxPoolSize = 100,
@@ -85,12 +84,18 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
     });
 });
 
+// Add Unit of Work
+builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
+
 // Add repositories
 builder.Services.AddScoped<IProductRepository, ProductRepository>();
 builder.Services.AddScoped<ICategoryRepository, CategoryRepository>();
 builder.Services.AddScoped<IOrderRepository, OrderRepository>();
 builder.Services.AddScoped<IReviewRepository, ReviewRepository>();
 builder.Services.AddScoped<IBannerRepository, BannerRepository>();
+
+// Add AutoMapper
+builder.Services.AddAutoMapper(typeof(Program).Assembly);
 
 // Add services
 builder.Services.AddScoped<IProductService, ProductService>();

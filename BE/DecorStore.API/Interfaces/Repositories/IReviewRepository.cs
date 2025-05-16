@@ -12,5 +12,6 @@ namespace DecorStore.API.Repositories
         Task UpdateAsync(Review review);
         Task DeleteAsync(int id);
         Task<float> CalculateAverageRatingAsync(int productId);
+        Task UpdateProductAverageRatingAsync(int productId);
     }
-} 
+}

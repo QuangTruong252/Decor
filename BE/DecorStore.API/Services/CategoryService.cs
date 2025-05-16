@@ -1,74 +1,55 @@
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using DecorStore.API.DTOs;
 using DecorStore.API.Models;
-using DecorStore.API.Repositories;
 using DecorStore.API.Exceptions;
-using System;
-using Microsoft.AspNetCore.Http;
-using System.IO;
 using DecorStore.API.Interfaces;
+using AutoMapper;
 
 namespace DecorStore.API.Services
 {
-    public class CategoryService : ICategoryService
+    public class CategoryService(IUnitOfWork unitOfWork, IImageService imageService, IMapper mapper) : ICategoryService
     {
-        private readonly ICategoryRepository _categoryRepository;
+        private readonly IUnitOfWork _unitOfWork = unitOfWork;
         private readonly string _folderImageName = "categories";
-        private readonly IImageService _imageService;
-
-        public CategoryService(ICategoryRepository categoryRepository, IHttpContextAccessor httpContextAccessor, IImageService imageService)
-        {
-            _categoryRepository = categoryRepository;
-            _imageService = imageService;
-        }
+        private readonly IImageService _imageService = imageService;
+        private readonly IMapper _mapper = mapper;
 
         public async Task<IEnumerable<CategoryDTO>> GetAllCategoriesAsync()
         {
-            var categories = await _categoryRepository.GetAllAsync();
-            return categories.Select(c => MapCategoryToDto(c, false));
+            var categories = await _unitOfWork.Categories.GetAllAsync();
+            return _mapper.Map<IEnumerable<CategoryDTO>>(categories);
         }
 
         public async Task<IEnumerable<CategoryDTO>> GetHierarchicalCategoriesAsync()
         {
-            var rootCategories = await _categoryRepository.GetRootCategoriesWithChildrenAsync();
-            return rootCategories.Select(c => MapCategoryToDto(c, true));
+            var rootCategories = await _unitOfWork.Categories.GetRootCategoriesWithChildrenAsync();
+            return _mapper.Map<IEnumerable<CategoryDTO>>(rootCategories);
         }
 
         public async Task<CategoryDTO> GetCategoryByIdAsync(int id)
         {
-            var category = await _categoryRepository.GetByIdWithChildrenAsync(id);
-            if (category == null)
-                throw new NotFoundException("Category not found");
+            var category = await _unitOfWork.Categories.GetByIdWithChildrenAsync(id)
+                ?? throw new NotFoundException("Category not found");
 
-            return MapCategoryToDto(category, true);
+            return _mapper.Map<CategoryDTO>(category);
         }
 
         public async Task<CategoryDTO> GetCategoryBySlugAsync(string slug)
         {
-            var category = await _categoryRepository.GetBySlugAsync(slug);
-            if (category == null)
-                throw new NotFoundException("Category not found");
+            var category = await _unitOfWork.Categories.GetBySlugAsync(slug)
+                ?? throw new NotFoundException("Category not found");
 
-            return MapCategoryToDto(category, false);
+            return _mapper.Map<CategoryDTO>(category);
         }
 
         public async Task<Category> CreateAsync(CreateCategoryDTO categoryDto)
         {
-            if (await _categoryRepository.SlugExistsAsync(categoryDto.Slug))
+            if (await _unitOfWork.Categories.SlugExistsAsync(categoryDto.Slug))
             {
                 throw new InvalidOperationException("Slug already exists");
             }
 
-            var category = new Category
-            {
-                Name = categoryDto.Name,
-                Slug = categoryDto.Slug,
-                Description = categoryDto.Description,
-                ParentId = categoryDto.ParentId,
-                CreatedAt = DateTime.UtcNow
-            };
+            // Map DTO to entity
+            var category = _mapper.Map<Category>(categoryDto);
 
             // Handle image upload
             if (categoryDto.ImageFile != null)
@@ -77,29 +58,26 @@ namespace DecorStore.API.Services
                 category.ImageUrl = imagePath;
             }
 
-            return await _categoryRepository.CreateAsync(category);
+            await _unitOfWork.Categories.CreateAsync(category);
+            await _unitOfWork.SaveChangesAsync();
+            return category;
         }
 
         public async Task UpdateAsync(int id, UpdateCategoryDTO categoryDto)
         {
-            var category = await _categoryRepository.GetByIdAsync(id);
-            if (category == null)
-                throw new NotFoundException("Category not found");
+            var category = await _unitOfWork.Categories.GetByIdAsync(id)
+                ?? throw new NotFoundException("Category not found");
 
             // Check slug uniqueness
-            if (!string.IsNullOrEmpty(categoryDto.Slug) && 
-                categoryDto.Slug != category.Slug && 
-                await _categoryRepository.SlugExistsAsync(categoryDto.Slug))
+            if (!string.IsNullOrEmpty(categoryDto.Slug) &&
+                categoryDto.Slug != category.Slug &&
+                await _unitOfWork.Categories.SlugExistsAsync(categoryDto.Slug))
             {
                 throw new InvalidOperationException("Slug already exists");
             }
 
-            category.Name = categoryDto.Name;
-            if (!string.IsNullOrEmpty(categoryDto.Slug))
-                category.Slug = categoryDto.Slug;
-            
-            category.Description = categoryDto.Description;
-            category.ParentId = categoryDto.ParentId;
+            // Map DTO to entity
+            _mapper.Map(categoryDto, category);
 
             // Handle image update if new image is provided
             if (categoryDto.ImageFile != null)
@@ -108,50 +86,28 @@ namespace DecorStore.API.Services
                 category.ImageUrl = imagePath;
             }
 
-            await _categoryRepository.UpdateAsync(category);
+            await _unitOfWork.Categories.UpdateAsync(category);
+            await _unitOfWork.SaveChangesAsync();
         }
 
         public async Task DeleteAsync(int id)
         {
-            var category = await _categoryRepository.GetByIdWithChildrenAsync(id);
-            if (category == null)
-                throw new NotFoundException("Category not found");
+            var category = await _unitOfWork.Categories.GetByIdWithChildrenAsync(id)
+                ?? throw new NotFoundException("Category not found");
 
             // Check if the category has subcategories
-            if (category.Subcategories != null && category.Subcategories.Any())
+            if (category.Subcategories != null && category.Subcategories.Count > 0)
                 throw new InvalidOperationException("Cannot delete category with subcategories");
             // Check if the category is used in any products
-            if (category.Products != null && category.Products.Any())
+            if (category.Products != null && category.Products.Count > 0)
                 throw new InvalidOperationException("Cannot delete category that is used in products");
             // Delete the image if it exists
             if (!string.IsNullOrEmpty(category.ImageUrl))
             {
                 await _imageService.DeleteImageAsync(category.ImageUrl);
             }
-            await _categoryRepository.DeleteAsync(id);
-        }
-
-        private CategoryDTO MapCategoryToDto(Category category, bool includeChildren)
-        {
-            if (category == null)
-                return null;
-
-            var categoryDto = new CategoryDTO
-            {
-                Id = category.Id,
-                Name = category.Name,
-                Slug = category.Slug,
-                Description = category.Description,
-                ParentId = category.ParentId,
-                ParentName = category.ParentCategory?.Name,
-                ImageUrl = category.ImageUrl,
-                CreatedAt = category.CreatedAt,
-                Subcategories = includeChildren && category.Subcategories != null 
-                    ? category.Subcategories.Select(c => MapCategoryToDto(c, includeChildren)).ToList()
-                    : new List<CategoryDTO>()
-            };
-
-            return categoryDto;
+            await _unitOfWork.Categories.DeleteAsync(id);
+            await _unitOfWork.SaveChangesAsync();
         }
     }
-} 
+}
