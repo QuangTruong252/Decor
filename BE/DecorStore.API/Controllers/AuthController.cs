@@ -62,7 +62,7 @@ namespace DecorStore.API.Controllers
         {
             // Get user ID from claims
             var userId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value);
-            
+
             var user = await _authService.GetUserByIdAsync(userId);
 
             if (user == null)
@@ -72,5 +72,40 @@ namespace DecorStore.API.Controllers
 
             return Ok(user);
         }
+
+        // GET: api/Auth/check-claims
+        [HttpGet("check-claims")]
+        [Authorize]
+        public ActionResult<object> CheckClaims()
+        {
+            var claims = User.Claims.Select(c => new { Type = c.Type, Value = c.Value }).ToList();
+            var isAdmin = User.IsInRole("Admin");
+
+            return Ok(new {
+                Claims = claims,
+                IsAdmin = isAdmin,
+                NameIdentifier = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value,
+                Role = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value
+            });
+        }
+
+        // POST: api/Auth/make-admin
+        [HttpPost("make-admin")]
+        public async Task<ActionResult<UserDTO>> MakeAdmin(string email)
+        {
+            if (string.IsNullOrEmpty(email))
+            {
+                return BadRequest("Email is required");
+            }
+
+            var user = await _authService.MakeAdminAsync(email);
+
+            if (user == null)
+            {
+                return NotFound("User not found");
+            }
+
+            return Ok(user);
+        }
     }
-} 
+}

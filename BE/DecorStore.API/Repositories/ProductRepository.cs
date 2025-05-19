@@ -24,6 +24,7 @@ namespace DecorStore.API.Repositories
 
             var query = _context.Products
                 .Include(p => p.Category)
+                .Include(p => p.Images)
                 .Include(p => p.Reviews)
                 .AsQueryable();
 
@@ -104,6 +105,7 @@ namespace DecorStore.API.Repositories
         {
             return await _context.Products
                 .Include(p => p.Category)
+                .Include(p => p.Images)
                 .Include(p => p.Reviews)
                 .ThenInclude(r => r.User)
                 .FirstOrDefaultAsync(p => p.Id == id);
@@ -113,6 +115,7 @@ namespace DecorStore.API.Repositories
         {
             return await _context.Products
                 .Include(p => p.Category)
+                .Include(p => p.Images)
                 .Include(p => p.Reviews)
                 .ThenInclude(r => r.User)
                 .FirstOrDefaultAsync(p => p.Slug == slug);

@@ -5,6 +5,16 @@ using System.ComponentModel.DataAnnotations;
 
 namespace DecorStore.API.DTOs
 {
+    // DTO for image data
+    public class ImageDTO
+    {
+        public int Id { get; set; }
+        public string FileName { get; set; } = string.Empty;
+        public string FilePath { get; set; } = string.Empty;
+        public string AltText { get; set; } = string.Empty;
+        public DateTime CreatedAt { get; set; }
+    }
+
     // DTO for returning product data
     public class ProductDTO
     {
@@ -23,79 +33,84 @@ namespace DecorStore.API.DTOs
         public float AverageRating { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime UpdatedAt { get; set; }
+
+        // Backward compatibility
         public string[] Images { get; set; }
+
+        // Detailed image information
+        public List<ImageDTO> ImageDetails { get; set; } = new List<ImageDTO>();
     }
-    
+
     // DTO for creating a new product
     public class CreateProductDTO
     {
         [Required]
         [StringLength(255, MinimumLength = 3)]
         public string Name { get; set; } = string.Empty;
-        
+
         [Required]
         [StringLength(255)]
         public string Slug { get; set; } = string.Empty;
-        
+
         public string? Description { get; set; }
-        
+
         [Required]
         [Range(0.01, double.MaxValue, ErrorMessage = "Price must be greater than 0")]
         public decimal Price { get; set; }
-        
+
         public decimal OriginalPrice { get; set; }
-        
+
         [Required]
         public int StockQuantity { get; set; }
-        
+
         [Required]
         [StringLength(50)]
         public string SKU { get; set; }
-        
+
         [Required]
         public int CategoryId { get; set; }
-        
+
         public bool IsFeatured { get; set; }
-        
+
         public bool IsActive { get; set; } = true;
-        
+
         // For image upload
         public List<IFormFile>? Images { get; set; }
     }
-    
+
     // DTO for updating a product
     public class UpdateProductDTO
     {
         [Required]
         [StringLength(255, MinimumLength = 3)]
         public string Name { get; set; }
-        
+
         [StringLength(255)]
         public string Slug { get; set; }
-        
+
         public string Description { get; set; }
-        
+
         [Required]
         [Range(0.01, double.MaxValue, ErrorMessage = "Price must be greater than 0")]
         public decimal Price { get; set; }
-        
+
         public decimal OriginalPrice { get; set; }
-        
+
         public int StockQuantity { get; set; }
-        
+
         [StringLength(50)]
         public string SKU { get; set; }
-        
+
         public int CategoryId { get; set; }
-        
+
         public bool IsFeatured { get; set; }
-        
+
         public bool IsActive { get; set; }
-        
+
         // For image upload
         public List<IFormFile> Images { get; set; }
     }
-    
+
     // DTO for product filtering/searching
     public class ProductFilterDTO
     {
@@ -107,4 +122,4 @@ namespace DecorStore.API.DTOs
         public int PageNumber { get; set; } = 1;
         public int PageSize { get; set; } = 10;
     }
-} 
+}

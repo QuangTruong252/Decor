@@ -125,7 +125,7 @@ export default function ProductsPage() {
                       <DeleteProductButton
                         productId={product.id}
                         onDelete={handleDelete}
-                        isDeleting={selectedProduct}
+                        isDeleting={selectedProduct !== null && selectedProduct === product.id}
                       />
                     </div>
                   </td>

@@ -95,6 +95,23 @@ namespace DecorStore.API.Services
             return user != null ? MapUserToDto(user) : null;
         }
 
+        public async Task<UserDTO?> MakeAdminAsync(string email)
+        {
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == email);
+
+            if (user == null)
+            {
+                return null;
+            }
+
+            user.Role = "Admin";
+            user.UpdatedAt = DateTime.UtcNow;
+
+            await _context.SaveChangesAsync();
+
+            return MapUserToDto(user);
+        }
+
         // Helper method to generate JWT token
         private string GenerateJwtToken(User user)
         {

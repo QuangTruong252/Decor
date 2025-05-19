@@ -48,6 +48,16 @@ namespace DecorStore.API.Services
                 throw new InvalidOperationException("Slug already exists");
             }
 
+            // Check if ParentId exists if it's provided
+            if (categoryDto.ParentId.HasValue)
+            {
+                var parentExists = await _unitOfWork.Categories.ExistsAsync(categoryDto.ParentId.Value);
+                if (!parentExists)
+                {
+                    throw new InvalidOperationException($"Parent category with ID {categoryDto.ParentId.Value} does not exist");
+                }
+            }
+
             // Map DTO to entity
             var category = _mapper.Map<Category>(categoryDto);
 
@@ -74,6 +84,22 @@ namespace DecorStore.API.Services
                 await _unitOfWork.Categories.SlugExistsAsync(categoryDto.Slug))
             {
                 throw new InvalidOperationException("Slug already exists");
+            }
+
+            // Check if ParentId exists if it's provided
+            if (categoryDto.ParentId.HasValue)
+            {
+                // Prevent circular reference (category can't be its own parent)
+                if (categoryDto.ParentId.Value == id)
+                {
+                    throw new InvalidOperationException("Category cannot be its own parent");
+                }
+
+                var parentExists = await _unitOfWork.Categories.ExistsAsync(categoryDto.ParentId.Value);
+                if (!parentExists)
+                {
+                    throw new InvalidOperationException($"Parent category with ID {categoryDto.ParentId.Value} does not exist");
+                }
             }
 
             // Map DTO to entity

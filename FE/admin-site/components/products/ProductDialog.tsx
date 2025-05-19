@@ -12,8 +12,9 @@ import {
 import { Button } from "@/components/ui/button";
 import { ProductForm, ProductFormValues } from "./ProductForm";
 import { useCreateProduct, useUpdateProduct, useGetProductById } from "@/hooks/useProducts";
-import { Product } from "@/services/products";
+import { getProductById, Product } from "@/services/products";
 import { PackagePlus, Pencil } from "lucide-react";
+import { useConfirmationDialog } from "@/components/ui/confirmation-dialog";
 
 interface AddProductDialogProps {
   onSuccess?: () => void;
@@ -64,9 +65,16 @@ interface EditProductDialogProps {
 
 export function EditProductDialog({ product, onSuccess }: EditProductDialogProps) {
   const [open, setOpen] = useState(false);
+  const [productDetails, setProductDetails] = useState<Product | undefined>(undefined);
+  const [isLoading, setIsLoading] = useState(false); // Add this state variable
   const updateProductMutation = useUpdateProduct();
-  const { data: productDetails, isLoading } = useGetProductById(product.id);
-
+  const handleEdit = async () => {
+    setOpen(true);
+    setIsLoading(true); // Set loading state to true
+    const res = await getProductById(product.id);
+    setProductDetails(res);
+    setIsLoading(false); // Set loading state to false
+  };
   const handleSubmit = async (data: ProductFormValues & { images?: File[] }) => {
     try {
       await updateProductMutation.mutateAsync({
@@ -83,7 +91,7 @@ export function EditProductDialog({ product, onSuccess }: EditProductDialogProps
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" size="icon" className="h-8 w-8">
+        <Button variant="outline" size="icon" className="h-8 w-8 hover:cursor-pointer" onClick={() => handleEdit()}>
           <Pencil className="h-4 w-4" />
         </Button>
       </DialogTrigger>
@@ -113,7 +121,7 @@ export function EditProductDialog({ product, onSuccess }: EditProductDialogProps
 interface DeleteProductDialogProps {
   productId: number;
   onDelete: (id: number) => Promise<void>;
-  isDeleting: number | null;
+  isDeleting: boolean | undefined;
 }
 
 export function DeleteProductButton({
@@ -121,21 +129,33 @@ export function DeleteProductButton({
   onDelete,
   isDeleting,
 }: DeleteProductDialogProps) {
+  const { confirm } = useConfirmationDialog()
+
   const handleDelete = async () => {
-    if (confirm("Are you sure you want to delete this product?")) {
-      await onDelete(productId);
-    }
+    confirm({
+      title: "Delete Product",
+      message: "Are you sure you want to delete this product? This action cannot be undone.",
+      confirmText: "Delete",
+      cancelText: "Cancel",
+      variant: "destructive",
+      onConfirm: async () => {
+        await onDelete(productId);
+      },
+    });
   };
 
   return (
     <Button
       variant="outline"
       size="icon"
-      className="h-8 w-8 text-destructive hover:bg-destructive/10 hover:text-destructive"
+      className="h-8 w-8 text-destructive hover:bg-destructive/10 hover:text-destructive hover:cursor-pointer"
       onClick={handleDelete}
       disabled={isDeleting}
+      aria-label="Delete product"
+      tabIndex={0}
+      onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') handleDelete(); }}
     >
-      {isDeleting && productId === isDeleting ? (
+      {isDeleting ? (
         <div className="h-4 w-4 animate-spin rounded-full border-2 border-destructive border-t-transparent"></div>
       ) : (
         <svg

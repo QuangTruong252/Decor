@@ -14,12 +14,12 @@ namespace DecorStore.API.Controllers
     public class OrderController : ControllerBase
     {
         private readonly IOrderService _orderService;
-        
+
         public OrderController(IOrderService orderService)
         {
             _orderService = orderService;
         }
-        
+
         // GET: api/Order
         [HttpGet]
         [Authorize(Roles = "Admin")]
@@ -28,43 +28,43 @@ namespace DecorStore.API.Controllers
             var orders = await _orderService.GetAllOrdersAsync();
             return Ok(orders);
         }
-        
+
         // GET: api/Order/user/5
         [HttpGet("user/{userId}")]
         public async Task<ActionResult<IEnumerable<OrderDTO>>> GetOrdersByUser(int userId)
         {
             // Kiểm tra quyền: chỉ admin hoặc chính user đó mới được xem order của user
-            var currentUserId = int.Parse(User.FindFirst("UserId")?.Value ?? "0");
+            var currentUserId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "0");
             if (currentUserId != userId && !User.IsInRole("Admin"))
             {
                 return Forbid();
             }
-            
+
             var orders = await _orderService.GetOrdersByUserIdAsync(userId);
             return Ok(orders);
         }
-        
+
         // GET: api/Order/5
         [HttpGet("{id}")]
         public async Task<ActionResult<OrderDTO>> GetOrder(int id)
         {
             var order = await _orderService.GetOrderByIdAsync(id);
-            
+
             if (order == null)
             {
                 return NotFound();
             }
-            
+
             // Kiểm tra quyền: chỉ admin hoặc chính user đó mới được xem chi tiết order
-            var currentUserId = int.Parse(User.FindFirst("UserId")?.Value ?? "0");
+            var currentUserId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "0");
             if (currentUserId != order.UserId && !User.IsInRole("Admin"))
             {
                 return Forbid();
             }
-            
+
             return order;
         }
-        
+
         // POST: api/Order
         [HttpPost]
         public async Task<ActionResult<Order>> CreateOrder(CreateOrderDTO orderDto)
@@ -72,9 +72,9 @@ namespace DecorStore.API.Controllers
             try
             {
                 // Gán UserId từ token vào orderDto
-                var currentUserId = int.Parse(User.FindFirst("UserId")?.Value ?? "0");
+                var currentUserId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "0");
                 orderDto.UserId = currentUserId;
-                
+
                 var order = await _orderService.CreateOrderAsync(orderDto);
                 return CreatedAtAction(nameof(GetOrder), new { id = order.Id }, order);
             }
@@ -87,7 +87,7 @@ namespace DecorStore.API.Controllers
                 return NotFound(ex.Message);
             }
         }
-        
+
         // PUT: api/Order/5/status
         [HttpPut("{id}/status")]
         [Authorize(Roles = "Admin")]
@@ -107,7 +107,7 @@ namespace DecorStore.API.Controllers
                 return BadRequest(ex.Message);
             }
         }
-        
+
         // DELETE: api/Order/5
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteOrder(int id)
@@ -120,13 +120,13 @@ namespace DecorStore.API.Controllers
                 {
                     return NotFound();
                 }
-                
-                var currentUserId = int.Parse(User.FindFirst("UserId")?.Value ?? "0");
+
+                var currentUserId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "0");
                 if (currentUserId != order.UserId && !User.IsInRole("Admin"))
                 {
                     return Forbid();
                 }
-                
+
                 await _orderService.DeleteOrderAsync(id);
                 return NoContent();
             }
@@ -140,4 +140,4 @@ namespace DecorStore.API.Controllers
             }
         }
     }
-} 
+}

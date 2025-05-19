@@ -21,20 +21,21 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
 const setToken = (token: string) => {
   if (typeof window !== 'undefined') {
-    localStorage.setItem('auth_token', token);
+    document.cookie = `auth_token=${token}; path=/; secure; samesite=strict;`;
   }
 };
 
 const getToken = (): string | null => {
   if (typeof window !== 'undefined') {
-    return localStorage.getItem('auth_token');
+    const match = document.cookie.match(/(?:^|; )auth_token=([^;]*)/);
+    return match ? decodeURIComponent(match[1]) : null;
   }
   return null;
 };
 
 const removeToken = () => {
   if (typeof window !== 'undefined') {
-    localStorage.removeItem('auth_token');
+    document.cookie = 'auth_token=; max-age=0; path=/;';
   }
 };
 

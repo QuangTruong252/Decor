@@ -47,5 +47,17 @@ namespace DecorStore.API.Models
         public virtual ICollection<Order> Orders { get; set; }
         
         public virtual ICollection<Review> Reviews { get; set; }
+
+        public User()
+        {
+            Orders = new List<Order>();
+            Reviews = new List<Review>();
+            Username = string.Empty;
+            Email = string.Empty;
+            PasswordHash = string.Empty;
+            FullName = string.Empty;
+            Address = string.Empty;
+            Phone = string.Empty;
+        }
     }
 } 

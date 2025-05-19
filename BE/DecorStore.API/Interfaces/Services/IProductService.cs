@@ -13,5 +13,8 @@ namespace DecorStore.API.Services
         Task<IEnumerable<ProductDTO>> GetAllProductsAsync();
         Task<ProductDTO?> GetProductByIdAsync(int id);
         Task<bool> DeleteProductAsync(int id);
+        Task<bool> AddImageToProductAsync(int productId, IFormFile image);
+        Task<bool> RemoveImageFromProductAsync(int productId, int imageId);
+        IEnumerable<ProductDTO> MapToProductDTOs(IEnumerable<Product> products);
     }
 }

@@ -13,6 +13,7 @@ namespace DecorStore.API.Data
         public DbSet<OrderItem> OrderItems { get; set; }
         public DbSet<Review> Reviews { get; set; }
         public DbSet<Banner> Banners { get; set; }
+        public DbSet<Image> Images { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -54,6 +55,12 @@ namespace DecorStore.API.Data
                 .WithMany(c => c.Products)
                 .HasForeignKey(p => p.CategoryId)
                 .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<Product>()
+                .HasMany(p => p.Images)
+                .WithOne(i => i.Product)
+                .HasForeignKey(i => i.ProductId)
+                .OnDelete(DeleteBehavior.Cascade);
 
             modelBuilder.Entity<Product>()
                 .HasMany(p => p.Reviews)
@@ -105,7 +112,7 @@ namespace DecorStore.API.Data
 
             // Use identity columns in PostgreSQL
             modelBuilder.UseIdentityByDefaultColumns();
-
+            
             // Seed data with a fixed date converted to UTC
             var seedDate = new DateTime(2024, 3, 7, 0, 0, 0, DateTimeKind.Utc);
 

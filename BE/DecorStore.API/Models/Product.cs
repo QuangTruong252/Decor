@@ -9,13 +9,14 @@ namespace DecorStore.API.Models
     {
         public Product()
         {
-            Images = [];
+            Images = new List<Image>();
             Reviews = new List<Review>();
             OrderItems = new List<OrderItem>();
             Description = string.Empty;
             Name = string.Empty;
             Slug = string.Empty;
             SKU = string.Empty;
+            Category = null!;
         }
 
         [Key]
@@ -65,7 +66,7 @@ namespace DecorStore.API.Models
         [ForeignKey("CategoryId")]
         public virtual Category Category { get; set; }
 
-        public string[] Images { get; set; }
+        public virtual ICollection<Image> Images { get; set; }
 
         [System.Text.Json.Serialization.JsonIgnore]
         public virtual ICollection<Review> Reviews { get; set; }

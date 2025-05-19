@@ -3,6 +3,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { ReactNode, useState } from "react";
+import { ConfirmationDialogProvider } from "@/components/ui/confirmation-dialog";
 
 export function QueryProvider({ children }: { children: ReactNode }) {
   const [queryClient] = useState(
@@ -19,7 +20,9 @@ export function QueryProvider({ children }: { children: ReactNode }) {
 
   return (
     <QueryClientProvider client={queryClient}>
-      {children}
+      <ConfirmationDialogProvider>
+        {children}
+      </ConfirmationDialogProvider>
       <ReactQueryDevtools initialIsOpen={false} />
     </QueryClientProvider>
   );

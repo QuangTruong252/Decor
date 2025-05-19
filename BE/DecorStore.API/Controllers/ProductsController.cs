@@ -43,20 +43,22 @@ namespace DecorStore.API.Controllers
 
         // GET: api/Products/category/{categoryId}
         [HttpGet("category/{categoryId}")]
-        public async Task<ActionResult<IEnumerable<Product>>> GetProductsByCategory(int categoryId)
+        public async Task<ActionResult<IEnumerable<ProductDTO>>> GetProductsByCategory(int categoryId)
         {
             var filter = new ProductFilterDTO { CategoryId = categoryId };
             var products = await _productService.GetAllAsync(filter);
-            return Ok(products);
+            var productDtos = _productService.MapToProductDTOs(products);
+            return Ok(productDtos);
         }
 
         // POST: api/Products
         [HttpPost]
         [Authorize(Roles = "Admin")] // Only admin can create products
-        public async Task<ActionResult<Product>> CreateProduct(CreateProductDTO productDto)
+        public async Task<ActionResult<ProductDTO>> CreateProduct(CreateProductDTO productDto)
         {
             var createdProduct = await _productService.CreateAsync(productDto);
-            return CreatedAtAction(nameof(GetProduct), new { id = createdProduct.Id }, createdProduct);
+            var productDtoResult = await _productService.GetProductByIdAsync(createdProduct.Id);
+            return CreatedAtAction(nameof(GetProduct), new { id = createdProduct.Id }, productDtoResult);
         }
 
         // PUT: api/Products/5
@@ -83,5 +85,54 @@ namespace DecorStore.API.Controllers
             var result = await _productService.DeleteProductAsync(id);
             return NoContent();
         }
+
+        // POST: api/Products/{id}/images
+        [HttpPost("{id}/images")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> AddImageToProduct(int id, IFormFile image)
+        {
+            try
+            {
+                if (image == null || image.Length == 0)
+                {
+                    return BadRequest("No image file provided");
+                }
+
+                var result = await _productService.AddImageToProductAsync(id, image);
+                return Ok(new { message = "Image added successfully" });
+            }
+            catch (DecorStore.API.Exceptions.NotFoundException ex)
+            {
+                return NotFound(ex.Message);
+            }
+            catch (System.ArgumentException ex)
+            {
+                return BadRequest(ex.Message);
+            }
+            catch (System.Exception ex)
+            {
+                return StatusCode(500, $"Internal server error: {ex.Message}");
+            }
+        }
+
+        // DELETE: api/Products/{productId}/images/{imageId}
+        [HttpDelete("{productId}/images/{imageId}")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> RemoveImageFromProduct(int productId, int imageId)
+        {
+            try
+            {
+                var result = await _productService.RemoveImageFromProductAsync(productId, imageId);
+                return Ok(new { message = "Image removed successfully" });
+            }
+            catch (DecorStore.API.Exceptions.NotFoundException ex)
+            {
+                return NotFound(ex.Message);
+            }
+            catch (System.Exception ex)
+            {
+                return StatusCode(500, $"Internal server error: {ex.Message}");
+            }
+        }
     }
-} 
+}

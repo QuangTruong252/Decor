@@ -14,12 +14,12 @@ namespace DecorStore.API.Controllers
     public class CategoryController : ControllerBase
     {
         private readonly ICategoryService _categoryService;
-        
+
         public CategoryController(ICategoryService categoryService)
         {
             _categoryService = categoryService;
         }
-        
+
         // GET: api/Category
         [HttpGet]
         public async Task<ActionResult<IEnumerable<CategoryDTO>>> GetCategories()
@@ -27,7 +27,7 @@ namespace DecorStore.API.Controllers
             var categories = await _categoryService.GetAllCategoriesAsync();
             return Ok(categories);
         }
-        
+
         // GET: api/Category/hierarchical
         [HttpGet("hierarchical")]
         public async Task<ActionResult<IEnumerable<CategoryDTO>>> GetHierarchicalCategories()
@@ -35,35 +35,35 @@ namespace DecorStore.API.Controllers
             var categories = await _categoryService.GetHierarchicalCategoriesAsync();
             return Ok(categories);
         }
-        
+
         // GET: api/Category/5
         [HttpGet("{id}")]
         public async Task<ActionResult<CategoryDTO>> GetCategory(int id)
         {
             var category = await _categoryService.GetCategoryByIdAsync(id);
-            
+
             if (category == null)
             {
                 return NotFound();
             }
-            
+
             return category;
         }
-        
+
         // GET: api/Category/slug/home-decor
         [HttpGet("slug/{slug}")]
         public async Task<ActionResult<CategoryDTO>> GetCategoryBySlug(string slug)
         {
             var category = await _categoryService.GetCategoryBySlugAsync(slug);
-            
+
             if (category == null)
             {
                 return NotFound();
             }
-            
+
             return category;
         }
-        
+
         // POST: api/Category
         [HttpPost]
         [Authorize(Roles = "Admin")]
@@ -76,10 +76,21 @@ namespace DecorStore.API.Controllers
             }
             catch (System.InvalidOperationException ex)
             {
-                return BadRequest(ex.Message);
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (System.Exception ex)
+            {
+                // Log the exception
+                Console.WriteLine($"Error creating category: {ex.Message}");
+                if (ex.InnerException != null)
+                {
+                    Console.WriteLine($"Inner exception: {ex.InnerException.Message}");
+                }
+
+                return StatusCode(500, new { message = "An error occurred while creating the category. Please try again." });
             }
         }
-        
+
         // PUT: api/Category/5
         [HttpPut("{id}")]
         [Authorize(Roles = "Admin")]
@@ -92,14 +103,25 @@ namespace DecorStore.API.Controllers
             }
             catch (System.Exception ex) when (ex.Message.Contains("not found"))
             {
-                return NotFound();
+                return NotFound(new { message = ex.Message });
             }
             catch (System.InvalidOperationException ex)
             {
-                return BadRequest(ex.Message);
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (System.Exception ex)
+            {
+                // Log the exception
+                Console.WriteLine($"Error updating category: {ex.Message}");
+                if (ex.InnerException != null)
+                {
+                    Console.WriteLine($"Inner exception: {ex.InnerException.Message}");
+                }
+
+                return StatusCode(500, new { message = "An error occurred while updating the category. Please try again." });
             }
         }
-        
+
         // DELETE: api/Category/5
         [HttpDelete("{id}")]
         [Authorize(Roles = "Admin")]
@@ -120,4 +142,4 @@ namespace DecorStore.API.Controllers
             }
         }
     }
-} 
+}

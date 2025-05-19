@@ -13,12 +13,12 @@ namespace DecorStore.API.Controllers
     public class ReviewController : ControllerBase
     {
         private readonly IReviewService _reviewService;
-        
+
         public ReviewController(IReviewService reviewService)
         {
             _reviewService = reviewService;
         }
-        
+
         // GET: api/Review/product/5
         [HttpGet("product/{productId}")]
         public async Task<ActionResult<IEnumerable<ReviewDTO>>> GetReviewsByProduct(int productId)
@@ -33,21 +33,21 @@ namespace DecorStore.API.Controllers
                 return NotFound(ex.Message);
             }
         }
-        
+
         // GET: api/Review/5
         [HttpGet("{id}")]
         public async Task<ActionResult<ReviewDTO>> GetReview(int id)
         {
             var review = await _reviewService.GetReviewByIdAsync(id);
-            
+
             if (review == null)
             {
                 return NotFound();
             }
-            
+
             return review;
         }
-        
+
         // GET: api/Review/product/5/rating
         [HttpGet("product/{productId}/rating")]
         public async Task<ActionResult<float>> GetAverageRating(int productId)
@@ -62,7 +62,7 @@ namespace DecorStore.API.Controllers
                 return NotFound(ex.Message);
             }
         }
-        
+
         // POST: api/Review
         [HttpPost]
         [Authorize]
@@ -71,9 +71,9 @@ namespace DecorStore.API.Controllers
             try
             {
                 // Gán UserId từ token vào reviewDto
-                var currentUserId = int.Parse(User.FindFirst("UserId")?.Value ?? "0");
+                var currentUserId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "0");
                 reviewDto.UserId = currentUserId;
-                
+
                 var review = await _reviewService.CreateReviewAsync(reviewDto);
                 return CreatedAtAction(nameof(GetReview), new { id = review.Id }, review);
             }
@@ -82,7 +82,7 @@ namespace DecorStore.API.Controllers
                 return NotFound(ex.Message);
             }
         }
-        
+
         // PUT: api/Review/5
         [HttpPut("{id}")]
         [Authorize]
@@ -96,14 +96,14 @@ namespace DecorStore.API.Controllers
                 {
                     return NotFound();
                 }
-                
+
                 // Kiểm tra quyền: chỉ chủ sở hữu review hoặc admin mới được cập nhật
-                var currentUserId = int.Parse(User.FindFirst("UserId")?.Value ?? "0");
+                var currentUserId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "0");
                 if (currentUserId != existingReview.UserId && !User.IsInRole("Admin"))
                 {
                     return Forbid();
                 }
-                
+
                 await _reviewService.UpdateReviewAsync(id, reviewDto);
                 return NoContent();
             }
@@ -112,7 +112,7 @@ namespace DecorStore.API.Controllers
                 return NotFound();
             }
         }
-        
+
         // DELETE: api/Review/5
         [HttpDelete("{id}")]
         [Authorize]
@@ -126,14 +126,14 @@ namespace DecorStore.API.Controllers
                 {
                     return NotFound();
                 }
-                
+
                 // Kiểm tra quyền: chỉ chủ sở hữu review hoặc admin mới được xóa
-                var currentUserId = int.Parse(User.FindFirst("UserId")?.Value ?? "0");
+                var currentUserId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "0");
                 if (currentUserId != existingReview.UserId && !User.IsInRole("Admin"))
                 {
                     return Forbid();
                 }
-                
+
                 await _reviewService.DeleteReviewAsync(id);
                 return NoContent();
             }
@@ -143,4 +143,4 @@ namespace DecorStore.API.Controllers
             }
         }
     }
-} 
+}

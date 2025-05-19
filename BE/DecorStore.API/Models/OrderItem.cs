@@ -28,5 +28,11 @@ namespace DecorStore.API.Models
         
         [ForeignKey("ProductId")]
         public virtual Product Product { get; set; }
+
+        public OrderItem()
+        {
+            Order = null!;
+            Product = null!;
+        }
     }
 } 

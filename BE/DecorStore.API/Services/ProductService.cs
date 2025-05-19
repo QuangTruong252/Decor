@@ -3,6 +3,7 @@ using DecorStore.API.Models;
 using DecorStore.API.Exceptions;
 using DecorStore.API.Interfaces;
 using AutoMapper;
+using Microsoft.AspNetCore.Http;
 
 namespace DecorStore.API.Services
 {
@@ -30,11 +31,11 @@ namespace DecorStore.API.Services
             // Upload images
             if (productDto.Images != null && productDto.Images.Count > 0)
             {
-                var images = new string[productDto.Images.Count];
-                for (int i = 0; i < productDto.Images.Count; i++)
+                var images = new List<Image>();
+                foreach (var formFile in productDto.Images)
                 {
-                    var image = await _imageService.UploadImageAsync(productDto.Images[i], _folderImageName);
-                    images[i] = image;
+                    var imagePath = await _imageService.UploadImageAsync(formFile, _folderImageName);
+                    images.Add(new Image { FilePath = imagePath, FileName = formFile.FileName });
                 }
                 product.Images = images;
             }
@@ -60,11 +61,18 @@ namespace DecorStore.API.Services
             // Handle image update if new image is provided
             if (productDto.Images != null && productDto.Images.Count > 0)
             {
-                var images = new string[productDto.Images.Count];
-                for (int i = 0; i < productDto.Images.Count; i++)
+                if (product.Images != null)
                 {
-                    var image = await _imageService.UpdateImageAsync(product.Images[i], productDto.Images[i], _folderImageName);
-                    images[i] = image;
+                    foreach (var img in product.Images)
+                    {
+                        await _imageService.DeleteImageAsync(img.FilePath);
+                    }
+                }
+                var images = new List<Image>();
+                foreach (var formFile in productDto.Images)
+                {
+                    var imagePath = await _imageService.UploadImageAsync(formFile, _folderImageName);
+                    images.Add(new Image { FilePath = imagePath, FileName = formFile.FileName });
                 }
                 product.Images = images;
             }
@@ -92,17 +100,72 @@ namespace DecorStore.API.Services
                 ?? throw new NotFoundException("Product not found");
 
             // Delete images from storage
-            if (product.Images != null && product.Images.Length > 0)
+            if (product.Images != null && product.Images.Count > 0)
             {
-                foreach (var image in product.Images)
+                foreach (var img in product.Images)
                 {
-                    await _imageService.DeleteImageAsync(image);
+                    await _imageService.DeleteImageAsync(img.FilePath);
                 }
             }
 
             await _unitOfWork.Products.DeleteAsync(id);
             await _unitOfWork.SaveChangesAsync();
             return true;
+        }
+
+        public async Task<bool> AddImageToProductAsync(int productId, IFormFile image)
+        {
+            var product = await _unitOfWork.Products.GetByIdAsync(productId)
+                ?? throw new NotFoundException("Product not found");
+
+            if (image == null || image.Length == 0)
+            {
+                throw new ArgumentException("Image file cannot be null or empty");
+            }
+
+            // Upload the image
+            var imagePath = await _imageService.UploadImageAsync(image, _folderImageName);
+
+            // Create new Image entity
+            var newImage = new Image
+            {
+                FileName = image.FileName,
+                FilePath = imagePath,
+                ProductId = productId,
+                AltText = Path.GetFileNameWithoutExtension(image.FileName) // Default alt text
+            };
+
+            // Add the image to the product
+            product.Images.Add(newImage);
+
+            await _unitOfWork.SaveChangesAsync();
+            return true;
+        }
+
+        public async Task<bool> RemoveImageFromProductAsync(int productId, int imageId)
+        {
+            var product = await _unitOfWork.Products.GetByIdAsync(productId)
+                ?? throw new NotFoundException("Product not found");
+
+            var image = product.Images.FirstOrDefault(i => i.Id == imageId);
+            if (image == null)
+            {
+                throw new NotFoundException("Image not found");
+            }
+
+            // Delete the image file from storage
+            await _imageService.DeleteImageAsync(image.FilePath);
+
+            // Remove the image from the product
+            product.Images.Remove(image);
+
+            await _unitOfWork.SaveChangesAsync();
+            return true;
+        }
+
+        public IEnumerable<ProductDTO> MapToProductDTOs(IEnumerable<Product> products)
+        {
+            return _mapper.Map<IEnumerable<ProductDTO>>(products);
         }
     }
 }
