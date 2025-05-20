@@ -5,6 +5,7 @@ import { useGetCategories } from "@/hooks/useCategories";
 import { Category } from "@/services/categories";
 import { CategoryDialog } from "@/components/categories/CategoryDialog";
 import { Plus, Pencil, Loader2 } from "lucide-react";
+import { getImageUrl } from "@/lib/utils";
 
 export default function CategoriesPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -54,6 +55,7 @@ export default function CategoriesPage() {
           <table className="w-full border-collapse text-sm">
             <thead>
               <tr className="border-b bg-muted/50">
+                <th className="px-4 py-3 text-left font-medium">Image</th>
                 <th className="px-4 py-3 text-left font-medium">Name</th>
                 <th className="px-4 py-3 text-left font-medium">Slug</th>
                 <th className="px-4 py-3 text-left font-medium">Parent</th>
@@ -65,6 +67,13 @@ export default function CategoriesPage() {
               {categories && categories.length > 0 ? (
                 categories.map((cat) => (
                   <tr key={cat.id} className="border-b transition-colors hover:bg-muted/50">
+                    <td className="px-4 py-3">
+                      {cat.imageUrl ? (
+                        <img src={getImageUrl(cat.imageUrl)} alt={cat.name} className="h-12 w-24 object-cover rounded" />
+                      ) : (
+                        <span className="text-muted-foreground">No image</span>
+                      )}
+                    </td>
                     <td className="px-4 py-3">{cat.name}</td>
                     <td className="px-4 py-3">{cat.slug}</td>
                     <td className="px-4 py-3">{cat.parentCategory?.name || "-"}</td>

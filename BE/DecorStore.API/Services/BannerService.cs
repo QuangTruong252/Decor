@@ -1,7 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
-using System.Linq;
 using System.Threading.Tasks;
 using DecorStore.API.DTOs;
 using DecorStore.API.Models;
@@ -15,20 +13,15 @@ namespace DecorStore.API.Services
     public class BannerService : IBannerService
     {
         private readonly IUnitOfWork _unitOfWork;
-        private readonly string _uploadDirectory;
         private readonly IMapper _mapper;
+        private readonly IImageService _imageService;
+        private readonly string _folderName = "banners";
 
-        public BannerService(IUnitOfWork unitOfWork, IHttpContextAccessor httpContextAccessor, IMapper mapper)
+        public BannerService(IUnitOfWork unitOfWork, IMapper mapper, IImageService imageService)
         {
             _unitOfWork = unitOfWork;
             _mapper = mapper;
-            _uploadDirectory = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads", "banners");
-
-            // Đảm bảo thư mục tồn tại
-            if (!Directory.Exists(_uploadDirectory))
-            {
-                Directory.CreateDirectory(_uploadDirectory);
-            }
+            _imageService = imageService;
         }
 
         public async Task<IEnumerable<BannerDTO>> GetAllBannersAsync()
@@ -60,20 +53,23 @@ namespace DecorStore.API.Services
             // Map DTO to entity
             var banner = _mapper.Map<Banner>(bannerDto);
 
-            // Xử lý upload ảnh
-            string fileName = Guid.NewGuid().ToString() + Path.GetExtension(bannerDto.ImageFile.FileName);
-            string filePath = Path.Combine(_uploadDirectory, fileName);
-
-            using (var stream = new FileStream(filePath, FileMode.Create))
+            try
             {
-                await bannerDto.ImageFile.CopyToAsync(stream);
+                // Upload image using ImageService
+                string imagePath = await _imageService.UploadImageAsync(bannerDto.ImageFile, _folderName);
+
+                // Set the image URL in the banner entity
+                banner.ImageUrl = imagePath;
+
+                // Save banner to database
+                await _unitOfWork.Banners.CreateAsync(banner);
+                await _unitOfWork.SaveChangesAsync();
+                return banner;
             }
-
-            banner.ImageUrl = "/uploads/banners/" + fileName;
-
-            await _unitOfWork.Banners.CreateAsync(banner);
-            await _unitOfWork.SaveChangesAsync();
-            return banner;
+            catch (Exception ex)
+            {
+                throw new InvalidOperationException($"Failed to create banner: {ex.Message}", ex);
+            }
         }
 
         public async Task UpdateBannerAsync(int id, UpdateBannerDTO bannerDto)
@@ -85,34 +81,26 @@ namespace DecorStore.API.Services
             // Map DTO to entity
             _mapper.Map(bannerDto, banner);
 
-            // Xử lý upload ảnh mới nếu có
-            if (bannerDto.ImageFile != null)
+            try
             {
-                // Xóa ảnh cũ nếu có
-                if (!string.IsNullOrEmpty(banner.ImageUrl))
+                // Update image if a new one is provided
+                if (bannerDto.ImageFile != null)
                 {
-                    string oldFilePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot",
-                        banner.ImageUrl.TrimStart('/'));
-                    if (File.Exists(oldFilePath))
-                    {
-                        File.Delete(oldFilePath);
-                    }
+                    // Use ImageService to update the image
+                    string newImagePath = await _imageService.UpdateImageAsync(banner.ImageUrl, bannerDto.ImageFile, _folderName);
+
+                    // Update the image URL in the banner entity
+                    banner.ImageUrl = newImagePath;
                 }
 
-                // Lưu ảnh mới
-                string fileName = Guid.NewGuid().ToString() + Path.GetExtension(bannerDto.ImageFile.FileName);
-                string filePath = Path.Combine(_uploadDirectory, fileName);
-
-                using (var stream = new FileStream(filePath, FileMode.Create))
-                {
-                    await bannerDto.ImageFile.CopyToAsync(stream);
-                }
-
-                banner.ImageUrl = "/uploads/banners/" + fileName;
+                // Save changes to database
+                await _unitOfWork.Banners.UpdateAsync(banner);
+                await _unitOfWork.SaveChangesAsync();
             }
-
-            await _unitOfWork.Banners.UpdateAsync(banner);
-            await _unitOfWork.SaveChangesAsync();
+            catch (Exception ex)
+            {
+                throw new InvalidOperationException($"Failed to update banner: {ex.Message}", ex);
+            }
         }
 
         public async Task DeleteBannerAsync(int id)
@@ -121,19 +109,22 @@ namespace DecorStore.API.Services
             if (banner == null)
                 throw new NotFoundException("Banner not found");
 
-            // Xóa file ảnh nếu có
-            if (!string.IsNullOrEmpty(banner.ImageUrl))
+            try
             {
-                string filePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot",
-                    banner.ImageUrl.TrimStart('/'));
-                if (File.Exists(filePath))
+                // Delete the image using ImageService
+                if (!string.IsNullOrEmpty(banner.ImageUrl))
                 {
-                    File.Delete(filePath);
+                    await _imageService.DeleteImageAsync(banner.ImageUrl);
                 }
-            }
 
-            await _unitOfWork.Banners.DeleteAsync(id);
-            await _unitOfWork.SaveChangesAsync();
+                // Delete the banner from database
+                await _unitOfWork.Banners.DeleteAsync(id);
+                await _unitOfWork.SaveChangesAsync();
+            }
+            catch (Exception ex)
+            {
+                throw new InvalidOperationException($"Failed to delete banner: {ex.Message}", ex);
+            }
         }
     }
 }

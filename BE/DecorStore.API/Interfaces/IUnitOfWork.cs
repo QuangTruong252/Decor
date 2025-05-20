@@ -12,12 +12,13 @@ namespace DecorStore.API.Interfaces
         IOrderRepository Orders { get; }
         IReviewRepository Reviews { get; }
         IBannerRepository Banners { get; }
-        
+        ICartRepository Carts { get; }
+
         // Transaction management
         Task BeginTransactionAsync();
         Task CommitTransactionAsync();
         Task RollbackTransactionAsync();
-        
+
         // Save changes
         Task<int> SaveChangesAsync();
     }

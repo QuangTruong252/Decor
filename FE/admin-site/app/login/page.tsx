@@ -1,17 +1,16 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { Eye, EyeOff } from "lucide-react";
-import { login } from "@/services/auth";
-import { useAuthStore } from "@/stores/auth";
+import { signIn } from "next-auth/react";
 import { zodResolver } from "@hookform/resolvers/zod";
 
 const loginSchema = z.object({
   email: z.string().email("Invalid email address"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
+  password: z.string().min(1, "Password is required"), // Adjusted min length for simplicity, can be more complex
 });
 
 type LoginFormData = z.infer<typeof loginSchema>;
@@ -21,7 +20,8 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
-  const setUser = useAuthStore((state) => state.setUser);
+  const searchParams = useSearchParams();
+  const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
 
   const {
     register,
@@ -32,15 +32,29 @@ export default function LoginPage() {
   });
 
   const onSubmit = async (data: LoginFormData) => {
+    setIsLoading(true);
+    setError(null);
     try {
-      setIsLoading(true);
-      setError(null);
-      const user = await login(data);
-      setUser(user);
-      router.push("/dashboard");
-    } catch (error) {
-      setError(error instanceof Error ? error.message : "Login failed");
-    } finally {
+      const result = await signIn("credentials", {
+        redirect: false, // We'll handle redirection manually
+        email: data.email,
+        password: data.password,
+        callbackUrl: callbackUrl, 
+      });
+
+      if (result?.error) {
+        setError(result.error === "CredentialsSignin" ? "Invalid email or password" : result.error);
+        setIsLoading(false);
+      } else if (result?.ok) {
+        router.push(callbackUrl); // Redirect to the callbackUrl or dashboard
+      } else {
+        // Handle other cases, though typically one of the above will occur
+        setError("An unexpected error occurred. Please try again.");
+        setIsLoading(false);
+      }
+    } catch (err) {
+      // This catch block might be for network errors or other unexpected issues
+      setError("Login failed. Please check your connection and try again.");
       setIsLoading(false);
     }
   };

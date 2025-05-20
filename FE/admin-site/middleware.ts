@@ -1,41 +1,42 @@
-import { NextRequest, NextResponse } from "next/server";
-
-const PUBLIC_PATHS = ["/login", "/_next", "/favicon.ico", "/api"];
-
-function isPublicPath(path: string) {
-  return PUBLIC_PATHS.some((publicPath) => path.startsWith(publicPath));
-}
-
-interface JwtPayload {
-  exp?: number;
-}
+import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+import { getToken } from "next-auth/jwt";
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  if (isPublicPath(pathname)) {
+
+  // Allow access to login page and NextAuth API routes
+  if (pathname.startsWith("/login") || pathname.startsWith("/api/auth")) {
     return NextResponse.next();
   }
 
-  const token = request.cookies.get("auth_token")?.value || request.headers.get("authorization")?.replace("Bearer ", "");
+  // Get the token using next-auth/jwt which works in middleware
+  const token = await getToken({
+    req: request,
+    secret: process.env.NEXTAUTH_SECRET
+  });
 
+  // If there's no token (user is not authenticated), redirect to login
   if (!token) {
-    return NextResponse.redirect(new URL("/login", request.url));
+    const loginUrl = new URL("/login", request.url);
+    // Optionally, add a callbackUrl to redirect back after login
+    loginUrl.searchParams.set("callbackUrl", pathname);
+    return NextResponse.redirect(loginUrl);
   }
 
-  try {
-    const { jwtDecode } = await import("jwt-decode");
-    const decoded = jwtDecode<JwtPayload>(token);
-    if (decoded.exp && Date.now() >= decoded.exp * 1000) {
-      // Token expired
-      return NextResponse.redirect(new URL("/login", request.url));
-    }
-  } catch {
-    return NextResponse.redirect(new URL("/login", request.url));
-  }
-
+  // If there is a token, allow the request to proceed
   return NextResponse.next();
 }
 
 export const config = {
-  matcher: ["/(admin)/(.*)", "/dashboard", "/products", "/orders", "/customers", "/settings"],
+  // Match all routes except for static files, _next internal routes, and favicon
+  matcher: [
+    "/((?!api/auth|_next/static|_next/image|favicon.ico|login).*)",
+    "/dashboard/:path*",
+    "/products/:path*",
+    "/orders/:path*",
+    "/customers/:path*",
+    "/settings/:path*",
+    "/banners/:path*",
+  ],
 };

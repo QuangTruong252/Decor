@@ -1,2 +1,0 @@
-"category":{"id":System.Text.Json.JsonException: A possible object cycle was detected. This can either be due to a cycle or if 
-the object depth is larger than the maximum allowed depth of 32. Consider using ReferenceHandler.Preserve on JsonSerializerOptions to support cycles. Path: $.Images.Product.Images.Product.Images.Product.Images.Product.Images.Product.Images.Product.Images.Product.Images.Product.Images.Product.Images.Product.Category.Id. at System.Text.Json.ThrowHelper.ThrowJsonException_SerializerCycleDetected(Int32 maxDepth)

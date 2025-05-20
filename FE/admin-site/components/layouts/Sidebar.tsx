@@ -41,6 +41,11 @@ const menuItems = [
     icon: Users,
   },
   {
+    title: "Banners",
+    href: "/banners",
+    icon: Package,
+  },
+  {
     title: "Settings",
     href: "/settings",
     icon: Settings,
@@ -49,22 +54,6 @@ const menuItems = [
 
 export function Sidebar() {
   const pathname = usePathname();
-  const router = useRouter();
-  const logout = useAuthStore((state) => state.logout);
-
-  const handleLogout = () => {
-    if (confirm("Are you sure you want to log out?")) {
-      // Call logout action from store
-      logout();
-
-      // Delete cookie (client-side)
-      document.cookie = "auth_token=; max-age=0; path=/;";
-
-      // Redirect to login page
-      router.push("/login");
-    }
-  };
-
   return (
     <aside className="flex h-full w-64 flex-col border-r bg-sidebar">
       <div className="flex h-16 items-center border-b px-6">
@@ -92,15 +81,6 @@ export function Sidebar() {
           );
         })}
       </nav>
-      <div className="border-t p-4">
-        <button
-          className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-sidebar-foreground/60 transition-colors hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
-          onClick={handleLogout}
-        >
-          <LogOut className="h-5 w-5" />
-          Logout
-        </button>
-      </div>
     </aside>
   );
 }

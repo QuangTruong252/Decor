@@ -1,5 +1,7 @@
 "use client";
 
+import { API_URL, fetchWithAuth, fetchWithAuthFormData } from "@/lib/api-utils";
+
 /**
  * Category response DTO from API
  */
@@ -51,16 +53,6 @@ export interface UpdateCategoryPayload extends Partial<CreateCategoryPayload> {
   id: number;
 }
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
-
-// Get token from localStorage
-const getToken = (): string | null => {
-  if (typeof window !== 'undefined') {
-    return localStorage.getItem('auth_token');
-  }
-  return null;
-};
-
 /**
  * Get all categories
  * @returns List of categories
@@ -68,13 +60,7 @@ const getToken = (): string | null => {
  */
 export async function getCategories(): Promise<Category[]> {
   try {
-    const token = getToken();
-
-    const response = await fetch(`${API_URL}/api/Category`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
+    const response = await fetchWithAuth(`${API_URL}/api/Category`);
 
     if (!response.ok) {
       throw new Error("Unable to fetch categories");
@@ -95,13 +81,7 @@ export async function getCategories(): Promise<Category[]> {
  */
 export async function getCategoryById(id: number): Promise<Category> {
   try {
-    const token = getToken();
-
-    const response = await fetch(`${API_URL}/api/Category/${id}`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
+    const response = await fetchWithAuth(`${API_URL}/api/Category/${id}`);
 
     if (!response.ok) {
       throw new Error("Unable to fetch category");
@@ -122,8 +102,6 @@ export async function getCategoryById(id: number): Promise<Category> {
  */
 export async function createCategory(category: CreateCategoryPayload): Promise<Category> {
   try {
-    const token = getToken();
-
     // Create FormData to send both data and image
     const formData = new FormData();
 
@@ -153,13 +131,7 @@ export async function createCategory(category: CreateCategoryPayload): Promise<C
       url += `&DisplayOrder=${category.displayOrder}`;
     }
 
-    const response = await fetch(url, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-      body: formData,
-    });
+    const response = await fetchWithAuthFormData(url, formData);
 
     if (!response.ok) {
       throw new Error("Unable to create category");
@@ -180,8 +152,6 @@ export async function createCategory(category: CreateCategoryPayload): Promise<C
  */
 export async function updateCategory(category: UpdateCategoryPayload): Promise<void> {
   try {
-    const token = getToken();
-
     // Create FormData to send both data and image
     const formData = new FormData();
 
@@ -217,13 +187,7 @@ export async function updateCategory(category: UpdateCategoryPayload): Promise<v
       url += `&DisplayOrder=${category.displayOrder}`;
     }
 
-    const response = await fetch(url, {
-      method: "PUT",
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-      body: formData,
-    });
+    const response = await fetchWithAuthFormData(url, formData, "PUT");
 
     if (!response.ok) {
       throw new Error("Unable to update category");
@@ -242,13 +206,8 @@ export async function updateCategory(category: UpdateCategoryPayload): Promise<v
  */
 export async function deleteCategory(id: number): Promise<void> {
   try {
-    const token = getToken();
-
-    const response = await fetch(`${API_URL}/api/Category/${id}`, {
+    const response = await fetchWithAuth(`${API_URL}/api/Category/${id}`, {
       method: "DELETE",
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
     });
 
     if (!response.ok) {
@@ -268,13 +227,7 @@ export async function deleteCategory(id: number): Promise<void> {
  */
 export async function getProductsByCategory(categoryId: number): Promise<Product[]> {
   try {
-    const token = getToken();
-
-    const response = await fetch(`${API_URL}/api/Category/${categoryId}/Products`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
+    const response = await fetchWithAuth(`${API_URL}/api/Category/${categoryId}/Products`);
 
     if (!response.ok) {
       throw new Error("Unable to fetch products for this category");

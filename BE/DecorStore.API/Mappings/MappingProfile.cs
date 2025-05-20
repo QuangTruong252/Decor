@@ -93,6 +93,18 @@ namespace DecorStore.API.Mappings
                 .ForMember(dest => dest.OrderStatus, opt => opt.MapFrom(_ => "Pending"))
                 .ForMember(dest => dest.OrderItems, opt => opt.Ignore())
                 .ForMember(dest => dest.User, opt => opt.Ignore());
+
+            // Cart mappings
+            CreateMap<Cart, CartDTO>()
+                .ForMember(dest => dest.TotalItems, opt => opt.MapFrom(src => src.Items.Sum(i => i.Quantity)))
+                .ForMember(dest => dest.Items, opt => opt.MapFrom(src => src.Items));
+
+            CreateMap<CartItem, CartItemDTO>()
+                .ForMember(dest => dest.ProductName, opt => opt.MapFrom(src => src.Product.Name))
+                .ForMember(dest => dest.ProductSlug, opt => opt.MapFrom(src => src.Product.Slug))
+                .ForMember(dest => dest.ProductImage, opt => opt.MapFrom(src =>
+                    src.Product.Images.Any() ? src.Product.Images.First().FilePath : null))
+                .ForMember(dest => dest.Subtotal, opt => opt.MapFrom(src => src.Quantity * src.UnitPrice));
         }
     }
 }

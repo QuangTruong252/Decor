@@ -1,5 +1,7 @@
 "use client";
 
+import { API_URL, fetchWithAuth, fetchWithAuthFormData } from "@/lib/api-utils";
+
 export interface Product {
   id: number;
   name: string;
@@ -37,25 +39,9 @@ export interface UpdateProductPayload extends Partial<CreateProductPayload> {
   id: number;
 }
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
-
-// Get token from localStorage
-const getToken = (): string | null => {
-  if (typeof window !== 'undefined') {
-    return localStorage.getItem('auth_token');
-  }
-  return null;
-};
-
 export async function getProducts(): Promise<Product[]> {
   try {
-    const token = getToken();
-
-    const response = await fetch(`${API_URL}/api/Products`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
+    const response = await fetchWithAuth(`${API_URL}/api/Products`);
 
     if (!response.ok) {
       throw new Error("Unable to fetch product list");
@@ -70,13 +56,7 @@ export async function getProducts(): Promise<Product[]> {
 
 export async function getProductById(id: number): Promise<Product> {
   try {
-    const token = getToken();
-
-    const response = await fetch(`${API_URL}/api/Products/${id}`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
+    const response = await fetchWithAuth(`${API_URL}/api/Products/${id}`);
 
     if (!response.ok) {
       throw new Error("Unable to fetch product details");
@@ -91,8 +71,6 @@ export async function getProductById(id: number): Promise<Product> {
 
 export async function createProduct(product: CreateProductPayload): Promise<Product> {
   try {
-    const token = getToken();
-
     // Create FormData to send both data and images
     const formData = new FormData();
 
@@ -128,13 +106,7 @@ export async function createProduct(product: CreateProductPayload): Promise<Prod
       url += `&IsActive=${product.isActive}`;
     }
 
-    const response = await fetch(url, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-      body: formData,
-    });
+    const response = await fetchWithAuthFormData(url, formData);
 
     if (!response.ok) {
       throw new Error("Unable to create product");
@@ -149,8 +121,6 @@ export async function createProduct(product: CreateProductPayload): Promise<Prod
 
 export async function updateProduct(product: UpdateProductPayload): Promise<void> {
   try {
-    const token = getToken();
-
     // Create FormData to send both data and images
     const formData = new FormData();
 
@@ -204,13 +174,7 @@ export async function updateProduct(product: UpdateProductPayload): Promise<void
       url += `&IsActive=${product.isActive}`;
     }
 
-    const response = await fetch(url, {
-      method: "PUT",
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-      body: formData,
-    });
+    const response = await fetchWithAuthFormData(url, formData, "PUT");
 
     if (!response.ok) {
       throw new Error("Unable to update product");
@@ -223,13 +187,8 @@ export async function updateProduct(product: UpdateProductPayload): Promise<void
 
 export async function deleteProduct(id: number): Promise<void> {
   try {
-    const token = getToken();
-
-    const response = await fetch(`${API_URL}/api/Products/${id}`, {
+    const response = await fetchWithAuth(`${API_URL}/api/Products/${id}`, {
       method: "DELETE",
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
     });
 
     if (!response.ok) {

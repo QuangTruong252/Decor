@@ -108,7 +108,9 @@ namespace DecorStore.API.DTOs
         public bool IsActive { get; set; }
 
         // For image upload
-        public List<IFormFile> Images { get; set; }
+        public string[]? ExistingImages { get; set; }
+        
+        public List<IFormFile> NewImages { get; set; }
     }
 
     // DTO for product filtering/searching

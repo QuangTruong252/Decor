@@ -58,23 +58,43 @@ namespace DecorStore.API.Services
             // Map DTO to entity
             _mapper.Map(productDto, product);
 
-            // Handle image update if new image is provided
-            if (productDto.Images != null && productDto.Images.Count > 0)
+            // Handle existing images deletion
+            if (productDto.ExistingImages != null && productDto.ExistingImages.Length > 0)
             {
                 if (product.Images != null)
                 {
                     foreach (var img in product.Images)
                     {
-                        await _imageService.DeleteImageAsync(img.FilePath);
+                        if (!productDto.ExistingImages.Contains(img.FilePath))
+                        {
+                            await _imageService.DeleteImageAsync(img.FilePath);
+                        }
                     }
                 }
+            }
+
+            // Handle new images upload
+            if (productDto.NewImages != null && productDto.NewImages.Count > 0)
+            {
                 var images = new List<Image>();
-                foreach (var formFile in productDto.Images)
+                foreach (var formFile in productDto.NewImages)
                 {
                     var imagePath = await _imageService.UploadImageAsync(formFile, _folderImageName);
                     images.Add(new Image { FilePath = imagePath, FileName = formFile.FileName });
                 }
-                product.Images = images;
+                // Add new images to the product
+                if (product.Images == null)
+                {
+                    product.Images = images;
+                }
+                else
+                {
+                    // Add each image individually since ICollection doesn't have AddRange
+                    foreach (var image in images)
+                    {
+                        product.Images.Add(image);
+                    }
+                }
             }
 
             await _unitOfWork.Products.UpdateAsync(product);

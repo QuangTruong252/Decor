@@ -14,6 +14,8 @@ namespace DecorStore.API.Data
         public DbSet<Review> Reviews { get; set; }
         public DbSet<Banner> Banners { get; set; }
         public DbSet<Image> Images { get; set; }
+        public DbSet<Cart> Carts { get; set; }
+        public DbSet<CartItem> CartItems { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -110,9 +112,31 @@ namespace DecorStore.API.Data
                 .Property(oi => oi.UnitPrice)
                 .HasColumnType("decimal(18,2)");
 
+            modelBuilder.Entity<Cart>()
+                .Property(c => c.TotalAmount)
+                .HasColumnType("decimal(18,2)");
+
+            modelBuilder.Entity<CartItem>()
+                .Property(ci => ci.UnitPrice)
+                .HasColumnType("decimal(18,2)");
+
+            // Configure Cart relationships
+            modelBuilder.Entity<Cart>()
+                .HasMany(c => c.Items)
+                .WithOne(i => i.Cart)
+                .HasForeignKey(i => i.CartId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<Cart>()
+                .HasOne(c => c.User)
+                .WithMany()
+                .HasForeignKey(c => c.UserId)
+                .OnDelete(DeleteBehavior.Restrict)
+                .IsRequired(false);
+
             // Use identity columns in PostgreSQL
             modelBuilder.UseIdentityByDefaultColumns();
-            
+
             // Seed data with a fixed date converted to UTC
             var seedDate = new DateTime(2024, 3, 7, 0, 0, 0, DateTimeKind.Utc);
 
