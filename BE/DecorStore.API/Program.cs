@@ -60,8 +60,8 @@ if (!string.IsNullOrEmpty(databaseUrl))
 // Add services to the container.
 builder.Services.AddControllers().AddJsonOptions(options =>
 {
-    // Không sử dụng ReferenceHandler.Preserve để tránh các trường metadata như $id và $values
-    // Thay vào đó, chúng ta đã thêm [JsonIgnore] cho các thuộc tính gây ra vòng lặp
+    // Configure JSON serialization to handle circular references
+    options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
     options.JsonSerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
 });
 
@@ -82,6 +82,10 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
         // Configure migration history table
         npgsqlOptions.MigrationsHistoryTable("__EFMigrationsHistory");
     });
+
+    // Ignore PendingModelChangesWarning to avoid migration issues
+    options.ConfigureWarnings(warnings =>
+        warnings.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning));
 });
 
 // Add Unit of Work
@@ -94,6 +98,8 @@ builder.Services.AddScoped<IOrderRepository, OrderRepository>();
 builder.Services.AddScoped<IReviewRepository, ReviewRepository>();
 builder.Services.AddScoped<IBannerRepository, BannerRepository>();
 builder.Services.AddScoped<ICartRepository, CartRepository>();
+builder.Services.AddScoped<ICustomerRepository, CustomerRepository>();
+builder.Services.AddScoped<IDashboardRepository, DashboardRepository>();
 
 // Add AutoMapper
 builder.Services.AddAutoMapper(typeof(Program).Assembly);
@@ -107,6 +113,12 @@ builder.Services.AddScoped<IBannerService, BannerService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IImageService, ImageService>();
 builder.Services.AddScoped<ICartService, CartService>();
+builder.Services.AddScoped<ICustomerService, CustomerService>();
+builder.Services.AddScoped<IDashboardService, DashboardService>();
+
+// Add memory cache for dashboard data
+builder.Services.AddMemoryCache();
+builder.Services.AddScoped<ICacheService, CacheService>();
 // Add HttpContextAccessor
 builder.Services.AddHttpContextAccessor();
 

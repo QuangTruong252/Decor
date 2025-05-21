@@ -1,0 +1,23 @@
+/* Override Sonner toast styles to position toasts at the top-right */
+[data-sonner-toaster] {
+  position: fixed;
+  top: 1rem !important;
+  right: 1rem !important;
+  bottom: auto !important;
+  left: auto !important;
+  z-index: 999999999;
+}
+
+[data-sonner-toast] {
+  --y: translateY(-100%) !important;
+  top: 0 !important;
+  bottom: auto !important;
+}
+
+[data-sonner-toast][data-mounted='true'] {
+  --y: translateY(0) !important;
+}
+
+[data-sonner-toast][data-removed='true'] {
+  --y: translateY(-100%) !important;
+}

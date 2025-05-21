@@ -11,6 +11,7 @@ import {
   type CreateCategoryPayload,
   type UpdateCategoryPayload
 } from "@/services/categories";
+import { useToast } from "@/hooks/use-toast";
 
 /**
  * Hook to fetch all categories
@@ -39,10 +40,22 @@ export function useGetCategoryById(id: number) {
  */
 export function useCreateCategory() {
   const queryClient = useQueryClient();
+  const { success, error } = useToast();
+
   return useMutation({
     mutationFn: (category: CreateCategoryPayload) => createCategory(category),
     onSuccess: () => {
+      success({
+        title: "Success",
+        description: "Category created successfully!"
+      });
       queryClient.invalidateQueries({ queryKey: ["categories"] });
+    },
+    onError: (err: Error) => {
+      error({
+        title: "Error",
+        description: `Error creating category: ${err.message}`
+      });
     },
   });
 }
@@ -52,11 +65,23 @@ export function useCreateCategory() {
  */
 export function useUpdateCategory() {
   const queryClient = useQueryClient();
+  const { success, error } = useToast();
+
   return useMutation({
     mutationFn: (category: UpdateCategoryPayload) => updateCategory(category),
     onSuccess: (_, variables) => {
+      success({
+        title: "Success",
+        description: "Category updated successfully!"
+      });
       queryClient.invalidateQueries({ queryKey: ["categories"] });
       queryClient.invalidateQueries({ queryKey: ["categories", variables.id] });
+    },
+    onError: (err: Error) => {
+      error({
+        title: "Error",
+        description: `Error updating category: ${err.message}`
+      });
     },
   });
 }
@@ -66,10 +91,22 @@ export function useUpdateCategory() {
  */
 export function useDeleteCategory() {
   const queryClient = useQueryClient();
+  const { success, error } = useToast();
+
   return useMutation({
     mutationFn: (id: number) => deleteCategory(id),
     onSuccess: () => {
+      success({
+        title: "Success",
+        description: "Category deleted successfully!"
+      });
       queryClient.invalidateQueries({ queryKey: ["categories"] });
+    },
+    onError: (err: Error) => {
+      error({
+        title: "Error",
+        description: `Error deleting category: ${err.message}`
+      });
     },
   });
 }

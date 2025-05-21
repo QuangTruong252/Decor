@@ -9,6 +9,14 @@ import {
   EditProductDialog,
   DeleteProductButton
 } from "@/components/products/ProductDialog";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 export default function ProductsPage() {
   const [selectedProduct, setSelectedProduct] = useState<number | null>(null);
@@ -55,94 +63,90 @@ export default function ProductsPage() {
         <AddProductDialog onSuccess={() => refetch()} />
       </div>
 
-      <div className="rounded-lg border bg-card">
-        <div className="overflow-x-auto">
-          <table className="w-full border-collapse text-sm">
-            <thead>
-              <tr className="border-b bg-muted/50">
-                <th className="px-4 py-3 text-left font-medium">Image</th>
-                <th className="px-4 py-3 text-left font-medium">Name</th>
-                <th className="px-4 py-3 text-left font-medium">SKU</th>
-                <th className="px-4 py-3 text-right font-medium">Price</th>
-                <th className="px-4 py-3 text-right font-medium">Stock</th>
-                <th className="px-4 py-3 text-center font-medium">Status</th>
-                <th className="px-4 py-3 text-right font-medium">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {products && products.map((product) => (
-                <tr key={product.id} className="border-b transition-colors hover:bg-muted/50">
-                  <td className="px-4 py-3">
-                    <div className="h-10 w-10 overflow-hidden rounded-md bg-muted">
-                      {product.images && product.images.length > 0 ? (
-                        <img
-                          src={getImageUrl(product.images[0])}
-                          alt={product.name}
-                          className="h-full w-full object-cover"
-                        />
-                      ) : (
-                        <div className="flex h-full w-full items-center justify-center bg-muted text-muted-foreground">
-                          No img
-                        </div>
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-4 py-3">
-                    <div>
-                      <p className="font-medium">{product.name}</p>
-                      <p className="text-xs text-muted-foreground">{product.categoryName}</p>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 text-muted-foreground">{product.sku}</td>
-                  <td className="px-4 py-3 text-right">
-                    <div>
-                      <p className="font-medium">{formatCurrency(product.price)}</p>
-                      {product.originalPrice > 0 && product.originalPrice !== product.price && (
-                        <p className="text-xs text-muted-foreground line-through">
-                          {formatCurrency(product.originalPrice)}
-                        </p>
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    <span className={`${product.stockQuantity <= 10 ? "text-destructive" : ""}`}>
-                      {product.stockQuantity}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-center">
-                    {product.isActive ? (
-                      <Check className="mx-auto h-5 w-5 text-green-500" />
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Image</TableHead>
+            <TableHead>Name</TableHead>
+            <TableHead>SKU</TableHead>
+            <TableHead className="text-right">Price</TableHead>
+            <TableHead className="text-right">Stock</TableHead>
+            <TableHead className="text-center">Status</TableHead>
+            <TableHead className="text-right">Actions</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {products && products.length > 0 ? (
+            products.map((product) => (
+              <TableRow key={product.id}>
+                <TableCell>
+                  <div className="h-10 w-10 overflow-hidden rounded-md bg-muted">
+                    {product.images && product.images.length > 0 ? (
+                      <img
+                        src={getImageUrl(product.images[0])}
+                        alt={product.name}
+                        className="h-full w-full object-cover"
+                      />
                     ) : (
-                      <X className="mx-auto h-5 w-5 text-destructive" />
+                      <div className="flex h-full w-full items-center justify-center bg-muted text-muted-foreground">
+                        No img
+                      </div>
                     )}
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    <div className="flex justify-end gap-2">
-                      <EditProductDialog
-                        product={product}
-                        onSuccess={() => refetch()}
-                      />
-                      <DeleteProductButton
-                        productId={product.id}
-                        onDelete={handleDelete}
-                        isDeleting={selectedProduct !== null && selectedProduct === product.id}
-                      />
-                    </div>
-                  </td>
-                </tr>
-              ))}
-
-              {products && products.length === 0 && (
-                <tr>
-                  <td colSpan={7} className="px-4 py-8 text-center text-muted-foreground">
-                    No products found. Add your first product!
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <div>
+                    <p className="font-medium">{product.name}</p>
+                    <p className="text-xs text-muted-foreground">{product.categoryName}</p>
+                  </div>
+                </TableCell>
+                <TableCell className="text-muted-foreground">{product.sku}</TableCell>
+                <TableCell className="text-right">
+                  <div>
+                    <p className="font-medium">{formatCurrency(product.price)}</p>
+                    {product.originalPrice > 0 && product.originalPrice !== product.price && (
+                      <p className="text-xs text-muted-foreground line-through">
+                        {formatCurrency(product.originalPrice)}
+                      </p>
+                    )}
+                  </div>
+                </TableCell>
+                <TableCell className="text-right">
+                  <span className={`${product.stockQuantity <= 10 ? "text-destructive" : ""}`}>
+                    {product.stockQuantity}
+                  </span>
+                </TableCell>
+                <TableCell className="text-center">
+                  {product.isActive ? (
+                    <Check className="mx-auto h-5 w-5 text-green-500" />
+                  ) : (
+                    <X className="mx-auto h-5 w-5 text-destructive" />
+                  )}
+                </TableCell>
+                <TableCell className="text-right">
+                  <div className="flex justify-end gap-2">
+                    <EditProductDialog
+                      product={product}
+                      onSuccess={() => refetch()}
+                    />
+                    <DeleteProductButton
+                      productId={product.id}
+                      onDelete={handleDelete}
+                      isDeleting={selectedProduct !== null && selectedProduct === product.id}
+                    />
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))
+          ) : (
+            <TableRow>
+              <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">
+                No products found. Add your first product!
+              </TableCell>
+            </TableRow>
+          )}
+        </TableBody>
+      </Table>
     </div>
   );
 }

@@ -13,6 +13,8 @@ namespace DecorStore.API.Interfaces
         IReviewRepository Reviews { get; }
         IBannerRepository Banners { get; }
         ICartRepository Carts { get; }
+        ICustomerRepository Customers { get; }
+        IDashboardRepository Dashboard { get; }
 
         // Transaction management
         Task BeginTransactionAsync();
@@ -21,5 +23,8 @@ namespace DecorStore.API.Interfaces
 
         // Save changes
         Task<int> SaveChangesAsync();
+
+        // Execute with execution strategy
+        Task<TResult> ExecuteWithExecutionStrategyAsync<TResult>(Func<Task<TResult>> operation);
     }
 }

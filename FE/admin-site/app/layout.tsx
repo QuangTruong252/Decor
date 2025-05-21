@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import "./toast-override.css"; // Import custom CSS to override toast styles
 import { Providers } from "@/lib/providers";
 
 const geistSans = Geist({

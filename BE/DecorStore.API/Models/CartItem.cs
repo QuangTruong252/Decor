@@ -29,6 +29,6 @@ namespace DecorStore.API.Models
         public virtual Cart Cart { get; set; } = null!;
 
         [ForeignKey("ProductId")]
-        public virtual Product Product { get; set; } = null!;
+        public virtual Product? Product { get; set; }
     }
 }

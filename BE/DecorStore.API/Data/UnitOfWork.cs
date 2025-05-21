@@ -18,6 +18,8 @@ namespace DecorStore.API.Data
         private IReviewRepository? _reviewRepository;
         private IBannerRepository? _bannerRepository;
         private ICartRepository? _cartRepository;
+        private ICustomerRepository? _customerRepository;
+        private IDashboardRepository? _dashboardRepository;
 
         public UnitOfWork(ApplicationDbContext context)
         {
@@ -30,6 +32,8 @@ namespace DecorStore.API.Data
         public IReviewRepository Reviews => _reviewRepository ??= new ReviewRepository(_context);
         public IBannerRepository Banners => _bannerRepository ??= new BannerRepository(_context);
         public ICartRepository Carts => _cartRepository ??= new CartRepository(_context);
+        public ICustomerRepository Customers => _customerRepository ??= new CustomerRepository(_context);
+        public IDashboardRepository Dashboard => _dashboardRepository ??= new DashboardRepository(_context);
 
         public async Task BeginTransactionAsync()
         {
@@ -77,6 +81,12 @@ namespace DecorStore.API.Data
         public async Task<int> SaveChangesAsync()
         {
             return await _context.SaveChangesAsync();
+        }
+
+        public async Task<TResult> ExecuteWithExecutionStrategyAsync<TResult>(Func<Task<TResult>> operation)
+        {
+            var strategy = _context.Database.CreateExecutionStrategy();
+            return await strategy.ExecuteAsync(operation);
         }
 
         public void Dispose()

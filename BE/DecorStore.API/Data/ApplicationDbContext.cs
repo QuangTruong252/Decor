@@ -16,6 +16,7 @@ namespace DecorStore.API.Data
         public DbSet<Image> Images { get; set; }
         public DbSet<Cart> Carts { get; set; }
         public DbSet<CartItem> CartItems { get; set; }
+        public DbSet<Customer> Customers { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -29,6 +30,10 @@ namespace DecorStore.API.Data
             modelBuilder.Entity<OrderItem>().HasQueryFilter(oi => !oi.IsDeleted);
             modelBuilder.Entity<Review>().HasQueryFilter(r => !r.IsDeleted);
             modelBuilder.Entity<Banner>().HasQueryFilter(b => !b.IsDeleted);
+            modelBuilder.Entity<Customer>().HasQueryFilter(c => !c.IsDeleted);
+
+            // Add matching query filter for CartItem to match Product's filter
+            modelBuilder.Entity<CartItem>().HasQueryFilter(ci => ci.Product == null || !ci.Product.IsDeleted);
 
             // Configure unique indexes
             modelBuilder.Entity<User>()
@@ -49,6 +54,10 @@ namespace DecorStore.API.Data
 
             modelBuilder.Entity<Category>()
                 .HasIndex(c => c.Slug)
+                .IsUnique();
+
+            modelBuilder.Entity<Customer>()
+                .HasIndex(c => c.Email)
                 .IsUnique();
 
             // Configure relationships
@@ -87,6 +96,13 @@ namespace DecorStore.API.Data
                 .WithOne(oi => oi.Order)
                 .HasForeignKey(oi => oi.OrderId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<Customer>()
+                .HasMany(c => c.Orders)
+                .WithOne(o => o.Customer)
+                .HasForeignKey(o => o.CustomerId)
+                .OnDelete(DeleteBehavior.Restrict)
+                .IsRequired(false);
 
             modelBuilder.Entity<Category>()
                 .HasOne(c => c.ParentCategory)
@@ -131,6 +147,14 @@ namespace DecorStore.API.Data
                 .HasOne(c => c.User)
                 .WithMany()
                 .HasForeignKey(c => c.UserId)
+                .OnDelete(DeleteBehavior.Restrict)
+                .IsRequired(false);
+
+            // Configure CartItem-Product relationship to fix global query filter issue
+            modelBuilder.Entity<CartItem>()
+                .HasOne(ci => ci.Product)
+                .WithMany()
+                .HasForeignKey(ci => ci.ProductId)
                 .OnDelete(DeleteBehavior.Restrict)
                 .IsRequired(false);
 

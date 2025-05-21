@@ -2,6 +2,7 @@ using System;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Collections.Generic;
+using System.Text.Json.Serialization;
 
 namespace DecorStore.API.Models
 {
@@ -64,14 +65,16 @@ namespace DecorStore.API.Models
 
         // Navigation properties
         [ForeignKey("CategoryId")]
+        [JsonIgnore]
         public virtual Category Category { get; set; }
 
+        [JsonIgnore]
         public virtual ICollection<Image> Images { get; set; }
 
-        [System.Text.Json.Serialization.JsonIgnore]
+        [JsonIgnore]
         public virtual ICollection<Review> Reviews { get; set; }
 
-        [System.Text.Json.Serialization.JsonIgnore]
+        [JsonIgnore]
         public virtual ICollection<OrderItem> OrderItems { get; set; }
     }
 }

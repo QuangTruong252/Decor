@@ -7,6 +7,7 @@ import { z } from "zod";
 import { Eye, EyeOff } from "lucide-react";
 import { signIn } from "next-auth/react";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useToast } from "@/hooks/use-toast";
 
 const loginSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -22,6 +23,7 @@ export default function LoginPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
+  const { error: toastError, success } = useToast();
 
   const {
     register,
@@ -39,22 +41,43 @@ export default function LoginPage() {
         redirect: false, // We'll handle redirection manually
         email: data.email,
         password: data.password,
-        callbackUrl: callbackUrl, 
+        callbackUrl: callbackUrl,
       });
 
       if (result?.error) {
-        setError(result.error === "CredentialsSignin" ? "Invalid email or password" : result.error);
+        const errorMessage = result.error === "CredentialsSignin"
+          ? "Invalid email or password"
+          : result.error;
+        toastError({
+          title: "Error",
+          description: errorMessage,
+        });
+        setError(errorMessage);
         setIsLoading(false);
       } else if (result?.ok) {
+        success({
+          title: "Success",
+          description: "Login successful! Redirecting...",
+        });
         router.push(callbackUrl); // Redirect to the callbackUrl or dashboard
       } else {
         // Handle other cases, though typically one of the above will occur
-        setError("An unexpected error occurred. Please try again.");
+        const errorMessage = "An unexpected error occurred. Please try again.";
+        toastError({
+          title: "Error",
+          description: errorMessage,
+        });
+        setError(errorMessage);
         setIsLoading(false);
       }
     } catch (err) {
       // This catch block might be for network errors or other unexpected issues
-      setError("Login failed. Please check your connection and try again.");
+      const errorMessage = "Login failed. Please check your connection and try again.";
+      toastError({
+        title: "Error",
+        description: errorMessage,
+      });
+      setError(errorMessage);
       setIsLoading(false);
     }
   };

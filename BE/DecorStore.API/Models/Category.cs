@@ -2,6 +2,7 @@ using System;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Collections.Generic;
+using System.Text.Json.Serialization;
 
 namespace DecorStore.API.Models
 {
@@ -33,11 +34,13 @@ namespace DecorStore.API.Models
 
         // Navigation properties
         [ForeignKey("ParentId")]
+        [JsonIgnore]
         public virtual Category ParentCategory { get; set; }
 
+        [JsonIgnore]
         public virtual ICollection<Category> Subcategories { get; set; }
 
-        [System.Text.Json.Serialization.JsonIgnore]
+        [JsonIgnore]
         public virtual ICollection<Product> Products { get; set; }
 
         public Category()

@@ -10,8 +10,8 @@ namespace DecorStore.API.Services
         Task<IEnumerable<OrderDTO>> GetAllOrdersAsync();
         Task<IEnumerable<OrderDTO>> GetOrdersByUserIdAsync(int userId);
         Task<OrderDTO> GetOrderByIdAsync(int id);
-        Task<Order> CreateOrderAsync(CreateOrderDTO orderDto);
+        Task<OrderDTO> CreateOrderAsync(CreateOrderDTO orderDto);
         Task UpdateOrderStatusAsync(int id, UpdateOrderStatusDTO statusDto);
         Task DeleteOrderAsync(int id);
     }
-} 
+}

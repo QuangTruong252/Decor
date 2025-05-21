@@ -67,7 +67,7 @@ namespace DecorStore.API.Controllers
 
         // POST: api/Order
         [HttpPost]
-        public async Task<ActionResult<Order>> CreateOrder(CreateOrderDTO orderDto)
+        public async Task<ActionResult<OrderDTO>> CreateOrder(CreateOrderDTO orderDto)
         {
             try
             {
@@ -75,8 +75,8 @@ namespace DecorStore.API.Controllers
                 var currentUserId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "0");
                 orderDto.UserId = currentUserId;
 
-                var order = await _orderService.CreateOrderAsync(orderDto);
-                return CreatedAtAction(nameof(GetOrder), new { id = order.Id }, order);
+                var createdOrderDto = await _orderService.CreateOrderAsync(orderDto);
+                return CreatedAtAction(nameof(GetOrder), new { id = createdOrderDto.Id }, createdOrderDto);
             }
             catch (System.InvalidOperationException ex)
             {

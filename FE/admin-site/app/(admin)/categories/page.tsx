@@ -6,6 +6,14 @@ import { Category } from "@/services/categories";
 import { CategoryDialog } from "@/components/categories/CategoryDialog";
 import { Plus, Pencil, Loader2 } from "lucide-react";
 import { getImageUrl } from "@/lib/utils";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 export default function CategoriesPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -50,50 +58,46 @@ export default function CategoriesPage() {
         <h1 className="text-3xl font-bold">Categories</h1>
         <Button onClick={handleAdd} aria-label="Add Category" className="gap-2"><Plus className="w-4 h-4" />Add Category</Button>
       </div>
-      <div className="rounded-lg border bg-card">
-        <div className="overflow-x-auto">
-          <table className="w-full border-collapse text-sm">
-            <thead>
-              <tr className="border-b bg-muted/50">
-                <th className="px-4 py-3 text-left font-medium">Image</th>
-                <th className="px-4 py-3 text-left font-medium">Name</th>
-                <th className="px-4 py-3 text-left font-medium">Slug</th>
-                <th className="px-4 py-3 text-left font-medium">Parent</th>
-                <th className="px-4 py-3 text-left font-medium">Created</th>
-                <th className="px-4 py-3 text-right font-medium">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {categories && categories.length > 0 ? (
-                categories.map((cat) => (
-                  <tr key={cat.id} className="border-b transition-colors hover:bg-muted/50">
-                    <td className="px-4 py-3">
-                      {cat.imageUrl ? (
-                        <img src={getImageUrl(cat.imageUrl)} alt={cat.name} className="h-12 w-24 object-cover rounded" />
-                      ) : (
-                        <span className="text-muted-foreground">No image</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3">{cat.name}</td>
-                    <td className="px-4 py-3">{cat.slug}</td>
-                    <td className="px-4 py-3">{cat.parentCategory?.name || "-"}</td>
-                    <td className="px-4 py-3">{new Date(cat.createdAt).toLocaleDateString()}</td>
-                    <td className="px-4 py-3 text-right">
-                      <Button size="sm" variant="outline" onClick={() => handleEdit(cat)} aria-label={`Edit ${cat.name}`} className="gap-2"><Pencil className="w-4 h-4" />Edit</Button>
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">
-                    No categories found. Add your first category!
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Image</TableHead>
+            <TableHead>Name</TableHead>
+            <TableHead>Slug</TableHead>
+            <TableHead>Parent</TableHead>
+            <TableHead>Created</TableHead>
+            <TableHead className="text-right">Actions</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {categories && categories.length > 0 ? (
+            categories.map((cat) => (
+              <TableRow key={cat.id}>
+                <TableCell>
+                  {cat.imageUrl ? (
+                    <img src={getImageUrl(cat.imageUrl)} alt={cat.name} className="h-12 w-24 object-cover rounded" />
+                  ) : (
+                    <span className="text-muted-foreground">No image</span>
+                  )}
+                </TableCell>
+                <TableCell>{cat.name}</TableCell>
+                <TableCell>{cat.slug}</TableCell>
+                <TableCell>{cat.parentCategory?.name || "-"}</TableCell>
+                <TableCell>{new Date(cat.createdAt).toLocaleDateString()}</TableCell>
+                <TableCell className="text-right">
+                  <Button size="sm" variant="outline" onClick={() => handleEdit(cat)} aria-label={`Edit ${cat.name}`} className="gap-2"><Pencil className="w-4 h-4" />Edit</Button>
+                </TableCell>
+              </TableRow>
+            ))
+          ) : (
+            <TableRow>
+              <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
+                No categories found. Add your first category!
+              </TableCell>
+            </TableRow>
+          )}
+        </TableBody>
+      </Table>
       <CategoryDialog
         open={dialogOpen}
         onOpenChange={setDialogOpen}

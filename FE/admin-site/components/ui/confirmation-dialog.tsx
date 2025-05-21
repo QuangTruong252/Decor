@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { AlertCircle, CheckCircle, Loader2 } from "lucide-react"
+import { useToast } from "@/hooks/use-toast"
 
 // Types
 type ConfirmationOptions = {
@@ -44,6 +45,7 @@ export function ConfirmationDialogProvider({ children }: { children: ReactNode }
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle")
   const [error, setError] = useState<string | null>(null)
   const [resolveRef, setResolveRef] = useState<((value: boolean) => void) | null>(null)
+  const { success, error: toastError } = useToast()
 
   const confirm = useCallback((options: ConfirmationOptions) => {
     setOptions(options)
@@ -68,18 +70,27 @@ export function ConfirmationDialogProvider({ children }: { children: ReactNode }
       setStatus("loading")
       await options.onConfirm()
       setStatus("success")
+      success({
+        title: "Success",
+        description: "Operation completed successfully!"
+      })
       if (resolveRef) resolveRef(true)
       setTimeout(() => {
         setIsOpen(false)
         setIsLoading(false)
       }, 1000)
     } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : "An error occurred"
       setStatus("error")
-      setError(err instanceof Error ? err.message : "An error occurred")
+      setError(errorMessage)
+      toastError({
+        title: "Error",
+        description: `Error: ${errorMessage}`
+      })
       setIsLoading(false)
       if (resolveRef) resolveRef(false)
     }
-  }, [options, resolveRef])
+  }, [options, resolveRef, success, toastError])
 
   const handleCancel = useCallback(() => {
     if (options?.onCancel) {

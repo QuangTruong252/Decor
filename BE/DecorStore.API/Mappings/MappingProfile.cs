@@ -80,6 +80,7 @@ namespace DecorStore.API.Mappings
             // Order mappings
             CreateMap<Order, OrderDTO>()
                 .ForMember(dest => dest.UserFullName, opt => opt.MapFrom(src => src.User != null ? src.User.FullName : string.Empty))
+                .ForMember(dest => dest.CustomerFullName, opt => opt.MapFrom(src => src.Customer != null ? src.Customer.FullName : string.Empty))
                 .ForMember(dest => dest.OrderItems, opt => opt.MapFrom(src => src.OrderItems));
 
             CreateMap<OrderItem, OrderItemDTO>()
@@ -92,7 +93,8 @@ namespace DecorStore.API.Mappings
                 .ForMember(dest => dest.UpdatedAt, opt => opt.MapFrom(_ => System.DateTime.UtcNow))
                 .ForMember(dest => dest.OrderStatus, opt => opt.MapFrom(_ => "Pending"))
                 .ForMember(dest => dest.OrderItems, opt => opt.Ignore())
-                .ForMember(dest => dest.User, opt => opt.Ignore());
+                .ForMember(dest => dest.User, opt => opt.Ignore())
+                .ForMember(dest => dest.Customer, opt => opt.Ignore());
 
             // Cart mappings
             CreateMap<Cart, CartDTO>()
@@ -105,6 +107,20 @@ namespace DecorStore.API.Mappings
                 .ForMember(dest => dest.ProductImage, opt => opt.MapFrom(src =>
                     src.Product.Images.Any() ? src.Product.Images.First().FilePath : null))
                 .ForMember(dest => dest.Subtotal, opt => opt.MapFrom(src => src.Quantity * src.UnitPrice));
+
+            // Customer mappings
+            CreateMap<Customer, CustomerDTO>();
+
+            CreateMap<CreateCustomerDTO, Customer>()
+                .ForMember(dest => dest.CreatedAt, opt => opt.MapFrom(_ => System.DateTime.UtcNow))
+                .ForMember(dest => dest.UpdatedAt, opt => opt.MapFrom(_ => System.DateTime.UtcNow))
+                .ForMember(dest => dest.Orders, opt => opt.Ignore());
+
+            CreateMap<UpdateCustomerDTO, Customer>()
+                .ForMember(dest => dest.Email, opt => opt.Ignore())
+                .ForMember(dest => dest.CreatedAt, opt => opt.Ignore())
+                .ForMember(dest => dest.UpdatedAt, opt => opt.MapFrom(_ => System.DateTime.UtcNow))
+                .ForMember(dest => dest.Orders, opt => opt.Ignore());
         }
     }
 }
