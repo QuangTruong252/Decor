@@ -1,6 +1,7 @@
 using System.Text;
 using System.Text.Json.Serialization;
 using DecorStore.API.Data;
+using DecorStore.API.Extensions;
 using DecorStore.API.Interfaces;
 using DecorStore.API.Repositories;
 using DecorStore.API.Services;
@@ -241,5 +242,12 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+
+// Seed furniture data if needed
+if (app.Environment.IsDevelopment())
+{
+    // Only seed data in development environment
+    await app.SeedFurnitureDataAsync();
+}
 
 app.Run();
