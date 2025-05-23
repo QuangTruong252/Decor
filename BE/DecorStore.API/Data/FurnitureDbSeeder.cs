@@ -18,25 +18,21 @@ namespace DecorStore.API.Data
 
         public async Task SeedFurnitureData()
         {
-            // Check if we already have furniture data
-            if (await _context.Categories.CountAsync() > 5 && await _context.Products.CountAsync() > 20)
-            {
-                Console.WriteLine("Database already has furniture data. Skipping seeding.");
-                return;
-            }
+            // Force clear and reseed data
+            Console.WriteLine("Clearing existing data and reseeding...");
 
-            // Clear existing data if needed
+            // Clear existing data
             await ClearExistingData();
 
             // Add main categories
             var categories = new List<Category>
             {
                 // Main categories
-                new Category { Name = "Living Room", Slug = "living-room", Description = "Furniture for your living space", ImageUrl = "/images/categories/living-room.jpg" },
-                new Category { Name = "Bedroom", Slug = "bedroom", Description = "Furniture for your bedroom", ImageUrl = "/images/categories/bedroom.jpg" },
-                new Category { Name = "Dining Room", Slug = "dining-room", Description = "Furniture for your dining area", ImageUrl = "/images/categories/dining-room.jpg" },
-                new Category { Name = "Home Office", Slug = "home-office", Description = "Furniture for your workspace", ImageUrl = "/images/categories/home-office.jpg" },
-                new Category { Name = "Outdoor", Slug = "outdoor", Description = "Furniture for your outdoor spaces", ImageUrl = "/images/categories/outdoor.jpg" }
+                new Category { Name = "Living Room", Slug = "living-room", Description = "Furniture for your living space", ImageUrl = "/categories/living-room.jpg" },
+                new Category { Name = "Bedroom", Slug = "bedroom", Description = "Furniture for your bedroom", ImageUrl = "/categories/bedroom.jpg" },
+                new Category { Name = "Dining Room", Slug = "dining-room", Description = "Furniture for your dining area", ImageUrl = "/categories/dining-room.jpg" },
+                new Category { Name = "Home Office", Slug = "home-office", Description = "Furniture for your workspace", ImageUrl = "/categories/home-office.jpg" },
+                new Category { Name = "Outdoor", Slug = "outdoor", Description = "Furniture for your outdoor spaces", ImageUrl = "/categories/outdoor.jpg" }
             };
 
             await _context.Categories.AddRangeAsync(categories);
@@ -52,31 +48,31 @@ namespace DecorStore.API.Data
             var subcategories = new List<Category>
             {
                 // Living Room subcategories
-                new Category { Name = "Sofas", Slug = "sofas", Description = "Comfortable seating for your living room", ParentId = livingRoomId, ImageUrl = "/images/categories/sofas.jpg" },
-                new Category { Name = "Coffee Tables", Slug = "coffee-tables", Description = "Stylish tables for your living room", ParentId = livingRoomId, ImageUrl = "/images/categories/coffee-tables.jpg" },
-                new Category { Name = "TV Stands", Slug = "tv-stands", Description = "Furniture for your entertainment system", ParentId = livingRoomId, ImageUrl = "/images/categories/tv-stands.jpg" },
-                new Category { Name = "Bookshelves", Slug = "bookshelves", Description = "Storage solutions for your books and decor", ParentId = livingRoomId, ImageUrl = "/images/categories/bookshelves.jpg" },
+                new Category { Name = "Sofas", Slug = "sofas", Description = "Comfortable seating for your living room", ParentId = livingRoomId, ImageUrl = "/categories/sofas.jpg" },
+                new Category { Name = "Coffee Tables", Slug = "coffee-tables", Description = "Stylish tables for your living room", ParentId = livingRoomId, ImageUrl = "/categories/coffee-tables.jpg" },
+                new Category { Name = "TV Stands", Slug = "tv-stands", Description = "Furniture for your entertainment system", ParentId = livingRoomId, ImageUrl = "/categories/tv-stands.jpg" },
+                new Category { Name = "Bookshelves", Slug = "bookshelves", Description = "Storage solutions for your books and decor", ParentId = livingRoomId, ImageUrl = "/categories/bookshelves.jpg" },
 
                 // Bedroom subcategories
-                new Category { Name = "Beds", Slug = "beds", Description = "Comfortable beds for a good night's sleep", ParentId = bedroomId, ImageUrl = "/images/categories/beds.jpg" },
-                new Category { Name = "Nightstands", Slug = "nightstands", Description = "Bedside tables for your essentials", ParentId = bedroomId, ImageUrl = "/images/categories/nightstands.jpg" },
-                new Category { Name = "Wardrobes", Slug = "wardrobes", Description = "Storage solutions for your clothes", ParentId = bedroomId, ImageUrl = "/images/categories/wardrobes.jpg" },
-                new Category { Name = "Dressers", Slug = "dressers", Description = "Stylish storage for your bedroom", ParentId = bedroomId, ImageUrl = "/images/categories/dressers.jpg" },
+                new Category { Name = "Beds", Slug = "beds", Description = "Comfortable beds for a good night's sleep", ParentId = bedroomId, ImageUrl = "/categories/beds.jpg" },
+                new Category { Name = "Nightstands", Slug = "nightstands", Description = "Bedside tables for your essentials", ParentId = bedroomId, ImageUrl = "/categories/nightstands.jpg" },
+                new Category { Name = "Wardrobes", Slug = "wardrobes", Description = "Storage solutions for your clothes", ParentId = bedroomId, ImageUrl = "/categories/wardrobes.jpg" },
+                new Category { Name = "Dressers", Slug = "dressers", Description = "Stylish storage for your bedroom", ParentId = bedroomId, ImageUrl = "/categories/dressers.jpg" },
 
                 // Dining Room subcategories
-                new Category { Name = "Dining Tables", Slug = "dining-tables", Description = "Tables for your dining area", ParentId = diningRoomId, ImageUrl = "/images/categories/dining-tables.jpg" },
-                new Category { Name = "Dining Chairs", Slug = "dining-chairs", Description = "Comfortable seating for your dining area", ParentId = diningRoomId, ImageUrl = "/images/categories/dining-chairs.jpg" },
-                new Category { Name = "Buffets & Sideboards", Slug = "buffets-sideboards", Description = "Storage and display for your dining room", ParentId = diningRoomId, ImageUrl = "/images/categories/buffets.jpg" },
+                new Category { Name = "Dining Tables", Slug = "dining-tables", Description = "Tables for your dining area", ParentId = diningRoomId, ImageUrl = "/categories/dining-tables.jpg" },
+                new Category { Name = "Dining Chairs", Slug = "dining-chairs", Description = "Comfortable seating for your dining area", ParentId = diningRoomId, ImageUrl = "/categories/dining-chairs.jpg" },
+                new Category { Name = "Buffets & Sideboards", Slug = "buffets-sideboards", Description = "Storage and display for your dining room", ParentId = diningRoomId, ImageUrl = "/categories/buffets.jpg" },
 
                 // Home Office subcategories
-                new Category { Name = "Desks", Slug = "desks", Description = "Workspaces for productivity", ParentId = homeOfficeId, ImageUrl = "/images/categories/desks.jpg" },
-                new Category { Name = "Office Chairs", Slug = "office-chairs", Description = "Comfortable seating for your workspace", ParentId = homeOfficeId, ImageUrl = "/images/categories/office-chairs.jpg" },
-                new Category { Name = "Filing Cabinets", Slug = "filing-cabinets", Description = "Storage solutions for your documents", ParentId = homeOfficeId, ImageUrl = "/images/categories/filing-cabinets.jpg" },
+                new Category { Name = "Desks", Slug = "desks", Description = "Workspaces for productivity", ParentId = homeOfficeId, ImageUrl = "/categories/desks.jpg" },
+                new Category { Name = "Office Chairs", Slug = "office-chairs", Description = "Comfortable seating for your workspace", ParentId = homeOfficeId, ImageUrl = "/categories/office-chairs.jpg" },
+                new Category { Name = "Filing Cabinets", Slug = "filing-cabinets", Description = "Storage solutions for your documents", ParentId = homeOfficeId, ImageUrl = "/categories/filing-cabinets.jpg" },
 
                 // Outdoor subcategories
-                new Category { Name = "Patio Sets", Slug = "patio-sets", Description = "Complete furniture sets for your outdoor space", ParentId = outdoorId, ImageUrl = "/images/categories/patio-sets.jpg" },
-                new Category { Name = "Outdoor Chairs", Slug = "outdoor-chairs", Description = "Comfortable seating for your outdoor area", ParentId = outdoorId, ImageUrl = "/images/categories/outdoor-chairs.jpg" },
-                new Category { Name = "Garden Accessories", Slug = "garden-accessories", Description = "Decorative items for your garden", ParentId = outdoorId, ImageUrl = "/images/categories/garden-accessories.jpg" }
+                new Category { Name = "Patio Sets", Slug = "patio-sets", Description = "Complete furniture sets for your outdoor space", ParentId = outdoorId, ImageUrl = "/categories/patio-sets.jpg" },
+                new Category { Name = "Outdoor Chairs", Slug = "outdoor-chairs", Description = "Comfortable seating for your outdoor area", ParentId = outdoorId, ImageUrl = "/categories/outdoor-chairs.jpg" },
+                new Category { Name = "Garden Accessories", Slug = "garden-accessories", Description = "Decorative items for your garden", ParentId = outdoorId, ImageUrl = "/categories/garden-accessories.jpg" }
             };
 
             await _context.Categories.AddRangeAsync(subcategories);
@@ -1438,7 +1434,7 @@ namespace DecorStore.API.Data
                     {
                         ProductId = product.Id,
                         FileName = $"{product.Slug}-{i}.jpg",
-                        FilePath = $"/images/products/{product.Slug}-{i}.jpg",
+                        FilePath = $"/products/{product.Slug}-{i}.jpg",
                         AltText = product.Name,
                         CreatedAt = DateTime.UtcNow
                     });

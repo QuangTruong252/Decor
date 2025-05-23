@@ -13,15 +13,47 @@ namespace DecorStore.API.Extensions
                 try
                 {
                     var context = services.GetRequiredService<ApplicationDbContext>();
-                    
-                    // Ensure database is created and migrations are applied
-                    await context.Database.MigrateAsync();
-                    
+
+                    // Check if database exists and can be connected to
+                    Console.WriteLine("Checking database connection...");
+                    bool canConnect = false;
+                    try
+                    {
+                        canConnect = await context.Database.CanConnectAsync();
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"Error connecting to database: {ex.Message}");
+                        return; // Exit if we can't connect
+                    }
+
+                    if (!canConnect)
+                    {
+                        Console.WriteLine("Cannot connect to database. Skipping seeding.");
+                        return;
+                    }
+
+                    // Apply migrations instead of recreating the database
+                    Console.WriteLine("Applying migrations...");
+                    try
+                    {
+                        await context.Database.MigrateAsync();
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"Error applying migrations: {ex.Message}");
+                        return; // Exit if migrations fail
+                    }
+
                     // Seed furniture data
                     var seeder = new FurnitureDbSeeder(context);
                     await seeder.SeedFurnitureData();
-                    
-                    Console.WriteLine("Furniture data seeding completed successfully.");
+
+                    // Update image paths
+                    var imagePathUpdater = new ImagePathUpdater(context);
+                    await imagePathUpdater.UpdateImagePaths();
+
+                    Console.WriteLine("Furniture data seeding and image path updates completed successfully.");
                 }
                 catch (Exception ex)
                 {

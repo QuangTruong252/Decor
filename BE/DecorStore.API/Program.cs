@@ -42,10 +42,13 @@ if (!string.IsNullOrEmpty(databaseUrl))
             Username = userInfo[0],
             Password = userInfo[1],
             SslMode = SslMode.Require,
+            TrustServerCertificate = true,
             Pooling = true,
             MinPoolSize = 0,
             MaxPoolSize = 100,
-            ConnectionIdleLifetime = 300
+            ConnectionIdleLifetime = 300,
+            Timeout = 60, // Increase timeout to 60 seconds
+            CommandTimeout = 60 // Increase command timeout to 60 seconds
         };
 
         connectionString = npgsqlBuilder.ToString();
@@ -71,14 +74,14 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 {
     options.UseNpgsql(connectionString, npgsqlOptions =>
     {
-        // Configure retry policy
+        // Configure retry policy with more retries and longer delays
         npgsqlOptions.EnableRetryOnFailure(
-            maxRetryCount: 5,
-            maxRetryDelay: TimeSpan.FromSeconds(30),
+            maxRetryCount: 10,
+            maxRetryDelay: TimeSpan.FromSeconds(60),
             errorCodesToAdd: null);
 
-        // Configure command timeout
-        npgsqlOptions.CommandTimeout(30);
+        // Increase command timeout to 120 seconds
+        npgsqlOptions.CommandTimeout(120);
 
         // Configure migration history table
         npgsqlOptions.MigrationsHistoryTable("__EFMigrationsHistory");
@@ -246,8 +249,26 @@ app.MapControllers();
 // Seed furniture data if needed
 if (app.Environment.IsDevelopment())
 {
-    // Only seed data in development environment
-    await app.SeedFurnitureDataAsync();
+    // Check if we should skip database seeding
+    var skipSeeding = Environment.GetEnvironmentVariable("SKIP_DB_SEEDING");
+    if (string.Equals(skipSeeding, "true", StringComparison.OrdinalIgnoreCase))
+    {
+        Console.WriteLine("Skipping database seeding as per SKIP_DB_SEEDING environment variable");
+    }
+    else
+    {
+        // Only seed data in development environment
+        Console.WriteLine("Starting database seeding process...");
+        try
+        {
+            await app.SeedFurnitureDataAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error during database seeding: {ex.Message}");
+            // Continue running the application even if seeding fails
+        }
+    }
 }
 
 app.Run();
