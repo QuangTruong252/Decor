@@ -79,8 +79,10 @@ namespace DecorStore.API.Mappings
 
             // Order mappings
             CreateMap<Order, OrderDTO>()
-                .ForMember(dest => dest.UserFullName, opt => opt.MapFrom(src => src.User != null ? src.User.FullName : string.Empty))
-                .ForMember(dest => dest.CustomerFullName, opt => opt.MapFrom(src => src.Customer != null ? src.Customer.FullName : string.Empty))
+                .ForMember(dest => dest.UserFullName, opt => opt.MapFrom(src =>
+                    src.User != null ? src.User.FullName : "Unknown User"))
+                .ForMember(dest => dest.CustomerFullName, opt => opt.MapFrom(src =>
+                    src.Customer != null ? $"{src.Customer.FirstName} {src.Customer.LastName}".Trim() : "Guest Customer"))
                 .ForMember(dest => dest.OrderItems, opt => opt.MapFrom(src => src.OrderItems));
 
             CreateMap<OrderItem, OrderItemDTO>()
@@ -92,6 +94,18 @@ namespace DecorStore.API.Mappings
                 .ForMember(dest => dest.OrderDate, opt => opt.MapFrom(_ => System.DateTime.UtcNow))
                 .ForMember(dest => dest.UpdatedAt, opt => opt.MapFrom(_ => System.DateTime.UtcNow))
                 .ForMember(dest => dest.OrderStatus, opt => opt.MapFrom(_ => "Pending"))
+                .ForMember(dest => dest.OrderItems, opt => opt.Ignore())
+                .ForMember(dest => dest.User, opt => opt.Ignore())
+                .ForMember(dest => dest.Customer, opt => opt.Ignore());
+
+            CreateMap<UpdateOrderDTO, Order>()
+                .ForMember(dest => dest.UpdatedAt, opt => opt.MapFrom(_ => System.DateTime.UtcNow))
+                .ForMember(dest => dest.Id, opt => opt.Ignore())
+                .ForMember(dest => dest.UserId, opt => opt.Ignore())
+                .ForMember(dest => dest.TotalAmount, opt => opt.Ignore())
+                .ForMember(dest => dest.OrderStatus, opt => opt.Ignore())
+                .ForMember(dest => dest.OrderDate, opt => opt.Ignore())
+                .ForMember(dest => dest.IsDeleted, opt => opt.Ignore())
                 .ForMember(dest => dest.OrderItems, opt => opt.Ignore())
                 .ForMember(dest => dest.User, opt => opt.Ignore())
                 .ForMember(dest => dest.Customer, opt => opt.Ignore());

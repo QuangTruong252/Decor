@@ -247,28 +247,28 @@ app.UseAuthorization();
 app.MapControllers();
 
 // Seed furniture data if needed
-if (app.Environment.IsDevelopment())
-{
-    // Check if we should skip database seeding
-    var skipSeeding = Environment.GetEnvironmentVariable("SKIP_DB_SEEDING");
-    if (string.Equals(skipSeeding, "true", StringComparison.OrdinalIgnoreCase))
-    {
-        Console.WriteLine("Skipping database seeding as per SKIP_DB_SEEDING environment variable");
-    }
-    else
-    {
-        // Only seed data in development environment
-        Console.WriteLine("Starting database seeding process...");
-        try
-        {
-            await app.SeedFurnitureDataAsync();
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Error during database seeding: {ex.Message}");
-            // Continue running the application even if seeding fails
-        }
-    }
-}
+// if (app.Environment.IsDevelopment())
+// {
+//     // Check if we should skip database seeding
+//     var skipSeeding = Environment.GetEnvironmentVariable("SKIP_DB_SEEDING");
+//     if (string.Equals(skipSeeding, "true", StringComparison.OrdinalIgnoreCase))
+//     {
+//         Console.WriteLine("Skipping database seeding as per SKIP_DB_SEEDING environment variable");
+//     }
+//     else
+//     {
+//         // Only seed data in development environment
+//         Console.WriteLine("Starting database seeding process...");
+//         try
+//         {
+//             await app.SeedFurnitureDataAsync();
+//         }
+//         catch (Exception ex)
+//         {
+//             Console.WriteLine($"Error during database seeding: {ex.Message}");
+//             // Continue running the application even if seeding fails
+//         }
+//     }
+// }
 
 app.Run();

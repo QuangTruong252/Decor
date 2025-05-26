@@ -3,6 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   getCategories,
+  getAllCategories,
   getCategoryById,
   createCategory,
   updateCategory,
@@ -11,15 +12,26 @@ import {
   type CreateCategoryPayload,
   type UpdateCategoryPayload
 } from "@/services/categories";
+import { CategoryFilters } from "@/types/api";
 import { useToast } from "@/hooks/use-toast";
 
 /**
- * Hook to fetch all categories
+ * Hook to fetch categories with pagination and filtering
  */
-export function useGetCategories() {
+export function useGetCategories(filters?: CategoryFilters) {
   return useQuery({
-    queryKey: ["categories"],
-    queryFn: getCategories,
+    queryKey: ["categories", filters],
+    queryFn: () => getCategories(filters),
+  });
+}
+
+/**
+ * Hook to fetch all categories without pagination
+ */
+export function useGetAllCategories() {
+  return useQuery({
+    queryKey: ["categories", "all"],
+    queryFn: getAllCategories,
   });
 }
 

@@ -22,7 +22,16 @@ namespace DecorStore.API.Controllers
         // GET: api/Customer
         [HttpGet]
         [Authorize(Roles = "Admin")]
-        public async Task<ActionResult<IEnumerable<CustomerDTO>>> GetCustomers()
+        public async Task<ActionResult<PagedResult<CustomerDTO>>> GetCustomers([FromQuery] CustomerFilterDTO filter)
+        {
+            var pagedCustomers = await _customerService.GetPagedCustomersAsync(filter);
+            return Ok(pagedCustomers);
+        }
+
+        // GET: api/Customer/all (for backward compatibility)
+        [HttpGet("all")]
+        [Authorize(Roles = "Admin")]
+        public async Task<ActionResult<IEnumerable<CustomerDTO>>> GetAllCustomers()
         {
             var customers = await _customerService.GetAllCustomersAsync();
             return Ok(customers);
@@ -125,6 +134,63 @@ namespace DecorStore.API.Controllers
             {
                 return StatusCode(500, new { message = $"An error occurred while deleting the customer: {ex.Message}" });
             }
+        }
+
+        // GET: api/Customer/with-orders
+        [HttpGet("with-orders")]
+        [Authorize(Roles = "Admin")]
+        public async Task<ActionResult<IEnumerable<CustomerDTO>>> GetCustomersWithOrders()
+        {
+            var customers = await _customerService.GetCustomersWithOrdersAsync();
+            return Ok(customers);
+        }
+
+        // GET: api/Customer/top-by-order-count
+        [HttpGet("top-by-order-count")]
+        [Authorize(Roles = "Admin")]
+        public async Task<ActionResult<IEnumerable<CustomerDTO>>> GetTopCustomersByOrderCount([FromQuery] int count = 10)
+        {
+            var customers = await _customerService.GetTopCustomersByOrderCountAsync(count);
+            return Ok(customers);
+        }
+
+        // GET: api/Customer/top-by-spending
+        [HttpGet("top-by-spending")]
+        [Authorize(Roles = "Admin")]
+        public async Task<ActionResult<IEnumerable<CustomerDTO>>> GetTopCustomersBySpending([FromQuery] int count = 10)
+        {
+            var customers = await _customerService.GetTopCustomersBySpendingAsync(count);
+            return Ok(customers);
+        }
+
+        // GET: api/Customer/{customerId}/order-count
+        [HttpGet("{customerId}/order-count")]
+        [Authorize(Roles = "Admin")]
+        public async Task<ActionResult<int>> GetOrderCountByCustomer(int customerId)
+        {
+            var count = await _customerService.GetOrderCountByCustomerAsync(customerId);
+            return Ok(count);
+        }
+
+        // GET: api/Customer/{customerId}/total-spent
+        [HttpGet("{customerId}/total-spent")]
+        [Authorize(Roles = "Admin")]
+        public async Task<ActionResult<decimal>> GetTotalSpentByCustomer(int customerId)
+        {
+            var totalSpent = await _customerService.GetTotalSpentByCustomerAsync(customerId);
+            return Ok(totalSpent);
+        }
+
+        // GET: api/Customer/by-location
+        [HttpGet("by-location")]
+        [Authorize(Roles = "Admin")]
+        public async Task<ActionResult<IEnumerable<CustomerDTO>>> GetCustomersByLocation(
+            [FromQuery] string? city = null,
+            [FromQuery] string? state = null,
+            [FromQuery] string? country = null)
+        {
+            var customers = await _customerService.GetCustomersByLocationAsync(city, state, country);
+            return Ok(customers);
         }
     }
 }

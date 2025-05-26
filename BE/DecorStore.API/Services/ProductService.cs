@@ -14,6 +14,15 @@ namespace DecorStore.API.Services
         private readonly IMapper _mapper = mapper;
         private readonly string _folderImageName = "products";
 
+        public async Task<PagedResult<ProductDTO>> GetPagedProductsAsync(ProductFilterDTO filter)
+        {
+            var pagedProducts = await _unitOfWork.Products.GetPagedAsync(filter);
+            var productDtos = _mapper.Map<IEnumerable<ProductDTO>>(pagedProducts.Items);
+
+            return new PagedResult<ProductDTO>(productDtos, pagedProducts.Pagination.TotalCount,
+                pagedProducts.Pagination.CurrentPage, pagedProducts.Pagination.PageSize);
+        }
+
         public async Task<IEnumerable<Product>> GetAllAsync(ProductFilterDTO filter)
         {
             return await _unitOfWork.Products.GetAllAsync(filter);
@@ -133,6 +142,61 @@ namespace DecorStore.API.Services
             return true;
         }
 
+        public async Task<bool> BulkDeleteProductsAsync(BulkDeleteDTO bulkDeleteDto)
+        {
+            if (bulkDeleteDto.Ids == null || !bulkDeleteDto.Ids.Any())
+                throw new ArgumentException("No product IDs provided for deletion");
+
+            // Use execution strategy to handle retries with transactions
+            await _unitOfWork.ExecuteWithExecutionStrategyAsync(async () =>
+            {
+                // Begin transaction
+                await _unitOfWork.BeginTransactionAsync();
+
+                try
+                {
+                    // Get all products to delete
+                    var productsToDelete = new List<Product>();
+                    foreach (var id in bulkDeleteDto.Ids)
+                    {
+                        var product = await _unitOfWork.Products.GetByIdAsync(id);
+                        if (product != null)
+                        {
+                            productsToDelete.Add(product);
+                        }
+                    }
+
+                    // Delete images from storage
+                    foreach (var product in productsToDelete)
+                    {
+                        if (product.Images != null && product.Images.Count > 0)
+                        {
+                            foreach (var img in product.Images)
+                            {
+                                await _imageService.DeleteImageAsync(img.FilePath);
+                            }
+                        }
+                    }
+
+                    // Mark products as deleted in the database
+                    await _unitOfWork.Products.BulkDeleteAsync(bulkDeleteDto.Ids);
+                    await _unitOfWork.SaveChangesAsync();
+
+                    // Commit transaction
+                    await _unitOfWork.CommitTransactionAsync();
+                    return true;
+                }
+                catch (Exception)
+                {
+                    // Rollback transaction on error
+                    await _unitOfWork.RollbackTransactionAsync();
+                    throw;
+                }
+            });
+
+            return true;
+        }
+
         public async Task<bool> AddImageToProductAsync(int productId, IFormFile image)
         {
             var product = await _unitOfWork.Products.GetByIdAsync(productId)
@@ -185,6 +249,37 @@ namespace DecorStore.API.Services
 
         public IEnumerable<ProductDTO> MapToProductDTOs(IEnumerable<Product> products)
         {
+            return _mapper.Map<IEnumerable<ProductDTO>>(products);
+        }
+
+        // Advanced query methods
+        public async Task<IEnumerable<ProductDTO>> GetFeaturedProductsAsync(int count = 10)
+        {
+            var products = await _unitOfWork.Products.GetFeaturedProductsAsync(count);
+            return _mapper.Map<IEnumerable<ProductDTO>>(products);
+        }
+
+        public async Task<IEnumerable<ProductDTO>> GetProductsByCategoryAsync(int categoryId, int count = 20)
+        {
+            var products = await _unitOfWork.Products.GetProductsByCategoryAsync(categoryId, count);
+            return _mapper.Map<IEnumerable<ProductDTO>>(products);
+        }
+
+        public async Task<IEnumerable<ProductDTO>> GetRelatedProductsAsync(int productId, int count = 5)
+        {
+            var products = await _unitOfWork.Products.GetRelatedProductsAsync(productId, count);
+            return _mapper.Map<IEnumerable<ProductDTO>>(products);
+        }
+
+        public async Task<IEnumerable<ProductDTO>> GetTopRatedProductsAsync(int count = 10)
+        {
+            var products = await _unitOfWork.Products.GetTopRatedProductsAsync(count);
+            return _mapper.Map<IEnumerable<ProductDTO>>(products);
+        }
+
+        public async Task<IEnumerable<ProductDTO>> GetLowStockProductsAsync(int threshold = 10)
+        {
+            var products = await _unitOfWork.Products.GetLowStockProductsAsync(threshold);
             return _mapper.Map<IEnumerable<ProductDTO>>(products);
         }
     }

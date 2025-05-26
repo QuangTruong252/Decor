@@ -22,7 +22,15 @@ namespace DecorStore.API.Controllers
 
         // GET: api/Category
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<CategoryDTO>>> GetCategories()
+        public async Task<ActionResult<PagedResult<CategoryDTO>>> GetCategories([FromQuery] CategoryFilterDTO filter)
+        {
+            var pagedCategories = await _categoryService.GetPagedCategoriesAsync(filter);
+            return Ok(pagedCategories);
+        }
+
+        // GET: api/Category/all (for backward compatibility)
+        [HttpGet("all")]
+        public async Task<ActionResult<IEnumerable<CategoryDTO>>> GetAllCategories()
         {
             var categories = await _categoryService.GetAllCategoriesAsync();
             return Ok(categories);
@@ -140,6 +148,46 @@ namespace DecorStore.API.Controllers
             {
                 return BadRequest(ex.Message);
             }
+        }
+
+        // GET: api/Category/with-product-count
+        [HttpGet("with-product-count")]
+        public async Task<ActionResult<IEnumerable<CategoryDTO>>> GetCategoriesWithProductCount()
+        {
+            var categories = await _categoryService.GetCategoriesWithProductCountAsync();
+            return Ok(categories);
+        }
+
+        // GET: api/Category/{parentId}/subcategories
+        [HttpGet("{parentId}/subcategories")]
+        public async Task<ActionResult<IEnumerable<CategoryDTO>>> GetSubcategories(int parentId)
+        {
+            var subcategories = await _categoryService.GetSubcategoriesAsync(parentId);
+            return Ok(subcategories);
+        }
+
+        // GET: api/Category/{categoryId}/product-count
+        [HttpGet("{categoryId}/product-count")]
+        public async Task<ActionResult<int>> GetProductCountByCategory(int categoryId)
+        {
+            var count = await _categoryService.GetProductCountByCategoryAsync(categoryId);
+            return Ok(count);
+        }
+
+        // GET: api/Category/popular
+        [HttpGet("popular")]
+        public async Task<ActionResult<IEnumerable<CategoryDTO>>> GetPopularCategories([FromQuery] int count = 10)
+        {
+            var categories = await _categoryService.GetPopularCategoriesAsync(count);
+            return Ok(categories);
+        }
+
+        // GET: api/Category/root
+        [HttpGet("root")]
+        public async Task<ActionResult<IEnumerable<CategoryDTO>>> GetRootCategories()
+        {
+            var categories = await _categoryService.GetRootCategoriesAsync();
+            return Ok(categories);
         }
     }
 }

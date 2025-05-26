@@ -1,6 +1,8 @@
 "use client";
 
 import { API_URL, fetchWithAuth, fetchWithAuthFormData } from "@/lib/api-utils";
+import { buildApiUrl, cleanFilters } from "@/lib/query-utils";
+import { CategoryFilters, PagedResult } from "@/types/api";
 
 /**
  * Category response DTO from API
@@ -20,6 +22,15 @@ export interface Category {
   products?: Product[];
   childCategories?: Category[];
   parentCategory?: Category | null;
+}
+
+/**
+ * Category DTO with additional computed fields
+ */
+export interface CategoryDTO extends Category {
+  subcategories?: CategoryDTO[];
+  parentName?: string;
+  productCount?: number;
 }
 
 /**
@@ -54,13 +65,16 @@ export interface UpdateCategoryPayload extends Partial<CreateCategoryPayload> {
 }
 
 /**
- * Get all categories
- * @returns List of categories
+ * Get categories with pagination and filtering
+ * @param filters Category filters
+ * @returns Paged result of categories
  * @endpoint GET /api/Category
  */
-export async function getCategories(): Promise<Category[]> {
+export async function getCategories(filters?: CategoryFilters): Promise<PagedResult<CategoryDTO>> {
   try {
-    const response = await fetchWithAuth(`${API_URL}/api/Category`);
+    const cleanedFilters = filters ? cleanFilters(filters) : {};
+    const url = buildApiUrl(`${API_URL}/api/Category`, cleanedFilters);
+    const response = await fetchWithAuth(url);
 
     if (!response.ok) {
       throw new Error("Unable to fetch categories");
@@ -69,6 +83,26 @@ export async function getCategories(): Promise<Category[]> {
     return response.json();
   } catch (error) {
     console.error("Get categories error:", error);
+    throw new Error("Unable to fetch categories. Please try again later.");
+  }
+}
+
+/**
+ * Get all categories without pagination
+ * @returns List of all categories
+ * @endpoint GET /api/Category/all
+ */
+export async function getAllCategories(): Promise<CategoryDTO[]> {
+  try {
+    const response = await fetchWithAuth(`${API_URL}/api/Category/all`);
+
+    if (!response.ok) {
+      throw new Error("Unable to fetch categories");
+    }
+
+    return response.json();
+  } catch (error) {
+    console.error("Get all categories error:", error);
     throw new Error("Unable to fetch categories. Please try again later.");
   }
 }

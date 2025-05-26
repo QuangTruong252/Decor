@@ -1,6 +1,8 @@
 "use client";
 
 import { API_URL, fetchWithAuth } from "@/lib/api-utils";
+import { buildApiUrl, cleanFilters } from "@/lib/query-utils";
+import { OrderFilters, PagedResult } from "@/types/api";
 
 /**
  * Order response DTO from API
@@ -9,6 +11,7 @@ export interface OrderDTO {
   id: number;
   userId: number;
   userFullName: string | null;
+  customerFullName: string | null;
   totalAmount: number;
   orderStatus: string | null;
   paymentMethod: string | null;
@@ -87,13 +90,16 @@ export interface UpdateOrderStatusPayload {
 }
 
 /**
- * Get all orders
- * @returns List of orders
+ * Get orders with pagination and filtering
+ * @param filters Order filters
+ * @returns Paged result of orders
  * @endpoint GET /api/Order
  */
-export async function getOrders(): Promise<OrderDTO[]> {
+export async function getOrders(filters?: OrderFilters): Promise<PagedResult<OrderDTO>> {
   try {
-    const response = await fetchWithAuth(`${API_URL}/api/Order`);
+    const cleanedFilters = filters ? cleanFilters(filters) : {};
+    const url = buildApiUrl(`${API_URL}/api/Order`, cleanedFilters);
+    const response = await fetchWithAuth(url);
 
     if (!response.ok) {
       throw new Error("Unable to fetch orders");
@@ -102,6 +108,26 @@ export async function getOrders(): Promise<OrderDTO[]> {
     return response.json();
   } catch (error) {
     console.error("Get orders error:", error);
+    throw new Error("Unable to fetch orders. Please try again later.");
+  }
+}
+
+/**
+ * Get all orders without pagination
+ * @returns List of all orders
+ * @endpoint GET /api/Order/all
+ */
+export async function getAllOrders(): Promise<OrderDTO[]> {
+  try {
+    const response = await fetchWithAuth(`${API_URL}/api/Order/all`);
+
+    if (!response.ok) {
+      throw new Error("Unable to fetch orders");
+    }
+
+    return response.json();
+  } catch (error) {
+    console.error("Get all orders error:", error);
     throw new Error("Unable to fetch orders. Please try again later.");
   }
 }

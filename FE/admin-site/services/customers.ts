@@ -1,6 +1,8 @@
 "use client";
 
 import { API_URL, fetchWithAuth } from "@/lib/api-utils";
+import { buildApiUrl, cleanFilters } from "@/lib/query-utils";
+import { CustomerFilters, PagedResult } from "@/types/api";
 
 /**
  * Customer response DTO from API
@@ -63,13 +65,16 @@ export interface UpdateCustomerPayload {
 }
 
 /**
- * Get all customers/customers
- * @returns List of customers
- * @endpoint GET /api/customer
+ * Get customers with pagination and filtering
+ * @param filters Customer filters
+ * @returns Paged result of customers
+ * @endpoint GET /api/Customer
  */
-export async function getCustomers(): Promise<CustomerDTO[]> {
+export async function getCustomers(filters?: CustomerFilters): Promise<PagedResult<CustomerDTO>> {
   try {
-    const response = await fetchWithAuth(`${API_URL}/api/customer`);
+    const cleanedFilters = filters ? cleanFilters(filters) : {};
+    const url = buildApiUrl(`${API_URL}/api/Customer`, cleanedFilters);
+    const response = await fetchWithAuth(url);
 
     if (!response.ok) {
       throw new Error("Unable to fetch customers");
@@ -78,6 +83,26 @@ export async function getCustomers(): Promise<CustomerDTO[]> {
     return response.json();
   } catch (error) {
     console.error("Get customers error:", error);
+    throw new Error("Unable to fetch customers. Please try again later.");
+  }
+}
+
+/**
+ * Get all customers without pagination
+ * @returns List of all customers
+ * @endpoint GET /api/Customer/all
+ */
+export async function getAllCustomers(): Promise<CustomerDTO[]> {
+  try {
+    const response = await fetchWithAuth(`${API_URL}/api/Customer/all`);
+
+    if (!response.ok) {
+      throw new Error("Unable to fetch customers");
+    }
+
+    return response.json();
+  } catch (error) {
+    console.error("Get all customers error:", error);
     throw new Error("Unable to fetch customers. Please try again later.");
   }
 }

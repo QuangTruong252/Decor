@@ -1,6 +1,8 @@
 "use client";
 
 import { API_URL, fetchWithAuth, fetchWithAuthFormData } from "@/lib/api-utils";
+import { buildApiUrl, cleanFilters } from "@/lib/query-utils";
+import { ProductFilters, PagedResult } from "@/types/api";
 
 export interface Product {
   id: number;
@@ -21,6 +23,14 @@ export interface Product {
   images: string[] | null;
 }
 
+export interface ProductDTO extends Product {
+  imageDetails?: {
+    id: number;
+    url: string;
+    altText?: string;
+  }[];
+}
+
 export interface CreateProductPayload {
   name: string;
   slug: string;
@@ -39,9 +49,11 @@ export interface UpdateProductPayload extends Partial<CreateProductPayload> {
   id: number;
 }
 
-export async function getProducts(): Promise<Product[]> {
+export async function getProducts(filters?: ProductFilters): Promise<PagedResult<ProductDTO>> {
   try {
-    const response = await fetchWithAuth(`${API_URL}/api/Products`);
+    const cleanedFilters = filters ? cleanFilters(filters) : {};
+    const url = buildApiUrl(`${API_URL}/api/Products`, cleanedFilters);
+    const response = await fetchWithAuth(url);
 
     if (!response.ok) {
       throw new Error("Unable to fetch product list");
@@ -50,6 +62,21 @@ export async function getProducts(): Promise<Product[]> {
     return response.json();
   } catch (error) {
     console.error("Get products error:", error);
+    throw new Error("Unable to fetch product list. Please try again later.");
+  }
+}
+
+export async function getAllProducts(): Promise<ProductDTO[]> {
+  try {
+    const response = await fetchWithAuth(`${API_URL}/api/Products/all`);
+
+    if (!response.ok) {
+      throw new Error("Unable to fetch product list");
+    }
+
+    return response.json();
+  } catch (error) {
+    console.error("Get all products error:", error);
     throw new Error("Unable to fetch product list. Please try again later.");
   }
 }
@@ -197,5 +224,24 @@ export async function deleteProduct(id: number): Promise<void> {
   } catch (error) {
     console.error(`Delete product by id ${id} error:`, error);
     throw new Error("Unable to delete product. Please try again later.");
+  }
+}
+
+export async function bulkDeleteProducts(ids: number[]): Promise<void> {
+  try {
+    const response = await fetchWithAuth(`${API_URL}/api/Products/bulk`, {
+      method: "DELETE",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ ids }),
+    });
+
+    if (!response.ok) {
+      throw new Error("Unable to delete products");
+    }
+  } catch (error) {
+    console.error(`Bulk delete products error:`, error);
+    throw new Error("Unable to delete products. Please try again later.");
   }
 }

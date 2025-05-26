@@ -3,26 +3,37 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   getOrders,
+  getAllOrders,
   getOrderById,
   getOrdersByUserId,
   createOrder,
   updateOrder,
   updateOrderStatus,
   deleteOrder,
-  type OrderDTO,
   type CreateOrderPayload,
   type UpdateOrderPayload,
   type UpdateOrderStatusPayload
 } from "@/services/orders";
+import { OrderFilters } from "@/types/api";
 import { useToast } from "@/hooks/use-toast";
 
 /**
- * Hook to fetch all orders
+ * Hook to fetch orders with pagination and filtering
  */
-export function useGetOrders() {
+export function useGetOrders(filters?: OrderFilters) {
   return useQuery({
-    queryKey: ["orders"],
-    queryFn: getOrders,
+    queryKey: ["orders", filters],
+    queryFn: () => getOrders(filters),
+  });
+}
+
+/**
+ * Hook to fetch all orders without pagination
+ */
+export function useGetAllOrders() {
+  return useQuery({
+    queryKey: ["orders", "all"],
+    queryFn: getAllOrders,
   });
 }
 

@@ -76,7 +76,7 @@ export default function DashboardPage() {
 
       {/* Charts */}
       <div className="grid gap-4 md:grid-cols-2">
-        <SalesChart data={data.recentSalesTrend || data.salesTrend || []} />
+        <SalesChart data={data.recentSalesTrend || []} />
         <ProductsChart data={data.popularProducts} />
       </div>
 

@@ -75,4 +75,38 @@ namespace DecorStore.API.DTOs
         [StringLength(50)]
         public string OrderStatus { get; set; }
     }
+
+    public class UpdateOrderDTO
+    {
+        public int? CustomerId { get; set; }
+
+        [StringLength(50)]
+        public string? PaymentMethod { get; set; }
+
+        [StringLength(255)]
+        public string? ShippingAddress { get; set; }
+
+        [StringLength(100)]
+        public string? ShippingCity { get; set; }
+
+        [StringLength(50)]
+        public string? ShippingState { get; set; }
+
+        [StringLength(20)]
+        public string? ShippingPostalCode { get; set; }
+
+        [StringLength(50)]
+        public string? ShippingCountry { get; set; }
+
+        [StringLength(100)]
+        [Phone]
+        public string? ContactPhone { get; set; }
+
+        [StringLength(100)]
+        [EmailAddress]
+        public string? ContactEmail { get; set; }
+
+        [StringLength(255)]
+        public string? Notes { get; set; }
+    }
 }

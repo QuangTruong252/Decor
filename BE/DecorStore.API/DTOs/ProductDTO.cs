@@ -109,19 +109,24 @@ namespace DecorStore.API.DTOs
 
         // For image upload
         public string[]? ExistingImages { get; set; }
-        
+
         public List<IFormFile> NewImages { get; set; }
     }
 
     // DTO for product filtering/searching
-    public class ProductFilterDTO
+    public class ProductFilterDTO : PaginationParameters
     {
         public string? SearchTerm { get; set; }
         public int? CategoryId { get; set; }
         public decimal? MinPrice { get; set; }
         public decimal? MaxPrice { get; set; }
         public bool? IsFeatured { get; set; }
-        public int PageNumber { get; set; } = 1;
-        public int PageSize { get; set; } = 10;
+        public bool? IsActive { get; set; }
+        public DateTime? CreatedAfter { get; set; }
+        public DateTime? CreatedBefore { get; set; }
+        public int? StockQuantityMin { get; set; }
+        public int? StockQuantityMax { get; set; }
+        public float? MinRating { get; set; }
+        public string? SKU { get; set; }
     }
 }

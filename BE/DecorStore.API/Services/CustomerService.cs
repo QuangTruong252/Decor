@@ -20,6 +20,15 @@ namespace DecorStore.API.Services
             _mapper = mapper;
         }
 
+        public async Task<PagedResult<CustomerDTO>> GetPagedCustomersAsync(CustomerFilterDTO filter)
+        {
+            var pagedCustomers = await _unitOfWork.Customers.GetPagedAsync(filter);
+            var customerDtos = _mapper.Map<IEnumerable<CustomerDTO>>(pagedCustomers.Items);
+
+            return new PagedResult<CustomerDTO>(customerDtos, pagedCustomers.Pagination.TotalCount,
+                pagedCustomers.Pagination.CurrentPage, pagedCustomers.Pagination.PageSize);
+        }
+
         public async Task<IEnumerable<CustomerDTO>> GetAllCustomersAsync()
         {
             var customers = await _unitOfWork.Customers.GetAllAsync();
@@ -81,6 +90,41 @@ namespace DecorStore.API.Services
 
             await _unitOfWork.Customers.DeleteAsync(id);
             await _unitOfWork.SaveChangesAsync();
+        }
+
+        // Advanced query methods
+        public async Task<IEnumerable<CustomerDTO>> GetCustomersWithOrdersAsync()
+        {
+            var customers = await _unitOfWork.Customers.GetCustomersWithOrdersAsync();
+            return _mapper.Map<IEnumerable<CustomerDTO>>(customers);
+        }
+
+        public async Task<IEnumerable<CustomerDTO>> GetTopCustomersByOrderCountAsync(int count = 10)
+        {
+            var customers = await _unitOfWork.Customers.GetTopCustomersByOrderCountAsync(count);
+            return _mapper.Map<IEnumerable<CustomerDTO>>(customers);
+        }
+
+        public async Task<IEnumerable<CustomerDTO>> GetTopCustomersBySpendingAsync(int count = 10)
+        {
+            var customers = await _unitOfWork.Customers.GetTopCustomersBySpendingAsync(count);
+            return _mapper.Map<IEnumerable<CustomerDTO>>(customers);
+        }
+
+        public async Task<int> GetOrderCountByCustomerAsync(int customerId)
+        {
+            return await _unitOfWork.Customers.GetOrderCountByCustomerAsync(customerId);
+        }
+
+        public async Task<decimal> GetTotalSpentByCustomerAsync(int customerId)
+        {
+            return await _unitOfWork.Customers.GetTotalSpentByCustomerAsync(customerId);
+        }
+
+        public async Task<IEnumerable<CustomerDTO>> GetCustomersByLocationAsync(string? city = null, string? state = null, string? country = null)
+        {
+            var customers = await _unitOfWork.Customers.GetCustomersByLocationAsync(city, state, country);
+            return _mapper.Map<IEnumerable<CustomerDTO>>(customers);
         }
     }
 }

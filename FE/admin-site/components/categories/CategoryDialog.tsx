@@ -1,9 +1,9 @@
 "use client";
-import { useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { useState, useEffect } from "react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Category } from "@/services/categories";
 import { CategoryForm } from "./CategoryForm";
-import { useCreateCategory, useUpdateCategory, useDeleteCategory } from "@/hooks/useCategories";
+import { useCreateCategory, useUpdateCategory } from "@/hooks/useCategories";
 
 type CategoryDialogProps = {
   open: boolean;
@@ -16,12 +16,19 @@ export const CategoryDialog = ({ open, onOpenChange, initialData }: CategoryDial
   const [loading, setLoading] = useState(false);
   const createCategory = useCreateCategory();
   const updateCategory = useUpdateCategory();
+  const [categoryData, setCategoryData] = useState<Category | null>(initialData || null);
 
+  // Update categoryData when initialData changes
+  useEffect(() => {
+    setCategoryData(initialData || null);
+  }, [initialData]);
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const handleSubmit = async (data: any) => {
     setLoading(true);
     try {
-      if (isEdit && initialData) {
-        await updateCategory.mutateAsync({ ...data, id: initialData.id });
+      if (isEdit && categoryData) {
+        await updateCategory.mutateAsync({ ...data, id: categoryData.id });
       } else {
         await createCategory.mutateAsync(data);
       }
@@ -43,7 +50,7 @@ export const CategoryDialog = ({ open, onOpenChange, initialData }: CategoryDial
           </div>
         ) : (
           <CategoryForm
-            initialData={initialData || undefined}
+            initialData={categoryData || undefined}
             onSubmit={handleSubmit}
             loading={loading}
             submitLabel={isEdit ? "Update" : "Create"}

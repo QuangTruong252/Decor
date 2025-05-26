@@ -21,7 +21,15 @@ namespace DecorStore.API.Controllers
 
         // GET: api/Products
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<ProductDTO>>> GetProducts()
+        public async Task<ActionResult<PagedResult<ProductDTO>>> GetProducts([FromQuery] ProductFilterDTO filter)
+        {
+            var pagedProducts = await _productService.GetPagedProductsAsync(filter);
+            return Ok(pagedProducts);
+        }
+
+        // GET: api/Products/all (for backward compatibility)
+        [HttpGet("all")]
+        public async Task<ActionResult<IEnumerable<ProductDTO>>> GetAllProducts()
         {
             var products = await _productService.GetAllProductsAsync();
             return Ok(products);
@@ -43,12 +51,43 @@ namespace DecorStore.API.Controllers
 
         // GET: api/Products/category/{categoryId}
         [HttpGet("category/{categoryId}")]
-        public async Task<ActionResult<IEnumerable<ProductDTO>>> GetProductsByCategory(int categoryId)
+        public async Task<ActionResult<IEnumerable<ProductDTO>>> GetProductsByCategory(int categoryId, [FromQuery] int count = 20)
         {
-            var filter = new ProductFilterDTO { CategoryId = categoryId };
-            var products = await _productService.GetAllAsync(filter);
-            var productDtos = _productService.MapToProductDTOs(products);
-            return Ok(productDtos);
+            var products = await _productService.GetProductsByCategoryAsync(categoryId, count);
+            return Ok(products);
+        }
+
+        // GET: api/Products/featured
+        [HttpGet("featured")]
+        public async Task<ActionResult<IEnumerable<ProductDTO>>> GetFeaturedProducts([FromQuery] int count = 10)
+        {
+            var products = await _productService.GetFeaturedProductsAsync(count);
+            return Ok(products);
+        }
+
+        // GET: api/Products/{id}/related
+        [HttpGet("{id}/related")]
+        public async Task<ActionResult<IEnumerable<ProductDTO>>> GetRelatedProducts(int id, [FromQuery] int count = 5)
+        {
+            var products = await _productService.GetRelatedProductsAsync(id, count);
+            return Ok(products);
+        }
+
+        // GET: api/Products/top-rated
+        [HttpGet("top-rated")]
+        public async Task<ActionResult<IEnumerable<ProductDTO>>> GetTopRatedProducts([FromQuery] int count = 10)
+        {
+            var products = await _productService.GetTopRatedProductsAsync(count);
+            return Ok(products);
+        }
+
+        // GET: api/Products/low-stock
+        [HttpGet("low-stock")]
+        [Authorize(Roles = "Admin")] // Only admin can view low stock products
+        public async Task<ActionResult<IEnumerable<ProductDTO>>> GetLowStockProducts([FromQuery] int threshold = 10)
+        {
+            var products = await _productService.GetLowStockProductsAsync(threshold);
+            return Ok(products);
         }
 
         // POST: api/Products
@@ -82,8 +121,39 @@ namespace DecorStore.API.Controllers
         [Authorize(Roles = "Admin")] // Only admin can delete products
         public async Task<IActionResult> DeleteProduct(int id)
         {
-            var result = await _productService.DeleteProductAsync(id);
-            return NoContent();
+            try
+            {
+                var result = await _productService.DeleteProductAsync(id);
+                return NoContent();
+            }
+            catch (DecorStore.API.Exceptions.NotFoundException ex)
+            {
+                return NotFound(ex.Message);
+            }
+            catch (System.Exception ex)
+            {
+                return StatusCode(500, $"Internal server error: {ex.Message}");
+            }
+        }
+
+        // DELETE: api/Products/bulk
+        [HttpDelete("bulk")]
+        [Authorize(Roles = "Admin")] // Only admin can bulk delete products
+        public async Task<IActionResult> BulkDeleteProducts(BulkDeleteDTO bulkDeleteDto)
+        {
+            try
+            {
+                var result = await _productService.BulkDeleteProductsAsync(bulkDeleteDto);
+                return NoContent();
+            }
+            catch (System.ArgumentException ex)
+            {
+                return BadRequest(ex.Message);
+            }
+            catch (System.Exception ex)
+            {
+                return StatusCode(500, $"Internal server error: {ex.Message}");
+            }
         }
 
         // POST: api/Products/{id}/images

@@ -23,7 +23,16 @@ namespace DecorStore.API.Controllers
         // GET: api/Order
         [HttpGet]
         [Authorize(Roles = "Admin")]
-        public async Task<ActionResult<IEnumerable<OrderDTO>>> GetOrders()
+        public async Task<ActionResult<PagedResult<OrderDTO>>> GetOrders([FromQuery] OrderFilterDTO filter)
+        {
+            var pagedOrders = await _orderService.GetPagedOrdersAsync(filter);
+            return Ok(pagedOrders);
+        }
+
+        // GET: api/Order/all (for backward compatibility)
+        [HttpGet("all")]
+        [Authorize(Roles = "Admin")]
+        public async Task<ActionResult<IEnumerable<OrderDTO>>> GetAllOrders()
         {
             var orders = await _orderService.GetAllOrdersAsync();
             return Ok(orders);
@@ -88,6 +97,26 @@ namespace DecorStore.API.Controllers
             }
         }
 
+        // PUT: api/Order/5
+        [HttpPut("{id}")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> UpdateOrder(int id, UpdateOrderDTO orderDto)
+        {
+            try
+            {
+                await _orderService.UpdateOrderAsync(id, orderDto);
+                return NoContent();
+            }
+            catch (System.Exception ex) when (ex.Message.Contains("not found"))
+            {
+                return NotFound(ex.Message);
+            }
+            catch (System.InvalidOperationException ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
         // PUT: api/Order/5/status
         [HttpPut("{id}/status")]
         [Authorize(Roles = "Admin")]
@@ -138,6 +167,75 @@ namespace DecorStore.API.Controllers
             {
                 return BadRequest(ex.Message);
             }
+        }
+
+        // DELETE: api/Order/bulk
+        [HttpDelete("bulk")]
+        [Authorize(Roles = "Admin")] // Only admin can bulk delete orders
+        public async Task<IActionResult> BulkDeleteOrders(BulkDeleteDTO bulkDeleteDto)
+        {
+            try
+            {
+                await _orderService.BulkDeleteOrdersAsync(bulkDeleteDto);
+                return NoContent();
+            }
+            catch (System.ArgumentException ex)
+            {
+                return BadRequest(ex.Message);
+            }
+            catch (System.InvalidOperationException ex)
+            {
+                return BadRequest(ex.Message);
+            }
+            catch (System.Exception ex)
+            {
+                return StatusCode(500, $"Internal server error: {ex.Message}");
+            }
+        }
+
+        // GET: api/Order/recent
+        [HttpGet("recent")]
+        [Authorize(Roles = "Admin")]
+        public async Task<ActionResult<IEnumerable<OrderDTO>>> GetRecentOrders([FromQuery] int count = 10)
+        {
+            var orders = await _orderService.GetRecentOrdersAsync(count);
+            return Ok(orders);
+        }
+
+        // GET: api/Order/status/{status}
+        [HttpGet("status/{status}")]
+        [Authorize(Roles = "Admin")]
+        public async Task<ActionResult<IEnumerable<OrderDTO>>> GetOrdersByStatus(string status, [FromQuery] int count = 50)
+        {
+            var orders = await _orderService.GetOrdersByStatusAsync(status, count);
+            return Ok(orders);
+        }
+
+        // GET: api/Order/date-range
+        [HttpGet("date-range")]
+        [Authorize(Roles = "Admin")]
+        public async Task<ActionResult<IEnumerable<OrderDTO>>> GetOrdersByDateRange([FromQuery] DateTime startDate, [FromQuery] DateTime endDate)
+        {
+            var orders = await _orderService.GetOrdersByDateRangeAsync(startDate, endDate);
+            return Ok(orders);
+        }
+
+        // GET: api/Order/revenue
+        [HttpGet("revenue")]
+        [Authorize(Roles = "Admin")]
+        public async Task<ActionResult<decimal>> GetTotalRevenue([FromQuery] DateTime? startDate = null, [FromQuery] DateTime? endDate = null)
+        {
+            var revenue = await _orderService.GetTotalRevenueAsync(startDate, endDate);
+            return Ok(revenue);
+        }
+
+        // GET: api/Order/status-counts
+        [HttpGet("status-counts")]
+        [Authorize(Roles = "Admin")]
+        public async Task<ActionResult<Dictionary<string, int>>> GetOrderStatusCounts()
+        {
+            var statusCounts = await _orderService.GetOrderStatusCountsAsync();
+            return Ok(statusCounts);
         }
     }
 }

@@ -3,6 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   getCustomers,
+  getAllCustomers,
   getCustomerById,
   getCustomerByEmail,
   createCustomer,
@@ -13,15 +14,26 @@ import {
   type CreateCustomerPayload,
   type UpdateCustomerPayload
 } from "@/services/customers";
+import { CustomerFilters } from "@/types/api";
 import { useToast } from "@/hooks/use-toast";
 
 /**
- * Hook to fetch all users/customers
+ * Hook to fetch customers with pagination and filtering
  */
-export function useGetCustomers() {
+export function useGetCustomers(filters?: CustomerFilters) {
   return useQuery({
-    queryKey: ["customers"],
-    queryFn: getCustomers,
+    queryKey: ["customers", filters],
+    queryFn: () => getCustomers(filters),
+  });
+}
+
+/**
+ * Hook to fetch all customers without pagination
+ */
+export function useGetAllCustomers() {
+  return useQuery({
+    queryKey: ["customers", "all"],
+    queryFn: getAllCustomers,
   });
 }
 

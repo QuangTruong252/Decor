@@ -13,6 +13,15 @@ namespace DecorStore.API.Services
         private readonly IImageService _imageService = imageService;
         private readonly IMapper _mapper = mapper;
 
+        public async Task<PagedResult<CategoryDTO>> GetPagedCategoriesAsync(CategoryFilterDTO filter)
+        {
+            var pagedCategories = await _unitOfWork.Categories.GetPagedAsync(filter);
+            var categoryDtos = _mapper.Map<IEnumerable<CategoryDTO>>(pagedCategories.Items);
+
+            return new PagedResult<CategoryDTO>(categoryDtos, pagedCategories.Pagination.TotalCount,
+                pagedCategories.Pagination.CurrentPage, pagedCategories.Pagination.PageSize);
+        }
+
         public async Task<IEnumerable<CategoryDTO>> GetAllCategoriesAsync()
         {
             var categories = await _unitOfWork.Categories.GetAllAsync();
@@ -134,6 +143,37 @@ namespace DecorStore.API.Services
             }
             await _unitOfWork.Categories.DeleteAsync(id);
             await _unitOfWork.SaveChangesAsync();
+        }
+
+        // Advanced query methods
+        public async Task<IEnumerable<CategoryDTO>> GetCategoriesWithProductCountAsync()
+        {
+            var categories = await _unitOfWork.Categories.GetCategoriesWithProductCountAsync();
+            return _mapper.Map<IEnumerable<CategoryDTO>>(categories);
+        }
+
+        public async Task<IEnumerable<CategoryDTO>> GetSubcategoriesAsync(int parentId)
+        {
+            var subcategories = await _unitOfWork.Categories.GetSubcategoriesAsync(parentId);
+            return _mapper.Map<IEnumerable<CategoryDTO>>(subcategories);
+        }
+
+        public async Task<int> GetProductCountByCategoryAsync(int categoryId)
+        {
+            return await _unitOfWork.Categories.GetProductCountByCategoryAsync(categoryId);
+        }
+
+        public async Task<IEnumerable<CategoryDTO>> GetPopularCategoriesAsync(int count = 10)
+        {
+            var categories = await _unitOfWork.Categories.GetPopularCategoriesAsync(count);
+            return _mapper.Map<IEnumerable<CategoryDTO>>(categories);
+        }
+
+        public async Task<IEnumerable<CategoryDTO>> GetRootCategoriesAsync()
+        {
+            var filter = new CategoryFilterDTO { IsRootCategory = true };
+            var pagedResult = await _unitOfWork.Categories.GetPagedAsync(filter);
+            return _mapper.Map<IEnumerable<CategoryDTO>>(pagedResult.Items);
         }
     }
 }
