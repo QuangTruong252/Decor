@@ -1,7 +1,9 @@
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using DecorStore.API.DTOs;
+using DecorStore.API.DTOs.Excel;
 using DecorStore.API.Services;
+using DecorStore.API.Services.Excel;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using DecorStore.API.Models;
@@ -13,10 +15,12 @@ namespace DecorStore.API.Controllers
     public class ProductsController : ControllerBase
     {
         private readonly IProductService _productService;
+        private readonly IProductExcelService _productExcelService;
 
-        public ProductsController(IProductService productService)
+        public ProductsController(IProductService productService, IProductExcelService productExcelService)
         {
             _productService = productService;
+            _productExcelService = productExcelService;
         }
 
         // GET: api/Products
@@ -204,5 +208,144 @@ namespace DecorStore.API.Controllers
                 return StatusCode(500, $"Internal server error: {ex.Message}");
             }
         }
+
+        #region Excel Import/Export Endpoints
+
+        // POST: api/Products/import
+        [HttpPost("import")]
+        [Authorize(Roles = "Admin")]
+        public async Task<ActionResult<ExcelImportResultDTO<ProductExcelDTO>>> ImportProducts(IFormFile file, [FromQuery] bool validateOnly = false)
+        {
+            try
+            {
+                if (file == null || file.Length == 0)
+                {
+                    return BadRequest("No file provided");
+                }
+
+                if (!file.FileName.EndsWith(".xlsx", StringComparison.OrdinalIgnoreCase))
+                {
+                    return BadRequest("Only .xlsx files are supported");
+                }
+
+                using var stream = file.OpenReadStream();
+                var result = await _productExcelService.ImportProductsAsync(stream, validateOnly);
+
+                if (result.IsSuccess)
+                {
+                    return Ok(result);
+                }
+                else
+                {
+                    return BadRequest(result);
+                }
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Internal server error: {ex.Message}");
+            }
+        }
+
+        // GET: api/Products/export
+        [HttpGet("export")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> ExportProducts([FromQuery] ProductFilterDTO? filter, [FromQuery] string? format = "xlsx")
+        {
+            try
+            {
+                var exportRequest = new ExcelExportRequestDTO
+                {
+                    WorksheetName = "Products Export",
+                    IncludeFilters = true,
+                    FreezeHeaderRow = true,
+                    AutoFitColumns = true
+                };
+
+                var fileBytes = await _productExcelService.ExportProductsAsync(filter, exportRequest);
+                var fileName = $"Products_Export_{DateTime.UtcNow:yyyyMMdd_HHmmss}.xlsx";
+
+                return File(fileBytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Internal server error: {ex.Message}");
+            }
+        }
+
+        // GET: api/Products/export-template
+        [HttpGet("export-template")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> GetProductImportTemplate([FromQuery] bool includeExample = true)
+        {
+            try
+            {
+                var templateBytes = await _productExcelService.CreateProductTemplateAsync(includeExample);
+                var fileName = $"Product_Import_Template_{DateTime.UtcNow:yyyyMMdd}.xlsx";
+
+                return File(templateBytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Internal server error: {ex.Message}");
+            }
+        }
+
+        // POST: api/Products/validate-import
+        [HttpPost("validate-import")]
+        [Authorize(Roles = "Admin")]
+        public async Task<ActionResult<ExcelValidationResultDTO>> ValidateProductImport(IFormFile file)
+        {
+            try
+            {
+                if (file == null || file.Length == 0)
+                {
+                    return BadRequest("No file provided");
+                }
+
+                if (!file.FileName.EndsWith(".xlsx", StringComparison.OrdinalIgnoreCase))
+                {
+                    return BadRequest("Only .xlsx files are supported");
+                }
+
+                using var stream = file.OpenReadStream();
+                var result = await _productExcelService.ValidateProductExcelAsync(stream);
+
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Internal server error: {ex.Message}");
+            }
+        }
+
+        // GET: api/Products/import-statistics
+        [HttpPost("import-statistics")]
+        [Authorize(Roles = "Admin")]
+        public async Task<ActionResult<ProductImportStatisticsDTO>> GetImportStatistics(IFormFile file)
+        {
+            try
+            {
+                if (file == null || file.Length == 0)
+                {
+                    return BadRequest("No file provided");
+                }
+
+                if (!file.FileName.EndsWith(".xlsx", StringComparison.OrdinalIgnoreCase))
+                {
+                    return BadRequest("Only .xlsx files are supported");
+                }
+
+                using var stream = file.OpenReadStream();
+                var statistics = await _productExcelService.GetImportStatisticsAsync(stream);
+
+                return Ok(statistics);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Internal server error: {ex.Message}");
+            }
+        }
+
+        #endregion
     }
 }

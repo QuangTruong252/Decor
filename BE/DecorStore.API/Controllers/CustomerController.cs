@@ -1,8 +1,10 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using DecorStore.API.DTOs;
+using DecorStore.API.DTOs.Excel;
 using DecorStore.API.Models;
 using DecorStore.API.Services;
+using DecorStore.API.Services.Excel;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
@@ -13,10 +15,12 @@ namespace DecorStore.API.Controllers
     public class CustomerController : ControllerBase
     {
         private readonly ICustomerService _customerService;
+        private readonly ICustomerExcelService _customerExcelService;
 
-        public CustomerController(ICustomerService customerService)
+        public CustomerController(ICustomerService customerService, ICustomerExcelService customerExcelService)
         {
             _customerService = customerService;
+            _customerExcelService = customerExcelService;
         }
 
         // GET: api/Customer
@@ -192,5 +196,144 @@ namespace DecorStore.API.Controllers
             var customers = await _customerService.GetCustomersByLocationAsync(city, state, country);
             return Ok(customers);
         }
+
+        #region Excel Import/Export Endpoints
+
+        // POST: api/Customer/import
+        [HttpPost("import")]
+        [Authorize(Roles = "Admin")]
+        public async Task<ActionResult<ExcelImportResultDTO<CustomerExcelDTO>>> ImportCustomers(IFormFile file, [FromQuery] bool validateOnly = false)
+        {
+            try
+            {
+                if (file == null || file.Length == 0)
+                {
+                    return BadRequest("No file provided");
+                }
+
+                if (!file.FileName.EndsWith(".xlsx", StringComparison.OrdinalIgnoreCase))
+                {
+                    return BadRequest("Only .xlsx files are supported");
+                }
+
+                using var stream = file.OpenReadStream();
+                var result = await _customerExcelService.ImportCustomersAsync(stream, validateOnly);
+
+                if (result.IsSuccess)
+                {
+                    return Ok(result);
+                }
+                else
+                {
+                    return BadRequest(result);
+                }
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Internal server error: {ex.Message}");
+            }
+        }
+
+        // GET: api/Customer/export
+        [HttpGet("export")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> ExportCustomers([FromQuery] CustomerFilterDTO? filter, [FromQuery] string? format = "xlsx")
+        {
+            try
+            {
+                var exportRequest = new ExcelExportRequestDTO
+                {
+                    WorksheetName = "Customers Export",
+                    IncludeFilters = true,
+                    FreezeHeaderRow = true,
+                    AutoFitColumns = true
+                };
+
+                var fileBytes = await _customerExcelService.ExportCustomersAsync(filter, exportRequest);
+                var fileName = $"Customers_Export_{DateTime.UtcNow:yyyyMMdd_HHmmss}.xlsx";
+
+                return File(fileBytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Internal server error: {ex.Message}");
+            }
+        }
+
+        // GET: api/Customer/export-template
+        [HttpGet("export-template")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> GetCustomerImportTemplate([FromQuery] bool includeExample = true)
+        {
+            try
+            {
+                var templateBytes = await _customerExcelService.CreateCustomerTemplateAsync(includeExample);
+                var fileName = $"Customer_Import_Template_{DateTime.UtcNow:yyyyMMdd}.xlsx";
+
+                return File(templateBytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Internal server error: {ex.Message}");
+            }
+        }
+
+        // POST: api/Customer/validate-import
+        [HttpPost("validate-import")]
+        [Authorize(Roles = "Admin")]
+        public async Task<ActionResult<ExcelValidationResultDTO>> ValidateCustomerImport(IFormFile file)
+        {
+            try
+            {
+                if (file == null || file.Length == 0)
+                {
+                    return BadRequest("No file provided");
+                }
+
+                if (!file.FileName.EndsWith(".xlsx", StringComparison.OrdinalIgnoreCase))
+                {
+                    return BadRequest("Only .xlsx files are supported");
+                }
+
+                using var stream = file.OpenReadStream();
+                var result = await _customerExcelService.ValidateCustomerExcelAsync(stream);
+
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Internal server error: {ex.Message}");
+            }
+        }
+
+        // POST: api/Customer/import-statistics
+        [HttpPost("import-statistics")]
+        [Authorize(Roles = "Admin")]
+        public async Task<ActionResult<CustomerImportStatisticsDTO>> GetImportStatistics(IFormFile file)
+        {
+            try
+            {
+                if (file == null || file.Length == 0)
+                {
+                    return BadRequest("No file provided");
+                }
+
+                if (!file.FileName.EndsWith(".xlsx", StringComparison.OrdinalIgnoreCase))
+                {
+                    return BadRequest("Only .xlsx files are supported");
+                }
+
+                using var stream = file.OpenReadStream();
+                var statistics = await _customerExcelService.GetImportStatisticsAsync(stream);
+
+                return Ok(statistics);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Internal server error: {ex.Message}");
+            }
+        }
+
+        #endregion
     }
 }

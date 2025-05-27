@@ -1,90 +1,87 @@
-import React from 'react';
+'use client';
+
+import React, { useState, useEffect } from 'react';
 import MainLayout from '@/components/layout/MainLayout';
-import ProductCard from '@/components/products/ProductCard';
-import Link from 'next/link';
+import {
+  ProductGrid,
+  ProductList,
+  ProductFilter,
+  Pagination,
+  PaginationInfo,
+  ItemsPerPage,
+  ViewToggle,
+  ViewMode
+} from '@/components/products';
+import { CategoryBreadcrumb } from '@/components/categories';
+import { ProductService } from '@/api/services';
+import { ProductDTO, ProductSearchParams } from '@/api/types';
 
-// Sample data - in a real app, this would come from an API
-const products = [
-  {
-    id: 1,
-    name: 'Syltherine',
-    price: 2500.00,
-    originalPrice: 3500.00,
-    image: '/images/product-1.png',
-    category: 'Stylish cafe chair',
-    slug: 'syltherine',
-  },
-  {
-    id: 2,
-    name: 'Leviosa',
-    price: 2500.00,
-    image: '/images/product-2.png',
-    category: 'Stylish cafe chair',
-    slug: 'leviosa',
-  },
-  {
-    id: 3,
-    name: 'Lolito',
-    price: 7000.00,
-    originalPrice: 14000.00,
-    image: '/images/product-3.png',
-    category: 'Luxury big sofa',
-    slug: 'lolito',
-  },
-  {
-    id: 4,
-    name: 'Respira',
-    price: 500.00,
-    image: '/images/product-4.png',
-    category: 'Minimalist fan',
-    slug: 'respira',
-  },
-  {
-    id: 5,
-    name: 'Syltherine',
-    price: 2500.00,
-    originalPrice: 3500.00,
-    image: '/images/product-1.png',
-    category: 'Stylish cafe chair',
-    slug: 'syltherine-2',
-  },
-  {
-    id: 6,
-    name: 'Leviosa',
-    price: 2500.00,
-    image: '/images/product-2.png',
-    category: 'Stylish cafe chair',
-    slug: 'leviosa-2',
-  },
-  {
-    id: 7,
-    name: 'Lolito',
-    price: 7000.00,
-    originalPrice: 14000.00,
-    image: '/images/product-3.png',
-    category: 'Luxury big sofa',
-    slug: 'lolito-2',
-  },
-  {
-    id: 8,
-    name: 'Respira',
-    price: 500.00,
-    image: '/images/product-4.png',
-    category: 'Minimalist fan',
-    slug: 'respira-2',
-  },
-];
 
-// Sample categories
-const categories = [
-  { id: 1, name: 'Dining', count: 15 },
-  { id: 2, name: 'Living', count: 22 },
-  { id: 3, name: 'Bedroom', count: 18 },
-  { id: 4, name: 'Office', count: 12 },
-  { id: 5, name: 'Kitchen', count: 10 },
-];
 
 export default function ShopPage() {
+  const [products, setProducts] = useState<ProductDTO[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<ViewMode>('grid');
+  const [filters, setFilters] = useState<ProductSearchParams>({
+    page: 1,
+    limit: 12,
+    sortBy: 'createdAt',
+    sortOrder: 'desc'
+  });
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
+
+  // Fetch products
+  useEffect(() => {
+    fetchProducts();
+  }, [filters]);
+
+  const fetchProducts = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+
+      // Map frontend parameters to API parameters
+      const apiParams = {
+        ...filters,
+        pageNumber: filters.page,
+        pageSize: filters.limit,
+        searchTerm: filters.query,
+        sortDirection: filters.sortOrder,
+        // Remove frontend-specific parameters
+        page: undefined,
+        limit: undefined,
+        query: undefined,
+        sortOrder: undefined
+      };
+
+      const productsResult = await ProductService.getProducts(apiParams);
+      setProducts(productsResult.items);
+      // Get pagination info from the API response
+      setTotalItems(productsResult.pagination.totalCount);
+      setTotalPages(productsResult.pagination.totalPages);
+    } catch (err) {
+      setError('Failed to load products');
+      console.error('Error fetching products:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleFiltersChange = (newFilters: ProductSearchParams) => {
+    setFilters({ ...newFilters, page: 1 }); // Reset to first page when filters change
+  };
+
+  const handlePageChange = (page: number) => {
+    setFilters({ ...filters, page });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleItemsPerPageChange = (limit: number) => {
+    setFilters({ ...filters, limit, page: 1 });
+  };
+
   return (
     <MainLayout>
       {/* Shop Banner */}
@@ -92,11 +89,7 @@ export default function ShopPage() {
         <div className="container-custom">
           <h1 className="text-4xl font-bold text-dark text-center">Shop</h1>
           <div className="flex items-center justify-center mt-4">
-            <Link href="/" className="text-dark hover:text-primary transition-colors">
-              Home
-            </Link>
-            <span className="mx-2">{'>'}</span>
-            <span className="text-text-secondary">Shop</span>
+            <CategoryBreadcrumb categories={[]} />
           </div>
         </div>
       </div>
@@ -104,104 +97,77 @@ export default function ShopPage() {
       {/* Shop Content */}
       <div className="container-custom py-16">
         <div className="flex flex-col lg:flex-row gap-8">
-          {/* Sidebar */}
+          {/* Sidebar - Filters */}
           <div className="w-full lg:w-1/4">
-            <div className="border border-border-color p-6 rounded-lg mb-8">
-              <h3 className="text-xl font-medium mb-4">Categories</h3>
-              <ul className="space-y-3">
-                {categories.map((category) => (
-                  <li key={category.id}>
-                    <Link 
-                      href={`/category/${category.name.toLowerCase()}`}
-                      className="flex justify-between items-center text-dark hover:text-primary transition-colors"
-                    >
-                      <span>{category.name}</span>
-                      <span className="text-text-secondary">({category.count})</span>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            <div className="border border-border-color p-6 rounded-lg">
-              <h3 className="text-xl font-medium mb-4">Price Range</h3>
-              <div className="space-y-4">
-                <div className="flex items-center">
-                  <input 
-                    type="range" 
-                    min="0" 
-                    max="10000" 
-                    className="w-full accent-primary" 
-                    defaultValue="5000"
-                  />
-                </div>
-                <div className="flex justify-between">
-                  <span>$0</span>
-                  <span>$10,000</span>
-                </div>
-                <button className="w-full bg-primary text-white py-2 rounded hover:bg-opacity-90 transition-all">
-                  Filter
-                </button>
-              </div>
-            </div>
+            <ProductFilter
+              filters={filters}
+              onFiltersChange={handleFiltersChange}
+              className="sticky top-4"
+            />
           </div>
 
-          {/* Products Grid */}
+          {/* Products Area */}
           <div className="w-full lg:w-3/4">
-            {/* Filters and Sorting */}
+            {/* Toolbar */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 p-4 bg-light rounded-lg">
               <div className="mb-4 md:mb-0">
-                <p className="text-text-secondary">
-                  Showing <span className="text-dark font-medium">1-{products.length}</span> of <span className="text-dark font-medium">36</span> results
-                </p>
+                <PaginationInfo
+                  currentPage={filters.page || 1}
+                  totalPages={totalPages}
+                  totalItems={totalItems}
+                  itemsPerPage={filters.limit || 12}
+                />
               </div>
+
               <div className="flex items-center space-x-4">
-                <label className="flex items-center space-x-2">
-                  <span className="text-dark">Show:</span>
-                  <select className="border border-border-color rounded p-2 focus:outline-none focus:border-primary">
-                    <option>12</option>
-                    <option>24</option>
-                    <option>36</option>
-                  </select>
-                </label>
-                <label className="flex items-center space-x-2">
-                  <span className="text-dark">Sort by:</span>
-                  <select className="border border-border-color rounded p-2 focus:outline-none focus:border-primary">
-                    <option>Default</option>
-                    <option>Price: Low to High</option>
-                    <option>Price: High to Low</option>
-                    <option>Newest</option>
-                  </select>
-                </label>
+                <ItemsPerPage
+                  itemsPerPage={filters.limit || 12}
+                  onItemsPerPageChange={handleItemsPerPageChange}
+                />
+
+                <ViewToggle
+                  currentView={viewMode}
+                  onViewChange={setViewMode}
+                />
               </div>
             </div>
 
-            {/* Products */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {products.map((product) => (
-                <ProductCard key={product.id} {...product} />
-              ))}
-            </div>
+            {/* Products Display */}
+            {viewMode === 'grid' ? (
+              <ProductGrid
+                products={products}
+                isLoading={isLoading}
+                error={error}
+                emptyMessage="No products found. Try adjusting your filters."
+              />
+            ) : (
+              <ProductList
+                products={products}
+                isLoading={isLoading}
+                error={error}
+                emptyMessage="No products found. Try adjusting your filters."
+              />
+            )}
 
             {/* Pagination */}
-            <div className="flex justify-center mt-12">
-              <div className="flex space-x-2">
-                <button className="w-10 h-10 flex items-center justify-center border border-border-color rounded hover:bg-primary hover:text-white transition-colors">
-                  1
-                </button>
-                <button className="w-10 h-10 flex items-center justify-center border border-border-color rounded hover:bg-primary hover:text-white transition-colors">
-                  2
-                </button>
-                <button className="w-10 h-10 flex items-center justify-center border border-border-color rounded hover:bg-primary hover:text-white transition-colors">
-                  3
-                </button>
-                <button className="w-10 h-10 flex items-center justify-center border border-border-color rounded hover:bg-primary hover:text-white transition-colors">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
-                </button>
+            {totalPages > 1 && (
+              <div className="mt-12 flex flex-col sm:flex-row justify-between items-center gap-4">
+                <PaginationInfo
+                  currentPage={filters.page || 1}
+                  totalPages={totalPages}
+                  totalItems={totalItems}
+                  itemsPerPage={filters.limit || 12}
+                  className="order-2 sm:order-1"
+                />
+
+                <Pagination
+                  currentPage={filters.page || 1}
+                  totalPages={totalPages}
+                  onPageChange={handlePageChange}
+                  className="order-1 sm:order-2"
+                />
               </div>
-            </div>
+            )}
           </div>
         </div>
       </div>

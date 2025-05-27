@@ -120,6 +120,19 @@ builder.Services.AddScoped<ICartService, CartService>();
 builder.Services.AddScoped<ICustomerService, CustomerService>();
 builder.Services.AddScoped<IDashboardService, DashboardService>();
 
+// Add Excel services
+builder.Services.AddScoped<DecorStore.API.Services.Excel.IExcelService, DecorStore.API.Services.Excel.ExcelService>();
+builder.Services.AddScoped<DecorStore.API.Services.Excel.IProductExcelService, DecorStore.API.Services.Excel.ProductExcelService>();
+builder.Services.AddScoped<DecorStore.API.Services.Excel.ICategoryExcelService, DecorStore.API.Services.Excel.CategoryExcelService>();
+builder.Services.AddScoped<DecorStore.API.Services.Excel.ICustomerExcelService, DecorStore.API.Services.Excel.CustomerExcelService>();
+builder.Services.AddScoped<DecorStore.API.Services.Excel.IOrderExcelService, DecorStore.API.Services.Excel.OrderExcelService>();
+
+// Add FluentValidation for Excel DTOs
+builder.Services.AddScoped<FluentValidation.IValidator<DecorStore.API.DTOs.Excel.ProductExcelDTO>, DecorStore.API.Validators.Excel.ProductExcelValidator>();
+builder.Services.AddScoped<FluentValidation.IValidator<DecorStore.API.DTOs.Excel.CategoryExcelDTO>, DecorStore.API.Validators.Excel.CategoryExcelValidator>();
+builder.Services.AddScoped<FluentValidation.IValidator<DecorStore.API.DTOs.Excel.CustomerExcelDTO>, DecorStore.API.Validators.Excel.CustomerExcelValidator>();
+builder.Services.AddScoped<FluentValidation.IValidator<DecorStore.API.DTOs.Excel.OrderExcelDTO>, DecorStore.API.Validators.Excel.OrderExcelValidator>();
+
 // Add memory cache for dashboard data
 builder.Services.AddMemoryCache();
 builder.Services.AddScoped<ICacheService, CacheService>();

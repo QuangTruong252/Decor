@@ -1,8 +1,10 @@
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using DecorStore.API.DTOs;
+using DecorStore.API.DTOs.Excel;
 using DecorStore.API.Models;
 using DecorStore.API.Services;
+using DecorStore.API.Services.Excel;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -14,10 +16,12 @@ namespace DecorStore.API.Controllers
     public class CategoryController : ControllerBase
     {
         private readonly ICategoryService _categoryService;
+        private readonly ICategoryExcelService _categoryExcelService;
 
-        public CategoryController(ICategoryService categoryService)
+        public CategoryController(ICategoryService categoryService, ICategoryExcelService categoryExcelService)
         {
             _categoryService = categoryService;
+            _categoryExcelService = categoryExcelService;
         }
 
         // GET: api/Category
@@ -189,5 +193,144 @@ namespace DecorStore.API.Controllers
             var categories = await _categoryService.GetRootCategoriesAsync();
             return Ok(categories);
         }
+
+        #region Excel Import/Export Endpoints
+
+        // POST: api/Category/import
+        [HttpPost("import")]
+        [Authorize(Roles = "Admin")]
+        public async Task<ActionResult<ExcelImportResultDTO<CategoryExcelDTO>>> ImportCategories(IFormFile file, [FromQuery] bool validateOnly = false)
+        {
+            try
+            {
+                if (file == null || file.Length == 0)
+                {
+                    return BadRequest("No file provided");
+                }
+
+                if (!file.FileName.EndsWith(".xlsx", StringComparison.OrdinalIgnoreCase))
+                {
+                    return BadRequest("Only .xlsx files are supported");
+                }
+
+                using var stream = file.OpenReadStream();
+                var result = await _categoryExcelService.ImportCategoriesAsync(stream, validateOnly);
+
+                if (result.IsSuccess)
+                {
+                    return Ok(result);
+                }
+                else
+                {
+                    return BadRequest(result);
+                }
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Internal server error: {ex.Message}");
+            }
+        }
+
+        // GET: api/Category/export
+        [HttpGet("export")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> ExportCategories([FromQuery] CategoryFilterDTO? filter, [FromQuery] string? format = "xlsx")
+        {
+            try
+            {
+                var exportRequest = new ExcelExportRequestDTO
+                {
+                    WorksheetName = "Categories Export",
+                    IncludeFilters = true,
+                    FreezeHeaderRow = true,
+                    AutoFitColumns = true
+                };
+
+                var fileBytes = await _categoryExcelService.ExportCategoriesAsync(filter, exportRequest);
+                var fileName = $"Categories_Export_{DateTime.UtcNow:yyyyMMdd_HHmmss}.xlsx";
+
+                return File(fileBytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Internal server error: {ex.Message}");
+            }
+        }
+
+        // GET: api/Category/export-template
+        [HttpGet("export-template")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> GetCategoryImportTemplate([FromQuery] bool includeExample = true)
+        {
+            try
+            {
+                var templateBytes = await _categoryExcelService.CreateCategoryTemplateAsync(includeExample);
+                var fileName = $"Category_Import_Template_{DateTime.UtcNow:yyyyMMdd}.xlsx";
+
+                return File(templateBytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Internal server error: {ex.Message}");
+            }
+        }
+
+        // POST: api/Category/validate-import
+        [HttpPost("validate-import")]
+        [Authorize(Roles = "Admin")]
+        public async Task<ActionResult<ExcelValidationResultDTO>> ValidateCategoryImport(IFormFile file)
+        {
+            try
+            {
+                if (file == null || file.Length == 0)
+                {
+                    return BadRequest("No file provided");
+                }
+
+                if (!file.FileName.EndsWith(".xlsx", StringComparison.OrdinalIgnoreCase))
+                {
+                    return BadRequest("Only .xlsx files are supported");
+                }
+
+                using var stream = file.OpenReadStream();
+                var result = await _categoryExcelService.ValidateCategoryExcelAsync(stream);
+
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Internal server error: {ex.Message}");
+            }
+        }
+
+        // POST: api/Category/import-statistics
+        [HttpPost("import-statistics")]
+        [Authorize(Roles = "Admin")]
+        public async Task<ActionResult<CategoryImportStatisticsDTO>> GetImportStatistics(IFormFile file)
+        {
+            try
+            {
+                if (file == null || file.Length == 0)
+                {
+                    return BadRequest("No file provided");
+                }
+
+                if (!file.FileName.EndsWith(".xlsx", StringComparison.OrdinalIgnoreCase))
+                {
+                    return BadRequest("Only .xlsx files are supported");
+                }
+
+                using var stream = file.OpenReadStream();
+                var statistics = await _categoryExcelService.GetImportStatisticsAsync(stream);
+
+                return Ok(statistics);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Internal server error: {ex.Message}");
+            }
+        }
+
+        #endregion
     }
 }

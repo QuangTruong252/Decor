@@ -5,6 +5,7 @@ using DecorStore.API.Data;
 using DecorStore.API.Models;
 using Microsoft.EntityFrameworkCore;
 using DecorStore.API.DTOs;
+using System;
 
 namespace DecorStore.API.Repositories
 {
@@ -71,8 +72,12 @@ namespace DecorStore.API.Repositories
             if (!string.IsNullOrEmpty(filter.SearchTerm))
             {
                 var searchTerm = filter.SearchTerm.ToLower();
+                // check encode escape character eg: Bistro%20Set => Bistro Set
+                searchTerm = Uri.UnescapeDataString(searchTerm);
+
                 query = query.Where(p =>
                     p.Name.ToLower().Contains(searchTerm) ||
+                    p.Slug.ToLower().Contains(searchTerm) ||
                     p.Description.ToLower().Contains(searchTerm) ||
                     p.SKU.ToLower().Contains(searchTerm) ||
                     p.Category.Name.ToLower().Contains(searchTerm));
