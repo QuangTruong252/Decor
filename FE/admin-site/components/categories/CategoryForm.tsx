@@ -9,14 +9,15 @@ import { Input } from "@/components/ui/input";
 import { Form, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useGetCategories } from "@/hooks/useCategories";
-import { cn, getImageUrl } from "@/lib/utils";
+import { useHierarchicalCategories } from "@/hooks/useCategoryStore";
+import { getImageUrl } from "@/lib/utils";
+import { HierarchicalSelect } from "@/components/ui/hierarchical-select";
 
 const categorySchema = z.object({
   name: z.string().min(2, "Name is required").max(100),
   slug: z.string().min(1, "Slug is required").max(100),
   description: z.string().max(255).optional(),
-  parentId: z.string().optional(),
+  parentId: z.number().nullable().optional(),
   image: z.any().optional(),
 });
 
@@ -36,12 +37,13 @@ export const CategoryForm = ({ initialData, onSubmit, loading, submitLabel = "Sa
       name: initialData?.name || "",
       slug: initialData?.slug || "",
       description: initialData?.description || "",
-      parentId: initialData?.parentId ? String(initialData.parentId) : "0",
+      parentId: initialData?.parentId || null,
       image: undefined,
     },
   });
 
-  const { data: categories } = useGetCategories();
+  const { data: categoriesData } = useHierarchicalCategories();
+  const categories = categoriesData || [];
 
   useEffect(() => {
     if (initialData) {
@@ -56,7 +58,7 @@ export const CategoryForm = ({ initialData, onSubmit, loading, submitLabel = "Sa
         name: initialData.name || "",
         slug: initialData.slug || "",
         description: initialData.description || "",
-        parentId: initialData.parentId ? String(initialData.parentId) : "0",
+        parentId: initialData.parentId || null,
         image: undefined,
       });
     }
@@ -68,7 +70,7 @@ export const CategoryForm = ({ initialData, onSubmit, loading, submitLabel = "Sa
       name: values.name,
       slug: values.slug,
       description: values.description,
-      parentId: values.parentId && values.parentId !== "0" ? Number(values.parentId) : null,
+      parentId: values.parentId || null,
       image: values.image instanceof FileList ? values.image[0] : undefined,
     };
     onSubmit(payload);
@@ -116,21 +118,15 @@ export const CategoryForm = ({ initialData, onSubmit, loading, submitLabel = "Sa
           render={({ field }) => (
             <FormItem>
               <FormLabel>Parent Category</FormLabel>
-              <Select
-                onValueChange={field.onChange}
-                value={field.value || "0"}
-                defaultValue={field.value || "0"}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="None" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="0">None</SelectItem>
-                  {categories?.filter(c => !initialData?.id || c.id !== initialData.id).map((cat) => (
-                    <SelectItem key={cat.id} value={String(cat.id)}>{cat.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <HierarchicalSelect
+                categories={categories.filter(c => !initialData?.id || c.id !== initialData.id)}
+                value={field.value || undefined}
+                onValueChange={(value) => field.onChange(value)}
+                placeholder="None (Root Category)"
+                allowClear={true}
+                showPath={true}
+                className="w-full"
+              />
               <FormMessage />
             </FormItem>
           )}

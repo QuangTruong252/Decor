@@ -2,7 +2,8 @@
 
 import * as React from "react"
 import { useState, useEffect, useRef } from "react"
-import { useGetCategories, useDeleteCategory, useGetAllCategories } from "@/hooks/useCategories"
+import { useGetCategories, useDeleteCategory } from "@/hooks/useCategories"
+import { useCategories } from "@/hooks/useCategoryStore"
 import { CategoryFiltersComponent } from "./CategoryFilters"
 import { CategoryDialog } from "./CategoryDialog"
 import { SearchInput } from "@/components/shared/SearchInput"
@@ -23,6 +24,8 @@ import {
   TableHead,
   TableHeader,
   TableRow,
+  TableSkeleton,
+  tableSkeletonConfigs,
 } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { getImageUrl, cn } from "@/lib/utils"
@@ -32,6 +35,8 @@ import { Filter, ArrowUpDown, ArrowUp, ArrowDown, X, Plus, Pencil, Trash2 } from
 import { format } from "date-fns"
 import { Category } from "@/services/categories"
 import { useConfirmationDialog } from "../ui/confirmation-dialog"
+import { ImportExportToolbar } from "@/components/excel/import-export-toolbar"
+import { categoryExcelService } from "@/services/excel"
 
 export function CategoriesDataTable() {
   // State for applied filters (what's actually filtering the table)
@@ -63,14 +68,13 @@ export function CategoriesDataTable() {
 
   // API calls
   const { data, isLoading, error, refetch } = useGetCategories(appliedFilters)
-  const { data: allCategoriesData } = useGetAllCategories()
+  const { data: allCategories } = useCategories()
   const deleteCategoryMutation = useDeleteCategory()
 
   const { confirm } = useConfirmationDialog()
 
   // Derived state
   const categories = data?.items || []
-  const allCategories = allCategoriesData || []
   const pagination = data?.pagination || {
     currentPage: 1,
     pageSize: 25,
@@ -369,6 +373,17 @@ export function CategoriesDataTable() {
           </Dialog>
         </div>
         <div className="flex items-center space-x-2">
+          <ImportExportToolbar
+            onExportData={categoryExcelService.exportData}
+            onExportTemplate={categoryExcelService.exportTemplate}
+            onValidateImport={categoryExcelService.validateImport}
+            onImportData={categoryExcelService.importData}
+            onGetImportStatistics={categoryExcelService.getImportStatistics}
+            currentFilters={appliedFilters}
+            hasActiveFilters={hasActiveFilters(appliedFilters)}
+            exportType="categories"
+            onImportSuccess={() => refetch()}
+          />
           <Button onClick={handleAddCategory} className="gap-2">
             <Plus className="w-4 h-4" />
             Add Category
@@ -421,11 +436,28 @@ export function CategoriesDataTable() {
               </div>
             </div>
           ) : isLoading ? (
-            <div className="flex h-96 items-center justify-center">
-              <div className="text-center">
-                <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent mx-auto mb-2" />
-                <p className="text-sm text-muted-foreground">Loading...</p>
-              </div>
+            <div
+              className="relative overflow-auto"
+              style={{ height: `${tableHeight}px` }}
+            >
+              <Table>
+                <TableHeader className="sticky top-0 z-10 bg-background">
+                  <TableRow>
+                    <TableHead>Image</TableHead>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Slug</TableHead>
+                    <TableHead>Parent</TableHead>
+                    <TableHead>Created</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  <TableSkeleton
+                    rows={Math.min(10, Math.max(5, Math.floor(tableHeight / 60)))}
+                    columns={tableSkeletonConfigs.categories}
+                  />
+                </TableBody>
+              </Table>
             </div>
           ) : categories.length === 0 ? (
             <div className="flex h-96 items-center justify-center">

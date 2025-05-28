@@ -64,8 +64,8 @@ namespace DecorStore.API.Services.Excel
             filter ??= new CategoryFilterDTO();
             exportRequest ??= new ExcelExportRequestDTO { WorksheetName = "Categories" };
 
-            // Get categories from database
-            var categories = await _unitOfWork.Categories.GetAllAsync();
+            // Get categories from database with navigation properties for Excel export
+            var categories = await _unitOfWork.Categories.GetAllForExcelExportAsync();
 
             // Map to Excel DTOs and build hierarchy
             var categoryExcelDtos = await MapToExcelDtosAsync(categories);

@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { ProductForm, ProductFormValues } from "./ProductForm";
-import { useCreateProduct, useUpdateProduct, useGetProductById } from "@/hooks/useProducts";
+import { useCreateProduct, useUpdateProduct } from "@/hooks/useProducts";
 import { getProductById, Product } from "@/services/products";
 import { PackagePlus, Pencil } from "lucide-react";
 import { useConfirmationDialog } from "@/components/ui/confirmation-dialog";

@@ -143,6 +143,17 @@ namespace DecorStore.API.Repositories
                 .ToListAsync();
         }
 
+        public async Task<IEnumerable<Category>> GetAllForExcelExportAsync()
+        {
+            return await _context.Categories
+                .Include(c => c.ParentCategory)
+                .Include(c => c.Subcategories)
+                .Include(c => c.Products.Where(p => !p.IsDeleted))
+                .Where(c => !c.IsDeleted)
+                .OrderBy(c => c.Name)
+                .ToListAsync();
+        }
+
         private IQueryable<Category> BuildCategoryQuery(CategoryFilterDTO filter)
         {
             var query = _context.Categories.AsQueryable();

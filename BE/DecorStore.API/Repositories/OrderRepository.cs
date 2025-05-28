@@ -245,6 +245,7 @@ namespace DecorStore.API.Repositories
                 "customer" => filter.IsDescending ?
                     query.OrderByDescending(o => o.Customer != null ? o.Customer.LastName : o.User.FullName) :
                     query.OrderBy(o => o.Customer != null ? o.Customer.LastName : o.User.FullName),
+                "createdat" => filter.IsDescending ? query.OrderByDescending(o => o.CreatedAt) : query.OrderBy(o => o.CreatedAt),
                 "updatedat" => filter.IsDescending ? query.OrderByDescending(o => o.UpdatedAt) : query.OrderBy(o => o.UpdatedAt),
                 _ => query.OrderByDescending(o => o.OrderDate)
             };

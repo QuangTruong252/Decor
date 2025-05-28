@@ -132,7 +132,7 @@ export function ConfirmationDialogProvider({ children }: { children: ReactNode }
             </div>
           )}
 
-          <DialogFooter className="gap-2 sm:gap-0">
+          <DialogFooter className="gap-2">
             <Button variant="outline" onClick={handleCancel} disabled={isLoading}>
               {options.cancelText || "Cancel"}
             </Button>

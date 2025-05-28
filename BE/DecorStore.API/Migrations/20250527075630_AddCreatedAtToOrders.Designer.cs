@@ -12,8 +12,8 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace DecorStore.API.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20250526025152_AddPaginationIndexes")]
-    partial class AddPaginationIndexes
+    [Migration("20250527075630_AddCreatedAtToOrders")]
+    partial class AddCreatedAtToOrders
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -324,6 +324,9 @@ namespace DecorStore.API.Migrations
                     b.Property<string>("ContactPhone")
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<int?>("CustomerId")
                         .HasColumnType("integer");

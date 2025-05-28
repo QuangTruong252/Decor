@@ -32,5 +32,10 @@ namespace DecorStore.API.Repositories
         Task<IEnumerable<Category>> GetSubcategoriesAsync(int parentId);
         Task<int> GetProductCountByCategoryAsync(int categoryId);
         Task<IEnumerable<Category>> GetPopularCategoriesAsync(int count = 10);
+
+        /// <summary>
+        /// Gets all categories with navigation properties for Excel export
+        /// </summary>
+        Task<IEnumerable<Category>> GetAllForExcelExportAsync();
     }
 }

@@ -209,9 +209,12 @@ namespace DecorStore.API.DTOs.Excel
         /// </summary>
         public static List<CategoryExcelDTO> BuildHierarchy(List<CategoryExcelDTO> categories)
         {
-            var categoryDict = categories.ToDictionary(c => c.Id ?? 0, c => c);
-            var result = new List<CategoryExcelDTO>();
+            // Create dictionary for quick lookup, only include categories with valid IDs
+            var categoryDict = categories
+                .Where(c => c.Id.HasValue)
+                .ToDictionary(c => c.Id!.Value, c => c);
 
+            // Process all categories to set hierarchy information
             foreach (var category in categories)
             {
                 if (!category.ParentId.HasValue)
@@ -219,17 +222,23 @@ namespace DecorStore.API.DTOs.Excel
                     // Root category
                     category.Level = 0;
                     category.CategoryPath = category.Name;
-                    result.Add(category);
                 }
                 else if (categoryDict.TryGetValue(category.ParentId.Value, out var parent))
                 {
-                    // Child category
+                    // Child category - calculate level and path based on parent
                     category.Level = parent.Level + 1;
                     category.CategoryPath = $"{parent.CategoryPath} > {category.Name}";
                 }
+                else
+                {
+                    // Parent not found, treat as root but mark as orphaned
+                    category.Level = 0;
+                    category.CategoryPath = $"[Orphaned] {category.Name}";
+                }
             }
 
-            return result.OrderBy(c => c.CategoryPath).ToList();
+            // Return all categories sorted by category path
+            return categories.OrderBy(c => c.CategoryPath).ToList();
         }
 
         /// <summary>

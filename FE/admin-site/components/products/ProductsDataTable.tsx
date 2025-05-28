@@ -3,7 +3,7 @@
 import * as React from "react"
 import { useState, useEffect, useRef } from "react"
 import { useGetProducts, useDeleteProduct } from "@/hooks/useProducts"
-import { useGetAllCategories } from "@/hooks/useCategories"
+import { useCategories } from "@/hooks/useCategoryStore"
 import { ProductFiltersComponent } from "./ProductFilters"
 import { AddProductDialog, EditProductDialog, DeleteProductButton } from "./ProductDialog"
 import { BulkDeleteButton } from "./BulkDeleteButton"
@@ -26,6 +26,8 @@ import {
   TableHead,
   TableHeader,
   TableRow,
+  TableSkeleton,
+  tableSkeletonConfigs,
 } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { formatCurrency, getImageUrl, cn } from "@/lib/utils"
@@ -33,6 +35,8 @@ import { ProductFilters } from "@/types/api"
 import { createDefaultPagination, hasActiveFilters } from "@/lib/query-utils"
 import { Check, X, Filter, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react"
 import { Category } from "@/services/categories"
+import { ImportExportToolbar } from "@/components/excel/import-export-toolbar"
+import { productExcelService } from "@/services/excel"
 
 export function ProductsDataTable() {
   // State for applied filters (what's actually filtering the table)
@@ -61,7 +65,7 @@ export function ProductsDataTable() {
 
   // API calls
   const { data, isLoading, error, refetch } = useGetProducts(appliedFilters)
-  const { data: categoriesData } = useGetAllCategories()
+  const { data: categoriesData } = useCategories()
   const deleteProductMutation = useDeleteProduct()
 
   // Derived state
@@ -407,6 +411,17 @@ export function ProductsDataTable() {
           </Dialog>
         </div>
         <div className="flex items-center space-x-2">
+          <ImportExportToolbar
+            onExportData={productExcelService.exportData}
+            onExportTemplate={productExcelService.exportTemplate}
+            onValidateImport={productExcelService.validateImport}
+            onImportData={productExcelService.importData}
+            onGetImportStatistics={productExcelService.getImportStatistics}
+            currentFilters={appliedFilters}
+            hasActiveFilters={hasActiveFilters(appliedFilters)}
+            exportType="products"
+            onImportSuccess={() => refetch()}
+          />
           {selectedProducts.length > 0 && (
             <BulkDeleteButton
               selectedIds={selectedProducts}
@@ -462,11 +477,34 @@ export function ProductsDataTable() {
               </div>
             </div>
           ) : isLoading ? (
-            <div className="flex h-96 items-center justify-center">
-              <div className="text-center">
-                <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent mx-auto mb-2" />
-                <p className="text-sm text-muted-foreground">Loading...</p>
-              </div>
+            <div
+              className="relative overflow-auto"
+              style={{ height: `${tableHeight}px` }}
+            >
+              <Table>
+                <TableHeader className="sticky top-0 z-10 bg-background">
+                  <TableRow>
+                    <TableHead className="w-12">
+                      <div className="h-4 w-4" />
+                    </TableHead>
+                    <TableHead>Image</TableHead>
+                    <TableHead>Name</TableHead>
+                    <TableHead>SKU</TableHead>
+                    <TableHead>Category</TableHead>
+                    <TableHead className="text-right">Price</TableHead>
+                    <TableHead className="text-right">Stock</TableHead>
+                    <TableHead className="text-center">Status</TableHead>
+                    <TableHead className="text-center">Featured</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  <TableSkeleton
+                    rows={Math.min(10, Math.max(5, Math.floor(tableHeight / 60)))}
+                    columns={tableSkeletonConfigs.products}
+                  />
+                </TableBody>
+              </Table>
             </div>
           ) : products.length === 0 ? (
             <div className="flex h-96 items-center justify-center">

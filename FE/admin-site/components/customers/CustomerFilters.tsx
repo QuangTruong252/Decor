@@ -5,11 +5,11 @@ import { FilterSection, FilterGroup } from "@/components/shared/FilterPanel"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+// import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
 import { DateRangePicker } from "@/components/ui/date-picker"
 import { CustomerFilters } from "@/types/api"
-import { formatDateForApi, getSelectValue, parseSelectValue } from "@/lib/query-utils"
+import { formatDateForApi } from "@/lib/query-utils"
 
 interface CustomerFiltersProps {
   filters: CustomerFilters

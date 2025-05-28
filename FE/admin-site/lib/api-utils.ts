@@ -9,6 +9,7 @@ export const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000
  * @returns Token xác thực hoặc undefined nếu chưa đăng nhập
  */
 export async function getAuthToken(): Promise<string | undefined> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const session:any = await getSession();
   return session?.user?.accessToken;
 }

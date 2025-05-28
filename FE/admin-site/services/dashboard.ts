@@ -1,10 +1,6 @@
 "use client";
 
 import { API_URL, fetchWithAuth } from "@/lib/api-utils";
-import { OrderDTO } from "./orders";
-import { Product } from "./products";
-import { CustomerDTO } from "./customers";
-import { Category } from "./categories";
 
 /**
  * Dashboard summary metrics

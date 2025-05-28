@@ -1,11 +1,12 @@
 "use client"
 
 import * as React from "react"
-import { useGetAllCategories } from "@/hooks/useCategories"
+import { useHierarchicalCategories } from "@/hooks/useCategoryStore"
 import { FilterSection, FilterGroup } from "@/components/shared/FilterPanel"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
+import { HierarchicalSelect } from "@/components/ui/hierarchical-select"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
 import { DateRangePicker } from "@/components/ui/date-picker"
@@ -27,8 +28,7 @@ export function ProductFiltersComponent({
   onApply,
   onClearAll,
 }: ProductFiltersProps) {
-  const { data: categoriesData } = useGetAllCategories()
-  const categories = categoriesData || []
+  const { data: categories } = useHierarchicalCategories()
 
   const handleFilterChange = (key: keyof ProductFilters, value: unknown) => {
     onFiltersChange({
@@ -72,24 +72,15 @@ export function ProductFiltersComponent({
             </div>
             <div className="space-y-2">
               <Label htmlFor="category">Category</Label>
-              <Select
-                value={getSelectValue(filters.categoryId, "all")}
-                onValueChange={(value) =>
-                  handleFilterChange("categoryId", parseSelectValue(value, "all", "number"))
-                }
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select category..." />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Categories</SelectItem>
-                  {categories.map((category) => (
-                    <SelectItem key={category.id} value={category.id.toString()}>
-                      {category.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <HierarchicalSelect
+                categories={categories || []}
+                value={filters.categoryId}
+                onValueChange={(value) => handleFilterChange("categoryId", value)}
+                placeholder="Select category..."
+                allowClear={true}
+                showPath={true}
+                className="w-full"
+              />
             </div>
           </FilterGroup>
         </FilterSection>

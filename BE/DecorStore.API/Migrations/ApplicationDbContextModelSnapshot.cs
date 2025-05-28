@@ -322,6 +322,9 @@ namespace DecorStore.API.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<int?>("CustomerId")
                         .HasColumnType("integer");
 

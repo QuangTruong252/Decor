@@ -9,13 +9,11 @@ import {
   getOrderStatusDistribution,
   type SalesTrendItem,
   type PopularProduct,
-  type CategorySales,
   type OrderStatusCount,
   type OrderStatusDistribution,
-  type RecentOrder
 } from "@/services/dashboard";
-import { getProducts } from "@/services/products";
-import { getOrders } from "@/services/orders";
+import { getProducts, type ProductDTO } from "@/services/products";
+import { getOrders, type OrderDTO } from "@/services/orders";
 import { getCustomers } from "@/services/customers";
 
 /**
@@ -25,28 +23,33 @@ import { getCustomers } from "@/services/customers";
 function useFallbackDashboardData() {
   const productsQuery = useQuery({
     queryKey: ["products"],
-    queryFn: getProducts,
+    queryFn: () => getProducts({ pageNumber: 1, pageSize: 1000 }), // Get all products
   });
 
   const ordersQuery = useQuery({
     queryKey: ["orders"],
-    queryFn: getOrders,
+    queryFn: () => getOrders({ pageNumber: 1, pageSize: 1000 }), // Get all orders
   });
 
   const customersQuery = useQuery({
     queryKey: ["customers"],
-    queryFn: getCustomers,
+    queryFn: () => getCustomers({ pageNumber: 1, pageSize: 1000 }), // Get all customers
   });
 
+  // Extract items from PagedResult
+  const orders = ordersQuery.data?.items || [];
+  const products = productsQuery.data?.items || [];
+  const customers = customersQuery.data?.items || [];
+
   // Calculate total revenue from orders
-  const totalRevenue = ordersQuery.data?.reduce((sum, order) => sum + order.totalAmount, 0) || 0;
+  const totalRevenue = orders.reduce((sum, order) => sum + order.totalAmount, 0);
 
   // Calculate order status distribution
-  const orderStatusDistribution = ordersQuery.data ? calculateOrderStatusDistribution(ordersQuery.data) : [];
+  const orderStatusDistribution = orders.length > 0 ? calculateOrderStatusDistribution(orders) : [];
 
   // Calculate popular products based on order items
-  const popularProducts = ordersQuery.data && productsQuery.data
-    ? calculatePopularProducts(ordersQuery.data, productsQuery.data)
+  const popularProducts = orders.length > 0 && products.length > 0
+    ? calculatePopularProducts(orders, products)
     : [];
 
   // Generate mock sales trend data if real data is not available
@@ -73,21 +76,21 @@ function useFallbackDashboardData() {
   // We don't need to convert popular products since we've updated the calculatePopularProducts function
 
   // Convert recent orders to the new format
-  const recentOrders = ordersQuery.data?.slice(0, 5).map(order => ({
+  const recentOrders = orders.slice(0, 5).map(order => ({
     orderId: order.id,
     orderDate: order.orderDate,
     customerName: order.userFullName || "Guest",
     totalAmount: order.totalAmount,
     orderStatus: order.orderStatus || "Unknown"
-  })) || [];
+  }));
 
   return {
     isLoading: productsQuery.isLoading || ordersQuery.isLoading || customersQuery.isLoading,
     error: productsQuery.error || ordersQuery.error || customersQuery.error,
     data: {
-      totalProducts: productsQuery.data?.length || 0,
-      totalOrders: ordersQuery.data?.length || 0,
-      totalCustomers: customersQuery.data?.length || 0,
+      totalProducts: products.length,
+      totalOrders: orders.length,
+      totalCustomers: customers.length,
       totalRevenue,
       orderStatusDistribution: orderStatusObj,
       popularProducts,
@@ -173,6 +176,9 @@ export function useGetBasicDashboardData() {
     retry: 1,
   });
 
+  // Always call fallback hook (but conditionally use its data)
+  const fallbackData = useFallbackDashboardData();
+
   // Fallback to individual queries if the summary endpoint fails
   const salesTrendQuery = useQuery({
     queryKey: ["dashboard", "sales-trend", "daily"],
@@ -211,48 +217,60 @@ export function useGetBasicDashboardData() {
     };
   }
 
-  // If the dashboard summary endpoint fails, use the individual queries
-  const isLoading =
+  // If the dashboard summary endpoint fails, check individual queries
+  const individualQueriesLoading =
     salesTrendQuery.isLoading ||
     popularProductsQuery.isLoading ||
     orderStatusQuery.isLoading ||
     salesByCategoryQuery.isLoading;
 
-  const error =
+  const individualQueriesError =
     salesTrendQuery.error ||
     popularProductsQuery.error ||
     orderStatusQuery.error ||
     salesByCategoryQuery.error;
 
-  // Fallback to the original implementation if all dashboard endpoints fail
-  if (error) {
-    // Use the fallback implementation with existing endpoints
-    const fallbackData = useFallbackDashboardData();
+  // If individual queries are still loading, show loading state
+  if (dashboardQuery.isLoading || individualQueriesLoading) {
+    return {
+      isLoading: true,
+      error: null,
+      data: null
+    };
+  }
+
+  // If all dashboard endpoints fail, use the fallback implementation
+  if (dashboardQuery.error && individualQueriesError) {
     return fallbackData;
   }
 
-  return {
-    isLoading,
-    error,
-    data: {
-      totalProducts: 0, // Will be filled by the dashboard page
-      totalOrders: 0,   // Will be filled by the dashboard page
-      totalCustomers: 0, // Will be filled by the dashboard page
-      totalRevenue: 0,   // Will be filled by the dashboard page
-      salesTrend: salesTrendQuery.data || [],
-      recentSalesTrend: [], // For compatibility with new API
-      popularProducts: popularProductsQuery.data || [],
-      orderStatusDistribution: orderStatusQuery.data || [],
-      salesByCategory: salesByCategoryQuery.data || [],
-      recentOrders: [] // Empty array as fallback
-    }
-  };
+  // If individual queries succeed, use their data
+  if (!individualQueriesError && dashboardQuery.error) {
+    return {
+      isLoading: false,
+      error: null,
+      data: {
+        totalProducts: 0, // Will be filled by the dashboard page
+        totalOrders: 0,   // Will be filled by the dashboard page
+        totalCustomers: 0, // Will be filled by the dashboard page
+        totalRevenue: 0,   // Will be filled by the dashboard page
+        recentSalesTrend: salesTrendQuery.data || [],
+        popularProducts: popularProductsQuery.data || [],
+        orderStatusDistribution: orderStatusQuery.data || { pending: 0, processing: 0, shipped: 0, delivered: 0, cancelled: 0, total: 0 },
+        salesByCategory: salesByCategoryQuery.data || [],
+        recentOrders: [] // Empty array as fallback
+      }
+    };
+  }
+
+  // Default fallback
+  return fallbackData;
 }
 
 /**
  * Helper function to calculate order status distribution
  */
-function calculateOrderStatusDistribution(orders: any[]): OrderStatusCount[] {
+function calculateOrderStatusDistribution(orders: OrderDTO[]): OrderStatusCount[] {
   const statusMap = new Map<string, number>();
 
   orders.forEach(order => {
@@ -269,13 +287,13 @@ function calculateOrderStatusDistribution(orders: any[]): OrderStatusCount[] {
 /**
  * Helper function to calculate popular products based on order items
  */
-function calculatePopularProducts(orders: any[], products: any[]): PopularProduct[] {
+function calculatePopularProducts(orders: OrderDTO[], products: ProductDTO[]): PopularProduct[] {
   const productSalesMap = new Map<number, { totalSold: number, totalRevenue: number }>();
 
   // Count sales for each product
   orders.forEach(order => {
     if (order.orderItems) {
-      order.orderItems.forEach((item: any) => {
+      order.orderItems.forEach((item) => {
         const currentStats = productSalesMap.get(item.productId) || { totalSold: 0, totalRevenue: 0 };
         productSalesMap.set(item.productId, {
           totalSold: currentStats.totalSold + item.quantity,

@@ -3,6 +3,7 @@
 import * as React from "react"
 
 import { cn } from "@/lib/utils"
+import { Skeleton } from "./skeleton"
 
 function Table({ className, ...props }: React.ComponentProps<"table">) {
   return (
@@ -12,7 +13,7 @@ function Table({ className, ...props }: React.ComponentProps<"table">) {
     >
       <table
         data-slot="table"
-        className={cn("w-full caption-bottom text-sm", className)}
+        className={cn("w-full caption-bottom text-sm overflow-x-auto", className)}
         {...props}
       />
     </div>
@@ -104,6 +105,120 @@ function TableCaption({
   )
 }
 
+// Types for TableSkeleton configuration
+export interface TableSkeletonColumn {
+  type: 'text' | 'image' | 'badge' | 'actions' | 'checkbox' | 'currency'
+  width?: string
+  className?: string
+}
+
+export interface TableSkeletonProps {
+  rows?: number
+  columns: readonly TableSkeletonColumn[]
+}
+
+// Predefined column configurations for common table types
+const tableSkeletonConfigs = {
+  products: [
+    { type: 'checkbox' as const },
+    { type: 'image' as const },
+    { type: 'text' as const, width: 'w-32' }, // Name
+    { type: 'text' as const, width: 'w-20' }, // SKU
+    { type: 'text' as const, width: 'w-24' }, // Category
+    { type: 'currency' as const }, // Price
+    { type: 'badge' as const }, // Stock
+    { type: 'badge' as const }, // Status
+    { type: 'badge' as const }, // Featured
+    { type: 'actions' as const },
+  ],
+  categories: [
+    { type: 'image' as const },
+    { type: 'text' as const, width: 'w-32' }, // Name
+    { type: 'text' as const, width: 'w-24' }, // Slug
+    { type: 'text' as const, width: 'w-24' }, // Parent
+    { type: 'text' as const, width: 'w-20' }, // Created
+    { type: 'actions' as const },
+  ],
+  customers: [
+    { type: 'text' as const, width: 'w-16' }, // ID
+    { type: 'text' as const, width: 'w-32' }, // Name
+    { type: 'text' as const, width: 'w-40' }, // Email
+    { type: 'text' as const, width: 'w-24' }, // Location
+    { type: 'text' as const, width: 'w-24' }, // Phone
+    { type: 'text' as const, width: 'w-20' }, // Joined
+    { type: 'actions' as const },
+  ],
+  orders: [
+    { type: 'text' as const, width: 'w-20' }, // Order ID
+    { type: 'text' as const, width: 'w-32' }, // Customer
+    { type: 'text' as const, width: 'w-24' }, // Date
+    { type: 'currency' as const }, // Total
+    { type: 'badge' as const }, // Status
+    { type: 'actions' as const },
+  ],
+} as const
+
+// TableSkeleton component for loading states
+function TableSkeleton({ rows = 5, columns }: TableSkeletonProps) {
+  const renderSkeletonCell = (column: TableSkeletonColumn, index: number) => {
+    const baseClassName = cn("px-4 py-3 align-middle", column.className)
+
+    switch (column.type) {
+      case 'checkbox':
+        return (
+          <TableCell key={index} className={baseClassName}>
+            <Skeleton className="h-4 w-4 rounded" />
+          </TableCell>
+        )
+      case 'image':
+        return (
+          <TableCell key={index} className={baseClassName}>
+            <Skeleton className="h-10 w-10 rounded-md" />
+          </TableCell>
+        )
+      case 'badge':
+        return (
+          <TableCell key={index} className={baseClassName}>
+            <Skeleton className="h-6 w-16 rounded-full" />
+          </TableCell>
+        )
+      case 'actions':
+        return (
+          <TableCell key={index} className={cn(baseClassName, "text-right")}>
+            <div className="flex justify-end gap-2">
+              <Skeleton className="h-8 w-8 rounded-md" />
+              <Skeleton className="h-8 w-8 rounded-md" />
+            </div>
+          </TableCell>
+        )
+      case 'currency':
+        return (
+          <TableCell key={index} className={cn(baseClassName, "text-right")}>
+            <Skeleton className="h-4 w-20 ml-auto" />
+          </TableCell>
+        )
+      case 'text':
+      default:
+        const widthClass = column.width || 'w-24'
+        return (
+          <TableCell key={index} className={baseClassName}>
+            <Skeleton className={cn("h-4", widthClass)} />
+          </TableCell>
+        )
+    }
+  }
+
+  return (
+    <>
+      {Array.from({ length: rows }).map((_, rowIndex) => (
+        <TableRow key={rowIndex}>
+          {columns.map((column, colIndex) => renderSkeletonCell(column, colIndex))}
+        </TableRow>
+      ))}
+    </>
+  )
+}
+
 export {
   Table,
   TableHeader,
@@ -113,4 +228,6 @@ export {
   TableRow,
   TableCell,
   TableCaption,
+  TableSkeleton,
+  tableSkeletonConfigs,
 }

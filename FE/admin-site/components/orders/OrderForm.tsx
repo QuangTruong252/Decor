@@ -34,7 +34,7 @@ const orderFormSchema = z.object({
   orderItems: z.array(
     z.object({
       productId: z.string().min(1, "Product is required"),
-      quantity: z.string().min(1, "Quantity is required").transform(val => parseInt(val, 10)),
+      quantity: z.string().min(1, "Quantity is required"),
     })
   ).min(1, "At least one product is required"),
 });
@@ -73,7 +73,7 @@ interface OrderFormProps {
 export function OrderForm({ initialData, onSubmit, isSubmitting, isEdit = false }: OrderFormProps) {
   const [products, setProducts] = useState<Product[]>([]);
   const [customers, setCustomers] = useState<CustomerDTO[]>([]);
-  const [selectedCustomer, setSelectedCustomer] = useState<CustomerDTO | null>(null);
+  // const [selectedCustomer, setSelectedCustomer] = useState<CustomerDTO | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   const schema = isEdit ? updateOrderFormSchema : orderFormSchema;
@@ -189,7 +189,7 @@ export function OrderForm({ initialData, onSubmit, isSubmitting, isEdit = false 
           shippingPostalCode: createData.shippingPostalCode,
           orderItems: createData.orderItems.map(item => ({
             productId: parseInt(item.productId, 10),
-            quantity: item.quantity,
+            quantity: parseInt(item.quantity, 10),
           })),
         });
       }

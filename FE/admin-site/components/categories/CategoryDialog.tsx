@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Category } from "@/services/categories";
 import { CategoryForm } from "./CategoryForm";
-import { useCreateCategory, useUpdateCategory } from "@/hooks/useCategories";
+import { useCategoryStoreActions } from "@/hooks/useCategoryStore";
 
 type CategoryDialogProps = {
   open: boolean;
@@ -14,8 +14,7 @@ type CategoryDialogProps = {
 export const CategoryDialog = ({ open, onOpenChange, initialData }: CategoryDialogProps) => {
   const isEdit = !!initialData;
   const [loading, setLoading] = useState(false);
-  const createCategory = useCreateCategory();
-  const updateCategory = useUpdateCategory();
+  const { createCategory, updateCategory } = useCategoryStoreActions();
   const [categoryData, setCategoryData] = useState<Category | null>(initialData || null);
 
   // Update categoryData when initialData changes

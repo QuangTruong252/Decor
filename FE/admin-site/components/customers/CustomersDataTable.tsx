@@ -26,6 +26,8 @@ import {
   TableHead,
   TableHeader,
   TableRow,
+  TableSkeleton,
+  tableSkeletonConfigs,
 } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
@@ -33,6 +35,8 @@ import { CustomerFilters } from "@/types/api"
 import { createDefaultPagination, hasActiveFilters } from "@/lib/query-utils"
 import { Filter, ArrowUpDown, ArrowUp, ArrowDown, X } from "lucide-react"
 import { format } from "date-fns"
+import { ImportExportToolbar } from "@/components/excel/import-export-toolbar"
+import { customerExcelService } from "@/services/excel"
 
 export function CustomersDataTable() {
   // State for applied filters (what's actually filtering the table)
@@ -357,6 +361,17 @@ export function CustomersDataTable() {
           </Dialog>
         </div>
         <div className="flex items-center space-x-2">
+          <ImportExportToolbar
+            onExportData={customerExcelService.exportData}
+            onExportTemplate={customerExcelService.exportTemplate}
+            onValidateImport={customerExcelService.validateImport}
+            onImportData={customerExcelService.importData}
+            onGetImportStatistics={customerExcelService.getImportStatistics}
+            currentFilters={appliedFilters}
+            hasActiveFilters={hasActiveFilters(appliedFilters)}
+            exportType="customers"
+            onImportSuccess={() => refetch()}
+          />
           <AddCustomerDialog onSuccess={() => refetch()} />
         </div>
       </div>
@@ -406,11 +421,29 @@ export function CustomersDataTable() {
               </div>
             </div>
           ) : isLoading ? (
-            <div className="flex h-96 items-center justify-center">
-              <div className="text-center">
-                <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent mx-auto mb-2" />
-                <p className="text-sm text-muted-foreground">Loading...</p>
-              </div>
+            <div
+              className="relative overflow-auto"
+              style={{ height: `${tableHeight}px` }}
+            >
+              <Table>
+                <TableHeader className="sticky top-0 z-10 bg-background">
+                  <TableRow>
+                    <TableHead>ID</TableHead>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Email</TableHead>
+                    <TableHead>Location</TableHead>
+                    <TableHead>Phone</TableHead>
+                    <TableHead>Joined</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  <TableSkeleton
+                    rows={Math.min(10, Math.max(5, Math.floor(tableHeight / 60)))}
+                    columns={tableSkeletonConfigs.customers}
+                  />
+                </TableBody>
+              </Table>
             </div>
           ) : customers.length === 0 ? (
             <div className="flex h-96 items-center justify-center">

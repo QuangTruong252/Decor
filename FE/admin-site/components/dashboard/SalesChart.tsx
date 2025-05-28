@@ -7,12 +7,9 @@ import { SalesTrendItem } from "@/services/dashboard";
 import {
   Area,
   AreaChart,
-  Bar,
-  BarChart,
   CartesianGrid,
   Legend,
   Line,
-  LineChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -28,16 +25,16 @@ interface SalesChartProps {
 
 export function SalesChart({ data, title = "Sales Trend", className }: SalesChartProps) {
   const [period, setPeriod] = useState<"7days" | "30days" | "90days">("30days");
-  
+
   // Filter data based on selected period
   const filteredData = filterDataByPeriod(data, period);
-  
+
   // Format dates for display
   const formattedData = filteredData.map(item => ({
     ...item,
     formattedDate: format(new Date(item.date), "MMM dd")
   }));
-  
+
   return (
     <Card className={className}>
       <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -146,7 +143,7 @@ export function SalesChart({ data, title = "Sales Trend", className }: SalesChar
 function filterDataByPeriod(data: SalesTrendItem[], period: "7days" | "30days" | "90days") {
   const today = new Date();
   let daysToSubtract = 0;
-  
+
   switch (period) {
     case "7days":
       daysToSubtract = 7;
@@ -158,9 +155,9 @@ function filterDataByPeriod(data: SalesTrendItem[], period: "7days" | "30days" |
       daysToSubtract = 90;
       break;
   }
-  
+
   const cutoffDate = subDays(today, daysToSubtract);
-  
+
   return (data || []).filter(item => {
     const itemDate = new Date(item.date);
     return itemDate >= cutoffDate;

@@ -27,6 +27,8 @@ import {
   TableHead,
   TableHeader,
   TableRow,
+  TableSkeleton,
+  tableSkeletonConfigs,
 } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { formatCurrency, cn } from "@/lib/utils"
@@ -433,11 +435,28 @@ export function OrdersDataTable() {
               </div>
             </div>
           ) : isLoading ? (
-            <div className="flex h-96 items-center justify-center">
-              <div className="text-center">
-                <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent mx-auto mb-2" />
-                <p className="text-sm text-muted-foreground">Loading...</p>
-              </div>
+            <div
+              className="relative overflow-auto"
+              style={{ height: `${tableHeight}px` }}
+            >
+              <Table>
+                <TableHeader className="sticky top-0 z-10 bg-background">
+                  <TableRow>
+                    <TableHead>Order ID</TableHead>
+                    <TableHead>Customer</TableHead>
+                    <TableHead>Date</TableHead>
+                    <TableHead className="text-right">Total</TableHead>
+                    <TableHead className="text-center">Status</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  <TableSkeleton
+                    rows={Math.min(10, Math.max(5, Math.floor(tableHeight / 60)))}
+                    columns={tableSkeletonConfigs.orders}
+                  />
+                </TableBody>
+              </Table>
             </div>
           ) : orders.length === 0 ? (
             <div className="flex h-96 items-center justify-center">

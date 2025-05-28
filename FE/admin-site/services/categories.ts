@@ -108,6 +108,26 @@ export async function getAllCategories(): Promise<CategoryDTO[]> {
 }
 
 /**
+ * Get hierarchical categories structure
+ * @returns Hierarchical list of categories with subcategories
+ * @endpoint GET /api/Category/hierarchical
+ */
+export async function getHierarchicalCategories(): Promise<CategoryDTO[]> {
+  try {
+    const response = await fetchWithAuth(`${API_URL}/api/Category/hierarchical`);
+
+    if (!response.ok) {
+      throw new Error("Unable to fetch hierarchical categories");
+    }
+
+    return response.json();
+  } catch (error) {
+    console.error("Get hierarchical categories error:", error);
+    throw new Error("Unable to fetch hierarchical categories. Please try again later.");
+  }
+}
+
+/**
  * Get category by ID
  * @param id Category ID
  * @returns Category details
@@ -136,36 +156,28 @@ export async function getCategoryById(id: number): Promise<Category> {
  */
 export async function createCategory(category: CreateCategoryPayload): Promise<Category> {
   try {
-    // Create FormData to send both data and image
+    // Create FormData to send data as multipart/form-data
     const formData = new FormData();
+
+    // Add required fields
+    formData.append("Name", category.name);
+    formData.append("Slug", category.slug);
+
+    // Add optional fields
+    if (category.description) {
+      formData.append("Description", category.description);
+    }
+
+    if (category.parentId !== undefined && category.parentId !== null) {
+      formData.append("ParentId", category.parentId.toString());
+    }
 
     // Add image if provided
     if (category.image) {
-      formData.append("Image", category.image);
+      formData.append("ImageFile", category.image);
     }
 
-    // Build URL with query params
-    let url = `${API_URL}/api/Category?`;
-    url += `Name=${encodeURIComponent(category.name)}`;
-    url += `&Slug=${encodeURIComponent(category.slug)}`;
-
-    if (category.description) {
-      url += `&Description=${encodeURIComponent(category.description)}`;
-    }
-
-    if (category.parentId !== undefined) {
-      url += `&ParentId=${category.parentId}`;
-    }
-
-    if (category.isActive !== undefined) {
-      url += `&IsActive=${category.isActive}`;
-    }
-
-    if (category.displayOrder !== undefined) {
-      url += `&DisplayOrder=${category.displayOrder}`;
-    }
-
-    const response = await fetchWithAuthFormData(url, formData);
+    const response = await fetchWithAuthFormData(`${API_URL}/api/Category`, formData);
 
     if (!response.ok) {
       throw new Error("Unable to create category");
@@ -186,42 +198,33 @@ export async function createCategory(category: CreateCategoryPayload): Promise<C
  */
 export async function updateCategory(category: UpdateCategoryPayload): Promise<void> {
   try {
-    // Create FormData to send both data and image
+    // Create FormData to send data as multipart/form-data
     const formData = new FormData();
 
-    // Add image if provided
-    if (category.image) {
-      formData.append("Image", category.image);
-    }
-
-    // Build URL with query params
-    let url = `${API_URL}/api/Category/${category.id}?`;
-
+    // Add required fields (Name is required for update)
     if (category.name) {
-      url += `Name=${encodeURIComponent(category.name)}`;
+      formData.append("Name", category.name);
     }
 
+    // Add optional fields
     if (category.slug) {
-      url += `&Slug=${encodeURIComponent(category.slug)}`;
+      formData.append("Slug", category.slug);
     }
 
     if (category.description !== undefined) {
-      url += `&Description=${encodeURIComponent(category.description || '')}`;
+      formData.append("Description", category.description || '');
     }
 
-    if (category.parentId !== undefined) {
-      url += `&ParentId=${category.parentId}`;
+    if (category.parentId !== undefined && category.parentId !== null) {
+      formData.append("ParentId", category.parentId.toString());
     }
 
-    if (category.isActive !== undefined) {
-      url += `&IsActive=${category.isActive}`;
+    // Add image if provided
+    if (category.image) {
+      formData.append("ImageFile", category.image);
     }
 
-    if (category.displayOrder !== undefined) {
-      url += `&DisplayOrder=${category.displayOrder}`;
-    }
-
-    const response = await fetchWithAuthFormData(url, formData, "PUT");
+    const response = await fetchWithAuthFormData(`${API_URL}/api/Category/${category.id}`, formData, "PUT");
 
     if (!response.ok) {
       throw new Error("Unable to update category");

@@ -1,15 +1,15 @@
 "use client"
 
 import * as React from "react"
-import { useGetAllCategories } from "@/hooks/useCategories"
-import { FilterSection, FilterGroup } from "@/components/shared/FilterPanel"
+import { useHierarchicalCategories } from "@/hooks/useCategoryStore"
+import { FilterSection } from "@/components/shared/FilterPanel"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { HierarchicalSelect } from "@/components/ui/hierarchical-select"
 import { Checkbox } from "@/components/ui/checkbox"
 import { DateRangePicker } from "@/components/ui/date-picker"
 import { CategoryFilters } from "@/types/api"
-import { formatDateForApi, getSelectValue, parseSelectValue } from "@/lib/query-utils"
+import { formatDateForApi } from "@/lib/query-utils"
 
 interface CategoryFiltersProps {
   filters: CategoryFilters
@@ -24,8 +24,7 @@ export function CategoryFiltersComponent({
   onApply,
   onClearAll,
 }: CategoryFiltersProps) {
-  const { data: categoriesData } = useGetAllCategories()
-  const categories = categoriesData || []
+  const { data: categories } = useHierarchicalCategories()
 
   const handleFilterChange = (key: keyof CategoryFilters, value: unknown) => {
     onFiltersChange({
@@ -57,30 +56,18 @@ export function CategoryFiltersComponent({
       <div className="space-y-6">
         {/* Basic Filters */}
         <FilterSection>
-          <FilterGroup>
-            <div className="w-full">
-              <Label className="mb-2">Parent Category</Label>
-              <Select
-                value={getSelectValue(filters.parentId, "all")}
-                onValueChange={(value) =>
-                  handleFilterChange("parentId", parseSelectValue(value, "all", "number"))
-                }
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Any parent..." />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Any Parent</SelectItem>
-                  <SelectItem value="none">No Parent (Root Categories)</SelectItem>
-                  {categories.map((category) => (
-                    <SelectItem key={category.id} value={category.id.toString()}>
-                      {category.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </FilterGroup>
+          <div className="w-full">
+            <Label className="mb-2">Parent Category</Label>
+            <HierarchicalSelect
+              categories={categories || []}
+              value={filters.parentId}
+              onValueChange={(value) => handleFilterChange("parentId", value)}
+              placeholder="Any parent..."
+              allowClear={true}
+              showPath={false}
+              className="w-full"
+            />
+          </div>
         </FilterSection>
 
         {/* Date Range Filter */}

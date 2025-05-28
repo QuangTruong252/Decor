@@ -7,17 +7,14 @@ import { ProductsChart } from "@/components/dashboard/ProductsChart";
 import { OrderStatusChart } from "@/components/dashboard/OrderStatusChart";
 import { CategorySalesChart } from "@/components/dashboard/CategorySalesChart";
 import { RecentOrdersTable } from "@/components/dashboard/RecentOrdersTable";
-import { Loader2, Package, ShoppingCart, Users, DollarSign } from "lucide-react";
+import { DashboardSkeleton } from "@/components/dashboard/DashboardSkeleton";
+import { Package, ShoppingCart, Users, DollarSign } from "lucide-react";
 
 export default function DashboardPage() {
   const { data, isLoading, error } = useGetBasicDashboardData();
 
   if (isLoading) {
-    return (
-      <div className="flex h-96 items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
+    return <DashboardSkeleton />;
   }
 
   if (error) {
@@ -26,6 +23,17 @@ export default function DashboardPage() {
         <h1 className="text-3xl font-bold">Dashboard</h1>
         <div className="rounded-lg border bg-destructive/10 p-6 text-destructive">
           <p>Error loading dashboard data. Please try again later.</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!data) {
+    return (
+      <div className="space-y-6 p-2">
+        <h1 className="text-3xl font-bold">Dashboard</h1>
+        <div className="rounded-lg border bg-muted/50 p-6 text-muted-foreground">
+          <p>No dashboard data available.</p>
         </div>
       </div>
     );
