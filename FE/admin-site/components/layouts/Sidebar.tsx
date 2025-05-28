@@ -12,6 +12,7 @@ import {
   Settings,
   ChevronLeft,
   ChevronRight,
+  FolderOpen,
 } from "lucide-react";
 import { useSidebar } from "./SidebarProvider";
 import { Button } from "@/components/ui/button";
@@ -41,6 +42,11 @@ const menuItems = [
     title: "Customers",
     href: "/customers",
     icon: Users,
+  },
+  {
+    title: "Files",
+    href: "/files",
+    icon: FolderOpen,
   },
   {
     title: "Banners",

@@ -1,6 +1,132 @@
-@DecorStore.API_HostAddress = http://localhost:5027
+### Health Check
+GET {{host}}/api/health
 
-GET {{DecorStore.API_HostAddress}}/weatherforecast/
-Accept: application/json
+### Login to get JWT token
+POST {{host}}/api/auth/login
+Content-Type: application/json
 
-###
+{
+  "username": "admin",
+  "password": "admin123"
+}
+
+### File Manager - Health Check
+GET {{host}}/api/admin/filemanager/health
+Authorization: Bearer {{token}}
+
+### File Manager - Get Folder Structure
+GET {{host}}/api/admin/filemanager/folders
+Authorization: Bearer {{token}}
+
+### File Manager - Browse Files (Root)
+GET {{host}}/api/admin/filemanager/browse?path=&page=1&pageSize=20
+Authorization: Bearer {{token}}
+
+### File Manager - Browse Files (Categories folder)
+GET {{host}}/api/admin/filemanager/browse?path=categories&page=1&pageSize=20
+Authorization: Bearer {{token}}
+
+### File Manager - Browse Files with Search
+GET {{host}}/api/admin/filemanager/browse?path=&search=bedroom&page=1&pageSize=20
+Authorization: Bearer {{token}}
+
+### File Manager - Browse Files with Filter (Images only)
+GET {{host}}/api/admin/filemanager/browse?path=&fileType=image&page=1&pageSize=20
+Authorization: Bearer {{token}}
+
+### File Manager - Get File Info
+GET {{host}}/api/admin/filemanager/info?filePath=categories/bedroom.jpg
+Authorization: Bearer {{token}}
+
+### File Manager - Create Folder
+POST {{host}}/api/admin/filemanager/create-folder
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "parentPath": "",
+  "folderName": "test-folder"
+}
+
+### File Manager - Upload Files (multipart/form-data)
+POST {{host}}/api/admin/filemanager/upload
+Authorization: Bearer {{token}}
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
+
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="FolderPath"
+
+test-folder
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="CreateThumbnails"
+
+true
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="OverwriteExisting"
+
+false
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="files"; filename="test-image.jpg"
+Content-Type: image/jpeg
+
+< ./path/to/your/test-image.jpg
+------WebKitFormBoundary7MA4YWxkTrZu0gW--
+
+### File Manager - Generate Thumbnail
+POST {{host}}/api/admin/filemanager/generate-thumbnail
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+"categories/bedroom.jpg"
+
+### File Manager - Get Image Metadata
+GET {{host}}/api/admin/filemanager/metadata?imagePath=categories/bedroom.jpg
+Authorization: Bearer {{token}}
+
+### File Manager - Move Files
+POST {{host}}/api/admin/filemanager/move
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "sourcePaths": ["test-folder/test-image.jpg"],
+  "destinationPath": "categories",
+  "overwriteExisting": false
+}
+
+### File Manager - Copy Files
+POST {{host}}/api/admin/filemanager/copy
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "sourcePaths": ["categories/bedroom.jpg"],
+  "destinationPath": "test-folder",
+  "overwriteExisting": false
+}
+
+### File Manager - Delete Files
+DELETE {{host}}/api/admin/filemanager/delete
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "filePaths": ["test-folder/bedroom.jpg"],
+  "permanent": false
+}
+
+### File Manager - Cleanup Orphaned Files
+POST {{host}}/api/admin/filemanager/cleanup-orphaned
+Authorization: Bearer {{token}}
+
+### File Manager - Sync Database
+POST {{host}}/api/admin/filemanager/sync-database
+Authorization: Bearer {{token}}
+
+### File Manager - Get Missing Files
+GET {{host}}/api/admin/filemanager/missing-files
+Authorization: Bearer {{token}}
+
+### Variables
+@host = https://localhost:7001
+@token = your_jwt_token_here

@@ -104,6 +104,7 @@ builder.Services.AddScoped<IBannerRepository, BannerRepository>();
 builder.Services.AddScoped<ICartRepository, CartRepository>();
 builder.Services.AddScoped<ICustomerRepository, CustomerRepository>();
 builder.Services.AddScoped<IDashboardRepository, DashboardRepository>();
+builder.Services.AddScoped<DecorStore.API.Interfaces.Repositories.IImageRepository, DecorStore.API.Repositories.ImageRepository>();
 
 // Add AutoMapper
 builder.Services.AddAutoMapper(typeof(Program).Assembly);
@@ -119,6 +120,7 @@ builder.Services.AddScoped<IImageService, ImageService>();
 builder.Services.AddScoped<ICartService, CartService>();
 builder.Services.AddScoped<ICustomerService, CustomerService>();
 builder.Services.AddScoped<IDashboardService, DashboardService>();
+builder.Services.AddScoped<DecorStore.API.Interfaces.Services.IFileManagerService, DecorStore.API.Services.FileManagerService>();
 
 // Add Excel services
 builder.Services.AddScoped<DecorStore.API.Services.Excel.IExcelService, DecorStore.API.Services.Excel.ExcelService>();
@@ -234,15 +236,32 @@ builder.Services.AddSwaggerGen(c =>
 });
 
 var app = builder.Build();
-var uploadPath = Path.Combine(builder.Environment.ContentRootPath, builder.Configuration["ImageSettings:BasePath"] ?? "Uploads");
+
+// Setup upload directories
+var uploadPath = Path.Combine(builder.Environment.ContentRootPath, "Uploads");
 if(!Directory.Exists(uploadPath)) {
     Directory.CreateDirectory(uploadPath);
 }
+
+var thumbnailPath = Path.Combine(uploadPath, ".thumbnails");
+if(!Directory.Exists(thumbnailPath)) {
+    Directory.CreateDirectory(thumbnailPath);
+}
+
+// Configure static files for uploads
 app.UseStaticFiles(new StaticFileOptions
 {
     FileProvider = new PhysicalFileProvider(uploadPath),
-    RequestPath = "/Resources"
+    RequestPath = "/uploads"
 });
+
+// Configure static files for thumbnails
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new PhysicalFileProvider(thumbnailPath),
+    RequestPath = "/.thumbnails"
+});
+
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {

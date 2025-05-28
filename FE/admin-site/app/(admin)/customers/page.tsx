@@ -3,5 +3,7 @@
 import { CustomersDataTable } from "@/components/customers/CustomersDataTable";
 
 export default function CustomersPage() {
-  return <CustomersDataTable />;
+  return <div className="p-6 overflow-y-auto">
+    <CustomersDataTable/>
+  </div>;
 }
