@@ -19,33 +19,31 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
   Folder,
   File,
-  Image,
+  ImageIcon,
   FileText,
   Music,
   Video,
   Archive,
   MoreVertical,
-  Download,
-  Copy,
-  Trash2,
-  Star,
   Eye,
 } from "lucide-react";
 import { FileItem } from "@/types/fileManager";
-import { cn } from "@/lib/utils";
+import { cn, getImageUrl } from "@/lib/utils";
 import { format } from "date-fns";
+import Image from "next/image";
+
 
 interface FileListProps {
   items: FileItem[];
   selectedItems: string[];
   onSelectItem: (relativePath: string) => void;
   onDoubleClick: (relativePath: string, type: string) => void;
+  onPreviewFile: (item: FileItem) => void;
 }
 
 interface FileRowProps {
@@ -53,6 +51,7 @@ interface FileRowProps {
   isSelected: boolean;
   onSelect: () => void;
   onDoubleClick: () => void;
+  onPreview: (item: FileItem) => void;
 }
 
 const getFileIcon = (item: FileItem) => {
@@ -61,7 +60,7 @@ const getFileIcon = (item: FileItem) => {
   }
 
   if (item.type === "image") {
-    return <Image className="h-4 w-4 text-green-500" />;
+    return <ImageIcon className="h-4 w-4 text-green-500" />;
   }
 
   const extension = item.extension?.toLowerCase() || "";
@@ -82,12 +81,23 @@ const getFileIcon = (item: FileItem) => {
   return <File className="h-4 w-4 text-gray-500" />;
 };
 
-const FileRow = ({ item, isSelected, onSelect, onDoubleClick }: FileRowProps) => {
+const FileRow = ({
+  item,
+  isSelected,
+  onSelect,
+  onDoubleClick,
+  onPreview,
+}: FileRowProps) => {
   const [showContextMenu, setShowContextMenu] = useState(false);
 
   const handleContextMenu = (e: React.MouseEvent) => {
     e.preventDefault();
     setShowContextMenu(true);
+  };
+
+  const handlePreviewClick = () => {
+    onPreview(item);
+    setShowContextMenu(false);
   };
 
   return (
@@ -109,9 +119,11 @@ const FileRow = ({ item, isSelected, onSelect, onDoubleClick }: FileRowProps) =>
 
       {/* Icon & Name */}
       <TableCell className="flex items-center gap-3">
-        {item.type === "image" && item.thumbnailUrl ? (
-          <img
-            src={item.thumbnailUrl}
+        {item.type === "image" && item.relativePath ? (
+          <Image
+            src={getImageUrl(item.relativePath)}
+            width={64}
+            height={64}
             alt={item.name}
             className="h-8 w-8 object-cover rounded"
             onError={(e) => {
@@ -121,7 +133,7 @@ const FileRow = ({ item, isSelected, onSelect, onDoubleClick }: FileRowProps) =>
             }}
           />
         ) : null}
-        <div className={item.type === "image" && item.thumbnailUrl ? "hidden" : ""}>
+        <div className={item.type === "image" && item.relativePath ? "hidden" : ""}>
           {getFileIcon(item)}
         </div>
         <span className="font-medium truncate" title={item.name}>
@@ -146,47 +158,37 @@ const FileRow = ({ item, isSelected, onSelect, onDoubleClick }: FileRowProps) =>
 
       {/* Actions */}
       <TableCell className="w-12">
-        <DropdownMenu open={showContextMenu} onOpenChange={setShowContextMenu}>
-          <DropdownMenuTrigger asChild>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-8 w-8 p-0 opacity-0 group-hover:opacity-100"
-            >
-              <MoreVertical className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem>
-              <Eye className="h-4 w-4 mr-2" />
-              Preview
-            </DropdownMenuItem>
-            <DropdownMenuItem>
-              <Download className="h-4 w-4 mr-2" />
-              Download
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem>
-              <Copy className="h-4 w-4 mr-2" />
-              Copy
-            </DropdownMenuItem>
-            <DropdownMenuItem>
-              <Star className="h-4 w-4 mr-2" />
-              Add to Starred
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem className="text-destructive">
-              <Trash2 className="h-4 w-4 mr-2" />
-              Delete
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        {item.type !== "folder" ? (
+          <DropdownMenu open={showContextMenu} onOpenChange={setShowContextMenu}>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 w-8 p-0 opacity-0 group-hover:opacity-100"
+              >
+                <MoreVertical className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem className="cursor-pointer" onClick={handlePreviewClick}>
+                <Eye className="h-4 w-4 mr-2" />
+                Preview
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        ) : null}
       </TableCell>
     </TableRow>
   );
 };
 
-export const FileList = ({ items, selectedItems, onSelectItem, onDoubleClick }: FileListProps) => {
+export const FileList = ({
+  items,
+  selectedItems,
+  onSelectItem,
+  onDoubleClick,
+  onPreviewFile,
+}: FileListProps) => {
   return (
     <div className="border rounded-lg">
       <Table>
@@ -208,6 +210,7 @@ export const FileList = ({ items, selectedItems, onSelectItem, onDoubleClick }: 
               isSelected={selectedItems.includes(item.relativePath)}
               onSelect={() => onSelectItem(item.relativePath)}
               onDoubleClick={() => onDoubleClick(item.relativePath, item.type)}
+              onPreview={() => onPreviewFile(item)}
             />
           ))}
         </TableBody>

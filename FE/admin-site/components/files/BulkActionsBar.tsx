@@ -30,6 +30,8 @@ import {
   X,
   FolderOpen,
 } from "lucide-react";
+import { useFileManager } from "@/hooks/useFileManager";
+import { FolderStructure } from "@/types/fileManager";
 
 interface BulkActionsBarProps {
   selectedCount: number;
@@ -37,6 +39,77 @@ interface BulkActionsBarProps {
   onCopy: (destinationPath: string) => void;
   onDelete: () => void;
   onClearSelection: () => void;
+}
+
+interface DestinationSelectProps {
+  options: FolderStructure[]
+  onChange: (path: string) => void;
+  value: string;
+}
+
+interface DesitionNodeProps {
+  folder: FolderStructure;
+  value: string;
+  onChange: (path: string) => void;
+}
+
+export const DesitionNode = ({
+  folder,
+  value,
+  onChange,
+}: DesitionNodeProps) => {
+  const hasChildren = folder.subfolders && folder.subfolders.length > 0;
+
+  return (
+    <>
+      <SelectItem key={folder.relativePath} value={folder.relativePath}>
+        <div className="flex items-center gap-2 capitalize">
+          <FolderOpen className="h-4 w-4" />
+          {folder.name}
+        </div>
+      </SelectItem>
+      {hasChildren && (
+        <div className="pl-4">
+          {folder.subfolders.map((subfolder) => (
+            <DesitionNode
+              key={subfolder.relativePath}
+              folder={subfolder}
+              value={value}
+              onChange={onChange}
+            />
+          ))}
+        </div>
+      )}  
+    </>
+  )
+}
+  
+
+export const DestinationSelect = ({
+  options,
+  onChange,
+  value,
+}: DestinationSelectProps) => {
+  return (
+    <div>
+      <label className="text-sm font-medium">Destination Folder</label>
+      <Select value={value} onValueChange={onChange}>
+        <SelectTrigger className="mt-1 w-full">
+          <SelectValue placeholder="Select a folder" />
+        </SelectTrigger>
+        <SelectContent>
+          {options.map((option) => (
+            <DesitionNode
+              key={option.relativePath}
+              folder={option}
+              value={value}
+              onChange={onChange}
+            />
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
+  )
 }
 
 export const BulkActionsBar = ({
@@ -50,6 +123,8 @@ export const BulkActionsBar = ({
   const [showCopyDialog, setShowCopyDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [destinationPath, setDestinationPath] = useState("");
+  const {rootFolderStructure} = useFileManager();
+
 
   const handleMove = () => {
     if (destinationPath) {
@@ -73,17 +148,11 @@ export const BulkActionsBar = ({
   };
 
   // Mock folder options - in real app, this would come from folder structure
-  const folderOptions = [
-    { value: "", label: "Root" },
-    { value: "categories", label: "Categories" },
-    { value: "products", label: "Products" },
-    { value: "banners", label: "Banners" },
-    { value: "temp", label: "Temp" },
-  ];
+  const folderOptions = rootFolderStructure?.subfolders || [];
 
   return (
     <>
-      <div className="fixed bottom-0 left-0 right-0 bg-background border-t shadow-lg z-50">
+      <div className="absolute bottom-[30px] left-1/2 translate-x-[-50%] translate-y-[-50%] rounded-lg bg-background border shadow-xl z-50">
         <div className="flex items-center justify-between p-4">
           {/* Selection Info */}
           <div className="flex items-center gap-3">
@@ -157,24 +226,7 @@ export const BulkActionsBar = ({
           </DialogHeader>
           
           <div className="space-y-4">
-            <div>
-              <label className="text-sm font-medium">Destination Folder</label>
-              <Select value={destinationPath} onValueChange={setDestinationPath}>
-                <SelectTrigger className="mt-1">
-                  <SelectValue placeholder="Select a folder" />
-                </SelectTrigger>
-                <SelectContent>
-                  {folderOptions.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      <div className="flex items-center gap-2">
-                        <FolderOpen className="h-4 w-4" />
-                        {option.label}
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            <DestinationSelect options={folderOptions} onChange={setDestinationPath} value={destinationPath} />
           </div>
 
           <DialogFooter>
@@ -199,24 +251,7 @@ export const BulkActionsBar = ({
           </DialogHeader>
           
           <div className="space-y-4">
-            <div>
-              <label className="text-sm font-medium">Destination Folder</label>
-              <Select value={destinationPath} onValueChange={setDestinationPath}>
-                <SelectTrigger className="mt-1">
-                  <SelectValue placeholder="Select a folder" />
-                </SelectTrigger>
-                <SelectContent>
-                  {folderOptions.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      <div className="flex items-center gap-2">
-                        <FolderOpen className="h-4 w-4" />
-                        {option.label}
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            <DestinationSelect options={folderOptions} onChange={setDestinationPath} value={destinationPath} />
           </div>
 
           <DialogFooter>

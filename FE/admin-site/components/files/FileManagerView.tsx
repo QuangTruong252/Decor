@@ -20,22 +20,22 @@ import { FileUploadDialog } from "./FileUploadDialog";
 import { FolderTree } from "./FolderTree";
 import { FileList } from "./FileList";
 
+import type { FileItem } from "@/types/fileManager"; // Ensure FileItem is imported if not already
 export const FileManagerView = () => {
   const {
     browseData,
-    folderStructure,
+    rootFolderStructure,
     currentPath,
     selectedItems,
     viewMode,
     filters,
     uploadProgress,
     isBrowseLoading,
-    isFoldersLoading,
+    isRootFoldersLoading,
     error,
     navigateToPath,
     navigateUp,
     selectItem,
-    selectAll,
     clearSelection,
     setViewMode,
     updateFilters,
@@ -49,7 +49,6 @@ export const FileManagerView = () => {
     selectedCount,
     canNavigateUp,
   } = useFileManager();
-
   // Dialog states
   const [showUploadDialog, setShowUploadDialog] = useState(false);
   const [showCreateFolderDialog, setShowCreateFolderDialog] = useState(false);
@@ -57,14 +56,21 @@ export const FileManagerView = () => {
   const [showFilters, setShowFilters] = useState(false);
   const [previewFile, setPreviewFile] = useState<string | null>(null);
 
-  // Handlers
+  // Event Handlers
   const handleFileDoubleClick = (relativePath: string, type: string) => {
     if (type === "folder") {
       navigateToPath(relativePath);
     } else {
-      setPreviewFile(relativePath);
-      setShowPreviewDialog(true);
+      // For non-folder types, trigger preview
+      const itemToPreview = browseData?.items.find(item => item.relativePath === relativePath);
+      if (itemToPreview) {
+        handlePreviewFile(itemToPreview);
+      }
     }
+  };
+  const handlePreviewFile = (item: FileItem) => {
+    setPreviewFile(item.relativePath);
+    setShowPreviewDialog(true);
   };
 
   const handleUpload = (files: File[]) => {
@@ -106,7 +112,6 @@ export const FileManagerView = () => {
         onUpload={() => setShowUploadDialog(true)}
         onCreateFolder={() => setShowCreateFolderDialog(true)}
         onToggleFilters={() => setShowFilters(!showFilters)}
-        onSelectAll={selectAll}
         onClearSelection={clearSelection}
       />
 
@@ -123,8 +128,8 @@ export const FileManagerView = () => {
         {/* Sidebar - Folder Tree */}
         <div className="w-64 border-r bg-muted/30">
           <div className="p-4">
-            <h3 className="text-sm font-medium text-muted-foreground mb-3">FOLDERS</h3>
-            {isFoldersLoading ? (
+            <h3 className="text-md font-medium text-muted-foreground mb-3">FOLDERS</h3>
+            {isRootFoldersLoading ? (
               <div className="space-y-2">
                 {Array.from({ length: 5 }).map((_, i) => (
                   <Skeleton key={i} className="h-6 w-full" />
@@ -132,7 +137,7 @@ export const FileManagerView = () => {
               </div>
             ) : (
               <FolderTree
-                folderStructure={folderStructure}
+                folderStructure={rootFolderStructure}
                 currentPath={currentPath}
                 onNavigateToPath={navigateToPath}
               />
@@ -141,7 +146,7 @@ export const FileManagerView = () => {
         </div>
 
         {/* Main Content */}
-        <div className="flex-1 flex flex-col overflow-hidden">
+        <div className="flex-1 flex flex-col overflow-hidden relative">
           {/* Content Area */}
           <div className="flex-1 overflow-auto p-6">
             {isBrowseLoading ? (
@@ -167,6 +172,7 @@ export const FileManagerView = () => {
                 selectedItems={selectedItems}
                 onSelectItem={selectItem}
                 onDoubleClick={handleFileDoubleClick}
+                onPreviewFile={handlePreviewFile}
               />
             ) : (
               <FileList
@@ -174,6 +180,7 @@ export const FileManagerView = () => {
                 selectedItems={selectedItems}
                 onSelectItem={selectItem}
                 onDoubleClick={handleFileDoubleClick}
+                onPreviewFile={handlePreviewFile}
               />
             )}
           </div>

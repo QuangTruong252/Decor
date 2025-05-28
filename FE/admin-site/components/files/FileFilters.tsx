@@ -26,7 +26,7 @@ import {
   Filter,
   X,
   ChevronDown,
-  Calendar,
+  Calendar as CalendarIcon, // Renamed to avoid conflict with UiCalendar
   HardDrive,
 } from "lucide-react";
 import {
@@ -36,7 +36,16 @@ import {
   EXTENSION_OPTIONS,
 } from "@/types/fileManager";
 import { cn } from "@/lib/utils";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
+
+// New imports for Date Picker
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Calendar as UiCalendar } from "@/components/ui/calendar";
+import { format as formatDate, isValid as isValidDate } from "date-fns";
 
 interface FileFiltersProps {
   filters: FileFiltersType;
@@ -44,12 +53,24 @@ interface FileFiltersProps {
   onResetFilters: () => void;
 }
 
+const DEBOUNCE_DELAY = 500; // milliseconds
+
 export const FileFilters = ({
   filters,
   onUpdateFilters,
   onResetFilters,
 }: FileFiltersProps) => {
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [isFromDatePopoverOpen, setFromDatePopoverOpen] = useState(false);
+  const [isToDatePopoverOpen, setToDatePopoverOpen] = useState(false);
+
+  // State for raw input values for size filters
+  const [minSizeInput, setMinSizeInput] = useState<string>("");
+  const [maxSizeInput, setMaxSizeInput] = useState<string>("");
+
+  // Refs for debounce timeouts
+  const minSizeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const maxSizeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const hasActiveFilters = 
     filters.search ||
@@ -70,6 +91,7 @@ export const FileFilters = ({
 
   const parseFileSize = (sizeStr: string): number => {
     if (!sizeStr) return 0;
+    // check number regex
     const match = sizeStr.match(/^(\d+(?:\.\d+)?)\s*(B|KB|MB|GB)$/i);
     if (!match) return 0;
     
@@ -79,8 +101,59 @@ export const FileFilters = ({
     return value * (multipliers[unit as keyof typeof multipliers] || 1);
   };
 
+  const parseDateString = (dateStr: string | undefined): Date | undefined => {
+    if (!dateStr) return undefined;
+    // Ensure "yyyy-MM-dd" is parsed as local date, not UTC, by specifying time
+    const date = new Date(`${dateStr}T00:00:00`);
+    return isValidDate(date) ? date : undefined;
+  };
+
+  // Effect to initialize/update local input states when filters change externally
+  useEffect(() => {
+    setMinSizeInput(filters.sizeRange.min ? formatFileSize(filters.sizeRange.min) : "");
+  }, [filters.sizeRange.min]);
+
+  useEffect(() => {
+    setMaxSizeInput(filters.sizeRange.max ? formatFileSize(filters.sizeRange.max) : "");
+  }, [filters.sizeRange.max]);
+
+  // Cleanup timeouts on component unmount
+  useEffect(() => {
+    return () => {
+      if (minSizeTimeoutRef.current) {
+        clearTimeout(minSizeTimeoutRef.current);
+      }
+      if (maxSizeTimeoutRef.current) {
+        clearTimeout(maxSizeTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  const handleMinSizeChange = (inputValue: string) => {
+    setMinSizeInput(inputValue);
+    if (minSizeTimeoutRef.current) clearTimeout(minSizeTimeoutRef.current);
+    minSizeTimeoutRef.current = setTimeout(() => {
+      const size = parseFileSize(inputValue);
+      onUpdateFilters({
+        sizeRange: { ...filters.sizeRange, min: size || undefined }
+      });
+    }, DEBOUNCE_DELAY);
+  };
+
+  const handleMaxSizeChange = (inputValue: string) => {
+    setMaxSizeInput(inputValue);
+    if (maxSizeTimeoutRef.current) clearTimeout(maxSizeTimeoutRef.current);
+    maxSizeTimeoutRef.current = setTimeout(() => {
+      const size = parseFileSize(inputValue);
+      onUpdateFilters({
+        sizeRange: { ...filters.sizeRange, max: size || undefined }
+      });
+    }, DEBOUNCE_DELAY);
+  };
+
+  
   return (
-    <div className="border-b bg-muted/30 p-4 space-y-4">
+    <div className="border-b p-4 space-y-4">
       {/* Search and Quick Filters */}
       <div className="flex items-center gap-4">
         {/* Search */}
@@ -159,7 +232,7 @@ export const FileFilters = ({
         {/* Advanced Toggle */}
         <Collapsible open={showAdvanced} onOpenChange={setShowAdvanced}>
           <CollapsibleTrigger asChild>
-            <Button variant="outline" size="sm">
+            <Button variant="outline">
               <Filter className="h-4 w-4 mr-2" />
               Advanced
               <ChevronDown className={cn(
@@ -172,7 +245,7 @@ export const FileFilters = ({
 
         {/* Reset */}
         {hasActiveFilters && (
-          <Button variant="outline" size="sm" onClick={onResetFilters}>
+          <Button variant="outline" onClick={onResetFilters}>
             <X className="h-4 w-4 mr-2" />
             Reset
           </Button>
@@ -184,13 +257,13 @@ export const FileFilters = ({
         <CollapsibleContent className="space-y-4">
           <Separator />
           
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="flex items-center justify-start flex-wrap gap-4">
             {/* Extension Filter */}
             <div className="space-y-2">
               <Label className="text-sm font-medium">Extension</Label>
               <Select
-                value={filters.extension}
-                onValueChange={(value) => onUpdateFilters({ extension: value })}
+                value={filters.extension || ""}
+                onValueChange={(value) => onUpdateFilters({ extension: value as any })}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="All extensions" />
@@ -214,25 +287,15 @@ export const FileFilters = ({
               <div className="flex items-center gap-2">
                 <Input
                   placeholder="Min (e.g., 1MB)"
-                  value={filters.sizeRange.min ? formatFileSize(filters.sizeRange.min) : ""}
-                  onChange={(e) => {
-                    const size = parseFileSize(e.target.value);
-                    onUpdateFilters({
-                      sizeRange: { ...filters.sizeRange, min: size || undefined }
-                    });
-                  }}
+                  value={minSizeInput}
+                  onChange={(e) => handleMinSizeChange(e.target.value)}
                   className="text-xs"
                 />
                 <span className="text-muted-foreground">to</span>
                 <Input
                   placeholder="Max (e.g., 10MB)"
-                  value={filters.sizeRange.max ? formatFileSize(filters.sizeRange.max) : ""}
-                  onChange={(e) => {
-                    const size = parseFileSize(e.target.value);
-                    onUpdateFilters({
-                      sizeRange: { ...filters.sizeRange, max: size || undefined }
-                    });
-                  }}
+                  value={maxSizeInput}
+                  onChange={(e) => handleMaxSizeChange(e.target.value)}
                   className="text-xs"
                 />
               </div>
@@ -241,27 +304,90 @@ export const FileFilters = ({
             {/* Date Range */}
             <div className="space-y-2">
               <Label className="text-sm font-medium flex items-center gap-2">
-                <Calendar className="h-4 w-4" />
+                <CalendarIcon className="h-4 w-4" />
                 Modified Date
               </Label>
               <div className="flex items-center gap-2">
-                <Input
-                  type="date"
-                  value={filters.dateRange.from || ""}
-                  onChange={(e) => onUpdateFilters({
-                    dateRange: { ...filters.dateRange, from: e.target.value || undefined }
-                  })}
-                  className="text-xs"
-                />
+                <Popover open={isFromDatePopoverOpen} onOpenChange={setFromDatePopoverOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant={"outline"}
+                      size="sm"
+                      className={cn(
+                        "flex-1 justify-start text-left font-normal text-sm h-[36px]",
+                        !filters.dateRange.from && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {filters.dateRange.from && parseDateString(filters.dateRange.from)
+                        ? formatDate(parseDateString(filters.dateRange.from)!, "MMM d, yyyy")
+                        : <span>Start date</span>}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <UiCalendar
+                      mode="single"
+                      className="text-lg"
+                      selected={parseDateString(filters.dateRange.from)}
+                      onSelect={(date) => {
+                        onUpdateFilters({
+                          dateRange: {
+                            ...filters.dateRange,
+                            from: date ? formatDate(date, "yyyy-MM-dd") : undefined,
+                          },
+                        });
+                        setFromDatePopoverOpen(false);
+                      }}
+                      disabled={(date) =>
+                        filters.dateRange.to && parseDateString(filters.dateRange.to)
+                          ? date > parseDateString(filters.dateRange.to)!
+                          : false
+                      }
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+
                 <span className="text-muted-foreground">to</span>
-                <Input
-                  type="date"
-                  value={filters.dateRange.to || ""}
-                  onChange={(e) => onUpdateFilters({
-                    dateRange: { ...filters.dateRange, to: e.target.value || undefined }
-                  })}
-                  className="text-xs"
-                />
+
+                <Popover open={isToDatePopoverOpen} onOpenChange={setToDatePopoverOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant={"outline"}
+                      size="sm"
+                      className={cn(
+                        "flex-1 justify-start text-left font-normal text-sm h-[36px]",
+                        !filters.dateRange.to && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {filters.dateRange.to && parseDateString(filters.dateRange.to)
+                        ? formatDate(parseDateString(filters.dateRange.to)!, "MMM d, yyyy")
+                        : <span>End date</span>}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <UiCalendar
+                      mode="single"
+                      selected={parseDateString(filters.dateRange.to)}
+                      onSelect={(date) => {
+                        onUpdateFilters({
+                          dateRange: {
+                            ...filters.dateRange,
+                            to: date ? formatDate(date, "yyyy-MM-dd") : undefined,
+                          },
+                        });
+                        setToDatePopoverOpen(false);
+                      }}
+                      disabled={(date) =>
+                        filters.dateRange.from && parseDateString(filters.dateRange.from)
+                          ? date < parseDateString(filters.dateRange.from)!
+                          : false
+                      }
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
               </div>
             </div>
           </div>
@@ -331,7 +457,14 @@ export const FileFilters = ({
           
           {(filters.dateRange.from || filters.dateRange.to) && (
             <Badge variant="secondary" className="gap-1">
-              Date: {filters.dateRange.from || "∞"} - {filters.dateRange.to || "∞"}
+              Date: 
+              {filters.dateRange.from && parseDateString(filters.dateRange.from) 
+                ? formatDate(parseDateString(filters.dateRange.from)!, "MMM d") 
+                : "∞"} 
+              {" - "} 
+              {filters.dateRange.to && parseDateString(filters.dateRange.to) 
+                ? formatDate(parseDateString(filters.dateRange.to)!, "MMM d, yyyy") 
+                : "∞"}
               <Button
                 variant="ghost"
                 size="sm"

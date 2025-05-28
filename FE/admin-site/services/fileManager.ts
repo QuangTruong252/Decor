@@ -259,6 +259,15 @@ export const fileManagerService = {
     
     return response.json();
   },
+
+  /**
+   * Get download URL for a file
+   */
+  getDownloadUrl(relativePath: string): string {
+    // API_URL is imported from @/lib/api-utils
+    // Ensure your API has an endpoint like /api/filemanager/download?path=...
+    return `${API_URL}/api/filemanager/download?path=${encodeURIComponent(relativePath)}`;
+  },
 };
 
 /**

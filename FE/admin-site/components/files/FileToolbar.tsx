@@ -20,8 +20,6 @@ import {
   Grid3X3,
   List,
   Filter,
-  Info,
-  MoreHorizontal,
   FolderPlus,
   Home,
   ChevronRight,
@@ -42,7 +40,6 @@ interface FileToolbarProps {
   onUpload: () => void;
   onCreateFolder: () => void;
   onToggleFilters: () => void;
-  onSelectAll: () => void;
   onClearSelection: () => void;
 }
 
@@ -59,7 +56,6 @@ export const FileToolbar = ({
   onUpload,
   onCreateFolder,
   onToggleFilters,
-  onSelectAll,
   onClearSelection,
 }: FileToolbarProps) => {
   const breadcrumb = fileManagerUtils.getBreadcrumb(currentPath);
@@ -101,7 +97,7 @@ export const FileToolbar = ({
                       variant="ghost"
                       size="sm"
                       onClick={() => onNavigateToPath(item.path)}
-                      className="h-6 px-2 text-sm"
+                      className="h-6 px-2 text-sm capitalize"
                     >
                       {item.name}
                     </Button>
@@ -185,35 +181,6 @@ export const FileToolbar = ({
           >
             <Filter className="h-4 w-4" />
           </Button>
-
-          {/* More Actions */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                <MoreHorizontal className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={onSelectAll}>
-                Select All
-              </DropdownMenuItem>
-              <DropdownMenuItem>
-                <Info className="h-4 w-4 mr-2" />
-                Folder Info
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      </div>
-
-      {/* Stats Bar */}
-      <div className="flex items-center justify-between px-4 py-2 bg-muted/30 text-xs text-muted-foreground border-t">
-        <div className="flex items-center gap-4">
-          <span>3 Folders</span>
-          <span>6 Files</span>
-        </div>
-        <div>
-          Sort by: Name A to Z
         </div>
       </div>
     </div>

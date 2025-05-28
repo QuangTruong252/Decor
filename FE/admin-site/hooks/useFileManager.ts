@@ -84,6 +84,18 @@ export const useFileManager = () => {
     staleTime: 60000, // 1 minute
   });
 
+  // Root forlder structure query
+  const {
+    data: rootFolderStructure,
+    isLoading: isRootFoldersLoading,
+    refetch: refetchRootFolders
+  } = useQuery({
+    queryKey: fileManagerKeys.folders(""),
+    queryFn: () => fileManagerService.getFolderStructure(""),
+    staleTime: 60000, // 1 minute
+  });
+
+
   // Upload mutation
   const uploadMutation = useMutation({
     mutationFn: async ({
@@ -326,6 +338,15 @@ export const useFileManager = () => {
     }
   }, [deleteMutation, selectedItems]);
 
+  const deleteItem = useCallback((relativePath: string, permanent = false) => {
+    if (relativePath) {
+      deleteMutation.mutate({
+        filePaths: [relativePath],
+        permanent,
+      });
+    }
+  }, [deleteMutation])
+
   const moveSelectedItems = useCallback((destinationPath: string, overwriteExisting = false) => {
     if (selectedItems.length > 0) {
       moveMutation.mutate({
@@ -335,6 +356,16 @@ export const useFileManager = () => {
       });
     }
   }, [moveMutation, selectedItems]);
+
+  const moveItem = useCallback((sourcePath: string, destinationPath: string, overwriteExisting = false) => {
+    if (sourcePath) {
+      moveMutation.mutate({
+        sourcePaths: [sourcePath],
+        destinationPath,
+        overwriteExisting,
+      });
+    }
+  }, [moveMutation])
 
   const copySelectedItems = useCallback((destinationPath: string, overwriteExisting = false) => {
     if (selectedItems.length > 0) {
@@ -346,10 +377,50 @@ export const useFileManager = () => {
     }
   }, [copyMutation, selectedItems]);
 
+  const copyItem = useCallback((sourcePath: string, destinationPath: string, overwriteExisting = false) => {
+    if (sourcePath) {
+      copyMutation.mutate({
+        sourcePaths: [sourcePath],
+        destinationPath,
+        overwriteExisting,
+      });
+    }
+  }, [copyMutation])
+
+  // Download file action
+  const downloadFile = useCallback(async (relativePath: string) => {
+    try {
+      // Giả sử fileManagerService.getDownloadUrl trả về URL để tải file trực tiếp
+      // Ví dụ: `${process.env.NEXT_PUBLIC_API_URL}/api/files/download/${encodeURIComponent(relativePath)}`
+      // Hoặc nếu API của bạn trả về file blob, bạn sẽ gọi service đó và xử lý blob ở đây.
+      const downloadUrl = fileManagerService.getDownloadUrl(relativePath);
+      const fileName = relativePath.split('/').pop() || 'download';
+
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.setAttribute('download', fileName);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      toast.success({
+        title: "Download Started",
+        description: `Downloading ${fileName}.`,
+      });
+    } catch (error) {
+      toast.error({
+        title: "Download Failed",
+        description: error instanceof Error ? error.message : "Could not initiate download.",
+      });
+      console.error("Error initiating download:", error);
+    }
+  }, [toast]);
+
   return {
     // Data
     browseData,
     folderStructure,
+    rootFolderStructure,
     
     // State
     currentPath,
@@ -359,9 +430,10 @@ export const useFileManager = () => {
     uploadProgress,
     
     // Loading states
-    isLoading: isBrowseLoading || isFoldersLoading,
+    isLoading: isBrowseLoading || isFoldersLoading || isRootFoldersLoading,
     isBrowseLoading,
     isFoldersLoading,
+    isRootFoldersLoading,
     isUploading: uploadMutation.isPending,
     isCreatingFolder: createFolderMutation.isPending,
     isDeleting: deleteMutation.isPending,
@@ -383,10 +455,15 @@ export const useFileManager = () => {
     uploadFiles,
     createFolder,
     deleteSelectedItems,
+    deleteItem,
     moveSelectedItems,
+    moveItem,
     copySelectedItems,
+    copyItem,
+    downloadFile,
     refetchBrowse,
     refetchFolders,
+    refetchRootFolders,
     
     // Computed
     hasSelection: selectedItems.length > 0,

@@ -12,33 +12,31 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
   Folder,
   File,
-  Image,
+  ImageIcon,
   FileText,
   Music,
   Video,
   Archive,
   MoreVertical,
-  Download,
-  Copy,
-  Trash2,
-  Star,
   Eye,
 } from "lucide-react";
 import { FileItem } from "@/types/fileManager";
-import { cn } from "@/lib/utils";
+import { cn, getImageUrl } from "@/lib/utils";
 import { format } from "date-fns";
+import Image from "next/image";
+
 
 interface FileGridProps {
   items: FileItem[];
   selectedItems: string[];
   onSelectItem: (relativePath: string) => void;
   onDoubleClick: (relativePath: string, type: string) => void;
+  onPreviewFile: (item: FileItem) => void;
 }
 
 interface FileCardProps {
@@ -46,6 +44,7 @@ interface FileCardProps {
   isSelected: boolean;
   onSelect: () => void;
   onDoubleClick: () => void;
+  onPreview: (item: FileItem) => void;
 }
 
 const getFileIcon = (item: FileItem) => {
@@ -54,7 +53,7 @@ const getFileIcon = (item: FileItem) => {
   }
 
   if (item.type === "image") {
-    return <Image className="h-8 w-8 text-green-500" />;
+    return <ImageIcon className="h-8 w-8 text-green-500" />;
   }
 
   const extension = item.extension?.toLowerCase() || "";
@@ -75,12 +74,23 @@ const getFileIcon = (item: FileItem) => {
   return <File className="h-8 w-8 text-gray-500" />;
 };
 
-const FileCard = ({ item, isSelected, onSelect, onDoubleClick }: FileCardProps) => {
+const FileCard = ({
+  item,
+  isSelected,
+  onSelect,
+  onDoubleClick,
+  onPreview,
+}: FileCardProps) => {
   const [showContextMenu, setShowContextMenu] = useState(false);
 
   const handleContextMenu = (e: React.MouseEvent) => {
     e.preventDefault();
     setShowContextMenu(true);
+  };
+
+  const handlePreviewClick = () => {
+    onPreview(item);
+    setShowContextMenu(false);
   };
 
   return (
@@ -102,46 +112,32 @@ const FileCard = ({ item, isSelected, onSelect, onDoubleClick }: FileCardProps) 
       </div>
 
       {/* Context Menu */}
-      <div className="absolute top-2 right-2 z-10 opacity-0 group-hover:opacity-100 transition-opacity">
-        <DropdownMenu open={showContextMenu} onOpenChange={setShowContextMenu}>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="sm" className="h-6 w-6 p-0 bg-background/80">
-              <MoreVertical className="h-3 w-3" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem>
-              <Eye className="h-4 w-4 mr-2" />
-              Preview
-            </DropdownMenuItem>
-            <DropdownMenuItem>
-              <Download className="h-4 w-4 mr-2" />
-              Download
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem>
-              <Copy className="h-4 w-4 mr-2" />
-              Copy
-            </DropdownMenuItem>
-            <DropdownMenuItem>
-              <Star className="h-4 w-4 mr-2" />
-              Add to Starred
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem className="text-destructive">
-              <Trash2 className="h-4 w-4 mr-2" />
-              Delete
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
+      {item.type !== "folder" ? (
+        <div className="absolute top-2 right-2 z-10 opacity-0 group-hover:opacity-100 transition-opacity">
+          <DropdownMenu open={showContextMenu} onOpenChange={setShowContextMenu}>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="sm" className="h-6 w-6 p-0 bg-background/80">
+                <MoreVertical className="h-3 w-3" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem className="cursor-pointer" onClick={handlePreviewClick}>
+                <Eye className="h-4 w-4 mr-2" />
+                Preview
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      ) : null}
 
       <div className="p-4">
         {/* Thumbnail/Icon */}
         <div className="flex items-center justify-center h-20 mb-3">
-          {item.type === "image" && item.thumbnailUrl ? (
-            <img
-              src={item.thumbnailUrl}
+          {item.type === "image" && item.relativePath ? (
+            <Image
+              src={getImageUrl(item.relativePath)}
+              width={200}
+              height={200}
               alt={item.name}
               className="max-h-full max-w-full object-cover rounded"
               onError={(e) => {
@@ -151,7 +147,7 @@ const FileCard = ({ item, isSelected, onSelect, onDoubleClick }: FileCardProps) 
               }}
             />
           ) : null}
-          <div className={item.type === "image" && item.thumbnailUrl ? "hidden" : ""}>
+          <div className={item.type === "image" && item.relativePath ? "hidden" : ""}>
             {getFileIcon(item)}
           </div>
         </div>
@@ -173,7 +169,13 @@ const FileCard = ({ item, isSelected, onSelect, onDoubleClick }: FileCardProps) 
   );
 };
 
-export const FileGrid = ({ items, selectedItems, onSelectItem, onDoubleClick }: FileGridProps) => {
+export const FileGrid = ({
+  items,
+  selectedItems,
+  onSelectItem,
+  onDoubleClick,
+  onPreviewFile,
+}: FileGridProps) => {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
       {items.map((item) => (
@@ -183,6 +185,7 @@ export const FileGrid = ({ items, selectedItems, onSelectItem, onDoubleClick }: 
           isSelected={selectedItems.includes(item.relativePath)}
           onSelect={() => onSelectItem(item.relativePath)}
           onDoubleClick={() => onDoubleClick(item.relativePath, item.type)}
+          onPreview={() => onPreviewFile(item)}
         />
       ))}
     </div>

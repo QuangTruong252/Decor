@@ -30,6 +30,8 @@ export function getImageUrl(path: string | null | undefined): string {
   if (path.startsWith('http://') || path.startsWith('https://')) {
     return path;
   }
+  // Check duplicate /uploads path
+  path.replace('/uploads/uploads', '/uploads')
 
   // If path starts with /, remove it to avoid duplication with baseUrl
   const normalizedPath = path.startsWith('/') ? path.substring(1) : path;
@@ -37,3 +39,9 @@ export function getImageUrl(path: string | null | undefined): string {
   // Combine baseUrl and path
   return `${baseUrl}${normalizedPath}`;
 }
+
+export function isEmptyString(value: string | null | undefined): boolean {
+  return value === null || value === undefined || value.trim() === '';
+}
+
+

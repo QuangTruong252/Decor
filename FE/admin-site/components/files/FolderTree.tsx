@@ -4,7 +4,7 @@
 
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent } from "@/components/ui/collapsible";
 import { ChevronRight, ChevronDown, Folder, FolderOpen } from "lucide-react";
@@ -26,7 +26,7 @@ interface FolderNodeProps {
 
 const FolderNode = ({ folder, currentPath, onNavigateToPath, level = 0 }: FolderNodeProps) => {
   const [isOpen, setIsOpen] = useState(false);
-  const isActive = currentPath === folder.relativePath;
+  const isActive = currentPath.includes(folder.relativePath);
   const hasChildren = folder.hasChildren && folder.subfolders.length > 0;
 
   const handleClick = () => {
@@ -40,16 +40,23 @@ const FolderNode = ({ folder, currentPath, onNavigateToPath, level = 0 }: Folder
     }
   };
 
+  useEffect(() => {
+    if (isActive) {
+      setIsOpen(true);
+    }
+  }, [isActive]);
+
+
   return (
-    <div className="select-none">
+    <div className="select-none my-2">
       <div
         className={cn(
           "flex items-center gap-1 rounded-md px-2 py-1 text-sm cursor-pointer hover:bg-accent",
           isActive && "bg-accent text-accent-foreground font-medium",
-          level > 0 && "ml-4"
+          level > 0 && "ml-2"
         )}
         onClick={handleClick}
-        style={{ paddingLeft: `${level * 16 + 8}px` }}
+        style={{ paddingLeft: `${level*2}px` }}
       >
         {hasChildren ? (
           <Button
@@ -74,7 +81,7 @@ const FolderNode = ({ folder, currentPath, onNavigateToPath, level = 0 }: Folder
           <Folder className="h-4 w-4 text-blue-500 flex-shrink-0" />
         )}
         
-        <span className="truncate flex-1">{folder.name}</span>
+        <span className="truncate flex-1 capitalize">{folder.name}</span>
         
         {folder.totalItems > 0 && (
           <span className="text-xs text-muted-foreground">
@@ -112,7 +119,7 @@ export const FolderTree = ({ folderStructure, currentPath, onNavigateToPath }: F
   }
 
   return (
-    <div className="space-y-1">
+    <div className="space-y-2">
       <FolderNode
         folder={folderStructure}
         currentPath={currentPath}

@@ -12,6 +12,9 @@ const nextConfig = {
     // !! WARN !!
     ignoreBuildErrors: false,
   },
+  images: {
+    remotePatterns: [new URL('http://localhost:5000/uploads/**')],
+  },
 }
 
 module.exports = nextConfig

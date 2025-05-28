@@ -166,7 +166,7 @@ export const FILE_TYPE_OPTIONS = [
 
 // File extension options
 export const EXTENSION_OPTIONS = [
-  { value: "", label: "All Extensions" },
+  { value: "all", label: "All Extensions" },
   { value: ".jpg", label: "JPEG" },
   { value: ".png", label: "PNG" },
   { value: ".gif", label: "GIF" },

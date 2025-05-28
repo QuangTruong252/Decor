@@ -21,9 +21,8 @@ import {
   Download,
   Copy,
   Trash2,
-  Star,
   File,
-  Image,
+  ImageIcon,
   FileText,
   Music,
   Video,
@@ -35,7 +34,8 @@ import {
 import { fileManagerService } from "@/services/fileManager";
 import { FileItem } from "@/types/fileManager";
 import { format } from "date-fns";
-
+import { getImageUrl } from "@/lib/utils";
+import Image from "next/image"
 interface FilePreviewDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -49,7 +49,7 @@ const getFileIcon = (item: FileItem) => {
   }
 
   if (item.type === "image") {
-    return <Image className="h-8 w-8 text-green-500" />;
+    return <ImageIcon className="h-8 w-8 text-green-500" />;
   }
 
   const extension = item.extension?.toLowerCase() || "";
@@ -141,8 +141,10 @@ export const FilePreviewDialog = ({
             {/* Preview Section */}
             {canPreviewImage ? (
               <div className="flex justify-center bg-muted/30 rounded-lg p-4">
-                <img
-                  src={fileInfo.fullUrl}
+                <Image
+                  src={getImageUrl(fileInfo.relativePath)}
+                  width={500}
+                  height={200}
                   alt={fileInfo.name}
                   className="max-h-96 max-w-full object-contain rounded"
                   onError={(e) => {
@@ -169,20 +171,13 @@ export const FilePreviewDialog = ({
                 <h3 className="text-lg font-semibold">File Information</h3>
                 <div className="flex items-center gap-2">
                   <Button variant="outline" size="sm">
-                    <Download className="h-4 w-4 mr-2" />
-                    Download
+                    <Download className="h-4 w-4" />
                   </Button>
                   <Button variant="outline" size="sm">
-                    <Copy className="h-4 w-4 mr-2" />
-                    Copy Link
-                  </Button>
-                  <Button variant="outline" size="sm">
-                    <Star className="h-4 w-4 mr-2" />
-                    Star
+                    <Copy className="h-4 w-4" />
                   </Button>
                   <Button variant="outline" size="sm" className="text-destructive">
-                    <Trash2 className="h-4 w-4 mr-2" />
-                    Delete
+                    <Trash2 className="h-4 w-4" />
                   </Button>
                 </div>
               </div>
@@ -249,7 +244,7 @@ export const FilePreviewDialog = ({
                   <Separator />
                   <div className="space-y-3">
                     <h4 className="font-medium flex items-center gap-2">
-                      <Image className="h-4 w-4" />
+                      <ImageIcon className="h-4 w-4" />
                       Image Properties
                     </h4>
                     
