@@ -379,16 +379,85 @@ namespace DecorStore.API.Services
         {
             if (string.IsNullOrEmpty(path))
                 return true;
-
+            // Remove any leading or trailing slashes
+            path = path.Trim('/');
+            // Check for invalid characters
+            if (path.IndexOfAny(Path.GetInvalidPathChars()) != -1)
+                return false;
             // Check for path traversal attempts
             var normalizedPath = Path.GetFullPath(Path.Combine(_uploadsPath, path));
+            // Check if the normalized path is within the uploads directory
             return normalizedPath.StartsWith(_uploadsPath);
         }
 
+        public async Task<(Stream FileStream, string ContentType, string FileName)> DownloadFileAsync(string filePath)
+        {
+            if (string.IsNullOrEmpty(filePath))
+            {
+                throw new ArgumentException("File path cannot be null or empty.", nameof(filePath));
+            }
+
+            // Remove any leading or trailing slashes
+            filePath = filePath.Trim('/');
+
+            // Validate the file path
+            if (!await ValidatePathAsync(filePath))
+            {
+                throw new ArgumentException("Invalid file path.", nameof(filePath));
+            }
+
+            var physicalPath = Path.Combine(_uploadsPath, filePath);
+
+            if (!File.Exists(physicalPath))
+            {
+                throw new FileNotFoundException("File not found.", physicalPath);
+            }
+
+            var memory = new MemoryStream();
+            using (var stream = new FileStream(physicalPath, FileMode.Open, FileAccess.Read))
+            {
+                await stream.CopyToAsync(memory);
+            }
+            memory.Position = 0;
+
+            var contentType = GetContentType(physicalPath);
+            var fileName = Path.GetFileName(physicalPath);
+
+            return (memory, contentType, fileName);
+        }
+
+        private string GetContentType(string path)
+        {
+            var types = GetMimeTypes();
+            var ext = Path.GetExtension(path).ToLowerInvariant();
+            return types.ContainsKey(ext) ? types[ext] : "application/octet-stream";
+        }
+
+        private Dictionary<string, string> GetMimeTypes()
+        {
+            // Common MIME types, can be expanded
+            return new Dictionary<string, string>
+            {
+                {".txt", "text/plain"},
+                {".pdf", "application/pdf"},
+                {".doc", "application/vnd.ms-word"},
+                {".docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"},
+                {".xls", "application/vnd.ms-excel"},
+                {".xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"},
+                {".png", "image/png"},
+                {".jpg", "image/jpeg"},
+                {".jpeg", "image/jpeg"},
+                {".gif", "image/gif"},
+                {".csv", "text/csv"},
+                {".zip", "application/zip"}
+            };
+        }
+
+        // This is the corrected GetSafeFileNameAsync method
         public async Task<string> GetSafeFileNameAsync(string fileName)
         {
             if (string.IsNullOrEmpty(fileName))
-                return "unnamed_file";
+                return await Task.FromResult("unnamed_file");
 
             // Remove invalid characters
             var invalidChars = Path.GetInvalidFileNameChars();
@@ -398,9 +467,10 @@ namespace DecorStore.API.Services
             safeName = Regex.Replace(safeName, @"\.{2,}", ".");
             safeName = Regex.Replace(safeName, @"\s+", " ");
             
-            return safeName.Trim();
+            return await Task.FromResult(safeName.Trim());
         }
-
+        
+        // This is the corrected FormatFileSizeAsync method
         public async Task<string> FormatFileSizeAsync(long bytes)
         {
             string[] sizes = { "B", "KB", "MB", "GB", "TB" };

@@ -51,7 +51,11 @@ namespace DecorStore.API.Services.Excel
             }
 
             // Save to database
-            await SaveCategoriesAsync(importResult);
+            await _unitOfWork.ExecuteWithExecutionStrategyAsync(async () =>
+            {
+                await SaveCategoriesAsync(importResult);
+                return true;
+            });
 
             return importResult;
         }
@@ -136,7 +140,11 @@ namespace DecorStore.API.Services.Excel
                 // Save this batch if no errors
                 if (batchResult.IsSuccess)
                 {
-                    await SaveCategoriesAsync(batchResult);
+                    await _unitOfWork.ExecuteWithExecutionStrategyAsync(async () => 
+                    {
+                        await SaveCategoriesAsync(batchResult);
+                        return true; // Return a dummy value as TResult is expected
+                    });
                 }
 
                 yield return batchResult;
@@ -364,50 +372,44 @@ namespace DecorStore.API.Services.Excel
         {
             if (!importResult.IsSuccess) return;
 
-            try
-            {
-                await _unitOfWork.BeginTransactionAsync();
+            // The transaction is now handled by ExecuteWithExecutionStrategyAsync
+            // No need for explicit BeginTransactionAsync, CommitTransactionAsync, or RollbackTransactionAsync here.
 
-                foreach (var categoryDto in importResult.Data)
+            foreach (var categoryDto in importResult.Data)
+            {
+                if (categoryDto.Id.HasValue && categoryDto.Id.Value > 0)
                 {
-                    if (categoryDto.Id.HasValue && categoryDto.Id.Value > 0)
+                    // Update existing category
+                    var existingCategory = await _unitOfWork.Categories.GetByIdAsync(categoryDto.Id.Value);
+                    if (existingCategory != null)
                     {
-                        // Update existing category
-                        var existingCategory = await _unitOfWork.Categories.GetByIdAsync(categoryDto.Id.Value);
-                        if (existingCategory != null)
-                        {
-                            _mapper.Map(categoryDto, existingCategory);
-                            await _unitOfWork.Categories.UpdateAsync(existingCategory);
-                        }
+                        _mapper.Map(categoryDto, existingCategory);
+                        // UpdateAsync will mark the entity as modified. SaveChangesAsync will persist.
+                        await _unitOfWork.Categories.UpdateAsync(existingCategory); 
                     }
                     else
                     {
-                        // Create new category
-                        var newCategory = _mapper.Map<Category>(categoryDto);
-                        newCategory.CreatedAt = DateTime.UtcNow;
-                        await _unitOfWork.Categories.CreateAsync(newCategory);
+                        // If ID is provided but category not found, consider logging or specific handling.
+                        // For now, we'll skip updating if not found, or you might want to create it.
+                        _logger.LogWarning("Category with ID {CategoryId} not found for update. Skipping.", categoryDto.Id.Value);
                     }
                 }
-
-                await _unitOfWork.SaveChangesAsync();
-                await _unitOfWork.CommitTransactionAsync();
-
-                _logger.LogInformation("Successfully imported {Count} categories", importResult.Data.Count);
+                else
+                {
+                    // Create new category
+                    var newCategory = _mapper.Map<Category>(categoryDto);
+                    newCategory.CreatedAt = DateTime.UtcNow;
+                    await _unitOfWork.Categories.CreateAsync(newCategory);
+                }
             }
-            catch (Exception ex)
-            {
-                await _unitOfWork.RollbackTransactionAsync();
-                _logger.LogError(ex, "Error saving categories during import");
 
-                importResult.Errors.Add(new ExcelValidationErrorDTO(
-                    0,
-                    "",
-                    $"Database error: {ex.Message}",
-                    ExcelErrorCodes.BUSINESS_RULE_VIOLATION,
-                    ExcelErrorSeverity.Critical));
+            await _unitOfWork.SaveChangesAsync(); // This will be part of the transaction managed by ExecuteWithExecutionStrategyAsync
 
-                throw;
-            }
+            _logger.LogInformation("Successfully processed {Count} categories in SaveCategoriesAsync", importResult.Data.Count);
+            // Error handling (like try-catch for database operations) should ideally be within the lambda 
+            // passed to ExecuteWithExecutionStrategyAsync if specific rollback logic per operation is needed, 
+            // or rely on the strategy to handle retries and the overall transaction to rollback on failure.
+            // For simplicity here, the existing try-catch in the calling methods (ImportCategoriesAsync) will handle exceptions.
         }
 
         private async Task<List<CategoryExcelDTO>> MapToExcelDtosAsync(IEnumerable<Category> categories)

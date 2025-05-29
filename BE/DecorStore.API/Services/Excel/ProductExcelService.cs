@@ -51,7 +51,11 @@ namespace DecorStore.API.Services.Excel
             }
 
             // Save to database
-            await SaveProductsAsync(importResult);
+            await _unitOfWork.ExecuteWithExecutionStrategyAsync(async () =>
+            {
+                await SaveProductsAsync(importResult);
+                return true;
+            });
 
             return importResult;
         }

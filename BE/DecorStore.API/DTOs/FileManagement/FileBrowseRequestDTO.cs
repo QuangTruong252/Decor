@@ -9,7 +9,7 @@ namespace DecorStore.API.DTOs.FileManagement
         public string Search { get; set; } = string.Empty;
         public string FileType { get; set; } = string.Empty; // "all", "image", "folder"
         public string Extension { get; set; } = string.Empty; // ".jpg", ".png", etc.
-        public string SortBy { get; set; } = "name"; // "name", "size", "date", "type"
+        public new string SortBy { get; set; } = "name"; // "name", "size", "date", "type"
         public string SortOrder { get; set; } = "asc"; // "asc", "desc"
         public long? MinSize { get; set; }
         public long? MaxSize { get; set; }

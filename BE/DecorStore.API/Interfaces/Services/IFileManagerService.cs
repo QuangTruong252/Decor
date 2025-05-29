@@ -8,6 +8,7 @@ namespace DecorStore.API.Interfaces.Services
         Task<FileBrowseResponseDTO> BrowseFilesAsync(FileBrowseRequestDTO request);
         Task<FolderStructureDTO> GetFolderStructureAsync(string? rootPath = null);
         Task<FileItemDTO?> GetFileInfoAsync(string filePath);
+        Task<(Stream FileStream, string ContentType, string FileName)> DownloadFileAsync(string filePath); // Added for download functionality
         
         // File operations
         Task<FileUploadResponseDTO> UploadFilesAsync(IFormFileCollection files, FileUploadRequestDTO request);

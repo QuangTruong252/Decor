@@ -7,8 +7,21 @@ namespace DecorStore.API.DTOs.Excel
     /// </summary>
     public class CustomerExcelDTO
     {
+        // ... (other properties)
+
         /// <summary>
-        /// Customer ID (for updates, leave empty for new customers)
+        /// Gets column mappings for Excel import, excluding the Id column.
+        /// </summary>
+        /// <returns>Dictionary of column mappings.</returns>
+        public static Dictionary<string, string> GetImportColumnMappingsWithoutId()
+        {
+            var mappings = GetImportColumnMappings();
+            mappings.Remove(nameof(Id)); // Assuming "Id" is the key for the Id column
+            return mappings;
+        }
+
+        /// <summary>
+        /// Customer ID (for updates, leave empty for new customers). This field is not included in the import template.
         /// </summary>
         public int? Id { get; set; }
 

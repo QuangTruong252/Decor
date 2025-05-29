@@ -12,10 +12,7 @@ import {
   DialogFooter
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
 import { FileUpload } from '@/components/ui/file-upload';
 import {
   CheckCircle,
@@ -106,6 +103,7 @@ export function ImportDialog({
         error: error.message || 'Import failed'
       }));
       toast.error('Import failed');
+      handleClose()
     }
   });
 

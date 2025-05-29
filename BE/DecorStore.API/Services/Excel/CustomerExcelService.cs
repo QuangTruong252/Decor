@@ -36,7 +36,7 @@ namespace DecorStore.API.Services.Excel
         {
             var columnMappings = CustomerExcelDTO.GetImportColumnMappings();
             var importResult = await _excelService.ReadExcelAsync<CustomerExcelDTO>(fileStream, columnMappings);
-
+            
             if (!importResult.IsSuccess)
             {
                 return importResult;
@@ -51,7 +51,11 @@ namespace DecorStore.API.Services.Excel
             }
 
             // Save to database
-            await SaveCustomersAsync(importResult);
+            await _unitOfWork.ExecuteWithExecutionStrategyAsync(async () =>
+            {
+                await SaveCustomersAsync(importResult);
+                return true; // Return a dummy value as TResult is expected
+            });
 
             return importResult;
         }
@@ -68,10 +72,11 @@ namespace DecorStore.API.Services.Excel
             var customers = await _unitOfWork.Customers.GetAllAsync();
 
             // Map to Excel DTOs
-            var customerExcelDtos = await MapToExcelDtosAsync(customers);
+            var customerExcelDto = await MapToExcelDtosAsync(customers);
 
             // Calculate metrics
-            customerExcelDtos = await CalculateCustomerMetricsAsync(customerExcelDtos);
+            // The CalculateCustomerMetricsAsync method is already called within MapToExcelDtosAsync
+            // customerExcelDto = await CalculateCustomerMetricsAsync(customerExcelDto);
 
             // Get column mappings
             var columnMappings = CustomerExcelDTO.GetColumnMappings();
@@ -91,7 +96,7 @@ namespace DecorStore.API.Services.Excel
                     .ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
             }
 
-            return await _excelService.CreateExcelAsync(customerExcelDtos, columnMappings, exportRequest.WorksheetName);
+            return await _excelService.CreateExcelAsync(customerExcelDto, columnMappings, exportRequest.WorksheetName);
         }
 
         /// <summary>
@@ -99,7 +104,8 @@ namespace DecorStore.API.Services.Excel
         /// </summary>
         public async Task<byte[]> CreateCustomerTemplateAsync(bool includeExampleRow = true)
         {
-            var columnMappings = CustomerExcelDTO.GetImportColumnMappings();
+            // GetImportColumnMappingsWithoutId will be a new static method in CustomerExcelDTO
+            var columnMappings = CustomerExcelDTO.GetImportColumnMappingsWithoutId(); 
             return await _excelService.CreateTemplateAsync(columnMappings, "Customer Import Template", includeExampleRow);
         }
 
@@ -139,7 +145,11 @@ namespace DecorStore.API.Services.Excel
                 // Save this batch if no errors
                 if (batchResult.IsSuccess)
                 {
-                    await SaveCustomersAsync(batchResult);
+                    await _unitOfWork.ExecuteWithExecutionStrategyAsync(async () =>
+                    {
+                        await SaveCustomersAsync(batchResult);
+                        return true; // Return a dummy value as TResult is expected
+                    });
                 }
 
                 yield return batchResult;
@@ -330,10 +340,22 @@ namespace DecorStore.API.Services.Excel
                             existingCustomer.UpdatedAt = DateTime.UtcNow;
                             await _unitOfWork.Customers.UpdateAsync(existingCustomer);
                         }
+                        else
+                        {
+                            // If ID is provided but customer not found, treat as new customer (or log warning/error)
+                            // For now, let's create a new one, effectively ignoring the provided non-existent ID.
+                            // Consider logging a warning here if this scenario is unexpected.
+                            _logger.LogWarning("Customer with ID {CustomerId} not found in database. Creating a new customer instead.", customerDto.Id.Value);
+                            var newCustomerFromNonExistentId = _mapper.Map<Customer>(customerDto);
+                            newCustomerFromNonExistentId.Id = 0; // Ensure it's treated as a new entity by EF Core if Id was set
+                            newCustomerFromNonExistentId.CreatedAt = DateTime.UtcNow;
+                            newCustomerFromNonExistentId.UpdatedAt = DateTime.UtcNow;
+                            await _unitOfWork.Customers.CreateAsync(newCustomerFromNonExistentId);
+                        }
                     }
                     else
                     {
-                        // Create new customer
+                        // Create new customer if no ID is provided
                         var newCustomer = _mapper.Map<Customer>(customerDto);
                         newCustomer.CreatedAt = DateTime.UtcNow;
                         newCustomer.UpdatedAt = DateTime.UtcNow;

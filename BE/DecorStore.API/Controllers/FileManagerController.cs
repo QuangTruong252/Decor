@@ -415,5 +415,46 @@ namespace DecorStore.API.Controllers
                 return StatusCode(500, new { status = "unhealthy", error = ex.Message });
             }
         }
+
+        /// <summary>
+        /// Download a file
+        /// </summary>
+        [HttpGet("download")]
+        public async Task<IActionResult> DownloadFile([FromQuery] string filePath)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(filePath))
+                {
+                    return BadRequest("File path is required.");
+                }
+
+                if (!await _fileManagerService.ValidatePathAsync(filePath))
+                {
+                    return BadRequest("Invalid file path.");
+                }
+
+                var (fileStream, contentType, fileName) = await _fileManagerService.DownloadFileAsync(filePath);
+
+                // Return the file stream for download
+                // The FileStreamResult will handle disposing the stream
+                return File(fileStream, contentType, fileName);
+            }
+            catch (FileNotFoundException ex)
+            {
+                _logger.LogWarning(ex, "File not found for download: {Path}", filePath);
+                return NotFound(ex.Message);
+            }
+            catch (ArgumentException ex)
+            {
+                _logger.LogWarning(ex, "Invalid argument for download: {Path}", filePath);
+                return BadRequest(ex.Message);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error downloading file: {Path}", filePath);
+                return StatusCode(500, "Internal server error while downloading file.");
+            }
+        }
     }
 }
