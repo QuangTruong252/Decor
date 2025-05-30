@@ -36,11 +36,14 @@ import { FileItem } from "@/types/fileManager";
 import { format } from "date-fns";
 import { getImageUrl } from "@/lib/utils";
 import Image from "next/image"
+import { CopyFileDialog } from "./CopyFileDialog";
+import { useConfirmationDialog } from "../ui/confirmation-dialog";
+import { useFileManager } from "@/hooks/useFileManager";
 interface FilePreviewDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   filePath: string;
-  onClose: () => void;
+  onClose: (isRefresh: boolean) => void;
 }
 
 const getFileIcon = (item: FileItem) => {
@@ -79,7 +82,9 @@ export const FilePreviewDialog = ({
   const [fileInfo, setFileInfo] = useState<FileItem | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
+  const [showCopyDialog, setShowCopyDialog] = useState(false);
+  const { confirm } = useConfirmationDialog();
+  const { deleteItem } = useFileManager();
   useEffect(() => {
     if (open && filePath) {
       loadFileInfo();
@@ -100,184 +105,208 @@ export const FilePreviewDialog = ({
     }
   };
 
+  const handleDelete = () => {
+    confirm({
+      title: "Delete File",
+      message: "Are you sure you want to delete this file?",
+      variant: "destructive",
+      confirmText: "Delete",
+      onConfirm: async () => {
+        if (!fileInfo) {
+          return;
+        }
+        await deleteItem(fileInfo.relativePath);
+        handleClose(true);
+      }
+    })
+  }
+
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const handleClose = () => {
+  const handleClose = (isRefresh = false) => {
     setFileInfo(null);
     setError(null);
-    onClose();
+    onClose(isRefresh);
   };
 
   const canPreviewImage = fileInfo?.type === "image" && fileInfo.fullUrl;
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-3">
-            {fileInfo && getFileIcon(fileInfo)}
-            <span className="truncate">{fileInfo?.name || "Loading..."}</span>
-          </DialogTitle>
-          <DialogDescription>
-            File preview and information
-          </DialogDescription>
-        </DialogHeader>
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-3">
+              {fileInfo && getFileIcon(fileInfo)}
+              <span className="truncate">{fileInfo?.name || "Loading..."}</span>
+            </DialogTitle>
+            <DialogDescription>
+              File preview and information
+            </DialogDescription>
+          </DialogHeader>
 
-        {isLoading ? (
-          <div className="flex-1 space-y-4">
-            <Skeleton className="h-64 w-full" />
-            <div className="space-y-2">
-              <Skeleton className="h-4 w-1/3" />
-              <Skeleton className="h-4 w-1/2" />
-              <Skeleton className="h-4 w-1/4" />
+          {isLoading ? (
+            <div className="flex-1 space-y-4">
+              <Skeleton className="h-64 w-full" />
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-1/3" />
+                <Skeleton className="h-4 w-1/2" />
+                <Skeleton className="h-4 w-1/4" />
+              </div>
             </div>
-          </div>
-        ) : error ? (
-          <Alert variant="destructive">
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        ) : fileInfo ? (
-          <div className="flex-1 overflow-auto space-y-6">
-            {/* Preview Section */}
-            {canPreviewImage ? (
-              <div className="flex justify-center bg-muted/30 rounded-lg p-4">
-                <Image
-                  src={getImageUrl(fileInfo.relativePath)}
-                  width={500}
-                  height={200}
-                  alt={fileInfo.name}
-                  className="max-h-96 max-w-full object-contain rounded"
-                  onError={(e) => {
-                    const target = e.target as HTMLImageElement;
-                    target.style.display = "none";
-                  }}
-                />
-              </div>
-            ) : (
-              <div className="flex flex-col items-center justify-center bg-muted/30 rounded-lg p-12">
-                {getFileIcon(fileInfo)}
-                <div className="mt-4 text-center">
-                  <div className="font-medium">{fileInfo.name}</div>
-                  <div className="text-sm text-muted-foreground mt-1">
-                    Preview not available for this file type
-                  </div>
+          ) : error ? (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          ) : fileInfo ? (
+            <div className="flex-1 overflow-auto space-y-6">
+              {/* Preview Section */}
+              {canPreviewImage ? (
+                <div className="flex justify-center bg-muted/30 rounded-lg py-2">
+                  <Image
+                    src={getImageUrl(fileInfo.relativePath)}
+                    width={400}
+                    height={200}
+                    alt={fileInfo.name}
+                    className="max-h-96 max-w-full object-contain rounded"
+                    onError={(e) => {
+                      const target = e.target as HTMLImageElement;
+                      target.style.display = "none";
+                    }}
+                  />
                 </div>
-              </div>
-            )}
-
-            {/* File Information */}
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold">File Information</h3>
-                <div className="flex items-center gap-2">
-                  <Button variant="outline" size="sm">
-                    <Download className="h-4 w-4" />
-                  </Button>
-                  <Button variant="outline" size="sm">
-                    <Copy className="h-4 w-4" />
-                  </Button>
-                  <Button variant="outline" size="sm" className="text-destructive">
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Basic Info */}
-                <div className="space-y-3">
-                  <h4 className="font-medium flex items-center gap-2">
-                    <Info className="h-4 w-4" />
-                    Basic Information
-                  </h4>
-                  
-                  <div className="space-y-2 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Name:</span>
-                      <span className="font-medium">{fileInfo.name}</span>
-                    </div>
-                    
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Type:</span>
-                      <Badge variant="secondary">
-                        {fileInfo.type === "folder" ? "Folder" : fileInfo.extension?.toUpperCase() || "File"}
-                      </Badge>
-                    </div>
-                    
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Size:</span>
-                      <span>{fileInfo.formattedSize}</span>
-                    </div>
-                    
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Path:</span>
-                      <span className="truncate max-w-48" title={fileInfo.relativePath}>
-                        {fileInfo.relativePath}
-                      </span>
+              ) : (
+                <div className="flex flex-col items-center justify-center bg-muted/30 rounded-lg p-12">
+                  {getFileIcon(fileInfo)}
+                  <div className="mt-4 text-center">
+                    <div className="font-medium">{fileInfo.name}</div>
+                    <div className="text-sm text-muted-foreground mt-1">
+                      Preview not available for this file type
                     </div>
                   </div>
                 </div>
+              )}
 
-                {/* Dates */}
-                <div className="space-y-3">
-                  <h4 className="font-medium flex items-center gap-2">
-                    <Calendar className="h-4 w-4" />
-                    Dates
-                  </h4>
-                  
-                  <div className="space-y-2 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Created:</span>
-                      <span>{format(new Date(fileInfo.createdAt), "MMM d, yyyy 'at' h:mm a")}</span>
-                    </div>
-                    
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Modified:</span>
-                      <span>{format(new Date(fileInfo.modifiedAt), "MMM d, yyyy 'at' h:mm a")}</span>
-                    </div>
+              {/* File Information */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-semibold">File Information</h3>
+                  <div className="flex items-center gap-2">
+                    <Button variant="outline" size="sm">
+                      <Download className="h-4 w-4" />
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={() => setShowCopyDialog(true)}>
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                    <Button variant="outline" size="sm" className="text-destructive" onClick={() => handleDelete()}>
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
                   </div>
                 </div>
-              </div>
 
-              {/* Image Metadata */}
-              {fileInfo.metadata && (
-                <>
-                  <Separator />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Basic Info */}
                   <div className="space-y-3">
                     <h4 className="font-medium flex items-center gap-2">
-                      <ImageIcon className="h-4 w-4" />
-                      Image Properties
+                      <Info className="h-4 w-4" />
+                      Basic Information
                     </h4>
                     
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                      <div>
-                        <span className="text-muted-foreground block">Dimensions</span>
-                        <span className="font-medium">
-                          {fileInfo.metadata.width} × {fileInfo.metadata.height}
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Name:</span>
+                        <span className="font-medium">{fileInfo.name}</span>
+                      </div>
+                      
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Type:</span>
+                        <Badge variant="secondary">
+                          {fileInfo.type === "folder" ? "Folder" : fileInfo.extension?.toUpperCase() || "File"}
+                        </Badge>
+                      </div>
+                      
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Size:</span>
+                        <span>{fileInfo.formattedSize}</span>
+                      </div>
+                      
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Path:</span>
+                        <span className="truncate max-w-48" title={fileInfo.relativePath}>
+                          {fileInfo.relativePath}
                         </span>
-                      </div>
-                      
-                      <div>
-                        <span className="text-muted-foreground block">Format</span>
-                        <span className="font-medium">{fileInfo.metadata.format}</span>
-                      </div>
-                      
-                      <div>
-                        <span className="text-muted-foreground block">Aspect Ratio</span>
-                        <span className="font-medium">{fileInfo.metadata.aspectRatio.toFixed(2)}</span>
-                      </div>
-                      
-                      <div>
-                        <span className="text-muted-foreground block">Color Space</span>
-                        <span className="font-medium">{fileInfo.metadata.colorSpace}</span>
                       </div>
                     </div>
                   </div>
-                </>
-              )}
+
+                  {/* Dates */}
+                  <div className="space-y-3">
+                    <h4 className="font-medium flex items-center gap-2">
+                      <Calendar className="h-4 w-4" />
+                      Dates
+                    </h4>
+                    
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Created:</span>
+                        <span>{format(new Date(fileInfo.createdAt), "MMM d, yyyy 'at' h:mm a")}</span>
+                      </div>
+                      
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Modified:</span>
+                        <span>{format(new Date(fileInfo.modifiedAt), "MMM d, yyyy 'at' h:mm a")}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Image Metadata */}
+                {fileInfo.metadata && (
+                  <>
+                    <Separator />
+                    <div className="space-y-3">
+                      <h4 className="font-medium flex items-center gap-2">
+                        <ImageIcon className="h-4 w-4" />
+                        Image Properties
+                      </h4>
+                      
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                        <div>
+                          <span className="text-muted-foreground block">Dimensions</span>
+                          <span className="font-medium">
+                            {fileInfo.metadata.width} × {fileInfo.metadata.height}
+                          </span>
+                        </div>
+                        
+                        <div>
+                          <span className="text-muted-foreground block">Format</span>
+                          <span className="font-medium">{fileInfo.metadata.format}</span>
+                        </div>
+                        
+                        <div>
+                          <span className="text-muted-foreground block">Aspect Ratio</span>
+                          <span className="font-medium">{fileInfo.metadata.aspectRatio.toFixed(2)}</span>
+                        </div>
+                        
+                        <div>
+                          <span className="text-muted-foreground block">Color Space</span>
+                          <span className="font-medium">{fileInfo.metadata.colorSpace}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
-          </div>
-        ) : null}
-      </DialogContent>
-    </Dialog>
+          ) : null}
+        </DialogContent>
+      </Dialog>
+      <CopyFileDialog
+        open={showCopyDialog}
+        onOpenChange={setShowCopyDialog}
+        selectedItemPath={filePath}
+        isCopySingle={true}
+      />
+    </>
   );
 };

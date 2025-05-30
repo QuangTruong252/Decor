@@ -48,6 +48,7 @@ export const FileManagerView = () => {
     hasSelection,
     selectedCount,
     canNavigateUp,
+    refetchBrowse
   } = useFileManager();
   // Dialog states
   const [showUploadDialog, setShowUploadDialog] = useState(false);
@@ -219,9 +220,6 @@ export const FileManagerView = () => {
           {hasSelection && (
             <BulkActionsBar
               selectedCount={selectedCount}
-              onMove={(destinationPath) => moveSelectedItems(destinationPath)}
-              onCopy={(destinationPath) => copySelectedItems(destinationPath)}
-              onDelete={() => deleteSelectedItems()}
               onClearSelection={clearSelection}
             />
           )}
@@ -248,9 +246,12 @@ export const FileManagerView = () => {
           open={showPreviewDialog}
           onOpenChange={setShowPreviewDialog}
           filePath={previewFile}
-          onClose={() => {
+          onClose={(isRefresh: boolean) => {
             setShowPreviewDialog(false);
             setPreviewFile(null);
+            if (isRefresh) {
+              refetchBrowse();
+            }
           }}
         />
       )}

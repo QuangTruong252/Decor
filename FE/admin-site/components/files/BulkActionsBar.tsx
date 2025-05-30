@@ -8,147 +8,41 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
   Download,
   Copy,
   Move,
   Trash2,
   X,
-  FolderOpen,
 } from "lucide-react";
 import { useFileManager } from "@/hooks/useFileManager";
-import { FolderStructure } from "@/types/fileManager";
+import { CopyFileDialog } from "./CopyFileDialog";
+import { MoveFileDialog } from "./MoveFileDialog";
+import { useConfirmationDialog } from "../ui/confirmation-dialog";
 
 interface BulkActionsBarProps {
   selectedCount: number;
-  onMove: (destinationPath: string) => void;
-  onCopy: (destinationPath: string) => void;
-  onDelete: () => void;
   onClearSelection: () => void;
-}
-
-interface DestinationSelectProps {
-  options: FolderStructure[]
-  onChange: (path: string) => void;
-  value: string;
-}
-
-interface DesitionNodeProps {
-  folder: FolderStructure;
-  value: string;
-  onChange: (path: string) => void;
-}
-
-export const DesitionNode = ({
-  folder,
-  value,
-  onChange,
-}: DesitionNodeProps) => {
-  const hasChildren = folder.subfolders && folder.subfolders.length > 0;
-
-  return (
-    <>
-      <SelectItem key={folder.relativePath} value={folder.relativePath}>
-        <div className="flex items-center gap-2 capitalize">
-          <FolderOpen className="h-4 w-4" />
-          {folder.name}
-        </div>
-      </SelectItem>
-      {hasChildren && (
-        <div className="pl-4">
-          {folder.subfolders.map((subfolder) => (
-            <DesitionNode
-              key={subfolder.relativePath}
-              folder={subfolder}
-              value={value}
-              onChange={onChange}
-            />
-          ))}
-        </div>
-      )}  
-    </>
-  )
-}
-  
-
-export const DestinationSelect = ({
-  options,
-  onChange,
-  value,
-}: DestinationSelectProps) => {
-  return (
-    <div>
-      <label className="text-sm font-medium">Destination Folder</label>
-      <Select value={value} onValueChange={onChange}>
-        <SelectTrigger className="mt-1 w-full">
-          <SelectValue placeholder="Select a folder" />
-        </SelectTrigger>
-        <SelectContent>
-          {options.map((option) => (
-            <DesitionNode
-              key={option.relativePath}
-              folder={option}
-              value={value}
-              onChange={onChange}
-            />
-          ))}
-        </SelectContent>
-      </Select>
-    </div>
-  )
 }
 
 export const BulkActionsBar = ({
   selectedCount,
-  onMove,
-  onCopy,
-  onDelete,
   onClearSelection,
 }: BulkActionsBarProps) => {
   const [showMoveDialog, setShowMoveDialog] = useState(false);
   const [showCopyDialog, setShowCopyDialog] = useState(false);
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [destinationPath, setDestinationPath] = useState("");
-  const {rootFolderStructure} = useFileManager();
-
-
-  const handleMove = () => {
-    if (destinationPath) {
-      onMove(destinationPath);
-      setShowMoveDialog(false);
-      setDestinationPath("");
-    }
-  };
-
-  const handleCopy = () => {
-    if (destinationPath) {
-      onCopy(destinationPath);
-      setShowCopyDialog(false);
-      setDestinationPath("");
-    }
-  };
-
+  const { confirm } = useConfirmationDialog();
+  const { deleteSelectedItems } = useFileManager();
   const handleDelete = () => {
-    onDelete();
-    setShowDeleteDialog(false);
+    confirm({
+      title: "Delete Items",
+      message: `Are you sure you want to delete ${selectedCount} selected item${selectedCount !== 1 ? "s" : ""}? This action cannot be undone.`,
+      confirmText: "Delete Items",
+      variant: "destructive",
+      onConfirm: () => {
+        deleteSelectedItems();
+      },
+    })
   };
-
-  // Mock folder options - in real app, this would come from folder structure
-  const folderOptions = rootFolderStructure?.subfolders || [];
 
   return (
     <>
@@ -205,7 +99,7 @@ export const BulkActionsBar = ({
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setShowDeleteDialog(true)}
+              onClick={() => handleDelete()}
               className="text-destructive hover:text-destructive"
             >
               <Trash2 className="h-4 w-4 mr-2" />
@@ -216,76 +110,16 @@ export const BulkActionsBar = ({
       </div>
 
       {/* Move Dialog */}
-      <Dialog open={showMoveDialog} onOpenChange={setShowMoveDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Move Items</DialogTitle>
-            <DialogDescription>
-              Select the destination folder for {selectedCount} selected item{selectedCount !== 1 ? "s" : ""}.
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="space-y-4">
-            <DestinationSelect options={folderOptions} onChange={setDestinationPath} value={destinationPath} />
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowMoveDialog(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleMove} disabled={!destinationPath}>
-              Move Items
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <MoveFileDialog
+        open={showMoveDialog}
+        onOpenChange={setShowMoveDialog}
+      />
 
       {/* Copy Dialog */}
-      <Dialog open={showCopyDialog} onOpenChange={setShowCopyDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Copy Items</DialogTitle>
-            <DialogDescription>
-              Select the destination folder to copy {selectedCount} selected item{selectedCount !== 1 ? "s" : ""}.
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="space-y-4">
-            <DestinationSelect options={folderOptions} onChange={setDestinationPath} value={destinationPath} />
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowCopyDialog(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleCopy} disabled={!destinationPath}>
-              Copy Items
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Delete Dialog */}
-      <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Delete Items</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to delete {selectedCount} selected item{selectedCount !== 1 ? "s" : ""}? 
-              This action cannot be undone.
-            </DialogDescription>
-          </DialogHeader>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowDeleteDialog(false)}>
-              Cancel
-            </Button>
-            <Button variant="destructive" onClick={handleDelete}>
-              Delete Items
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <CopyFileDialog
+        open={showCopyDialog}
+        onOpenChange={setShowCopyDialog}
+      />
     </>
   );
 };
