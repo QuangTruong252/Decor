@@ -22,7 +22,8 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import { getImageUrl } from "@/lib/utils";
+
+import { ImageUploadButton, ImageUploadResult } from "@/components/shared/ImageUpload";
 
 // Define the form schema with zod
 const productSchema = z.object({
@@ -89,11 +90,26 @@ export function ProductForm({
         },
   });
 
-  // Handle image upload
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0) {
-      const fileArray = Array.from(e.target.files);
-      setImages((prev) => [...prev, ...fileArray]);
+  // Handle image upload from new component
+  const handleImagesSelected = (result: ImageUploadResult) => {
+    switch (result.source) {
+      case "device":
+        if (result.files) {
+          setImages((prev) => [...prev, ...result.files!]);
+        }
+        break;
+      case "url":
+        if (result.urls) {
+          setImages((prev) => [...prev, ...result.urls!]);
+        }
+        break;
+      case "system":
+        if (result.systemFiles) {
+          // Convert system files to their URLs
+          const urls = result.systemFiles.map(file => file.relativePath);
+          setImages((prev) => [...prev, ...urls]);
+        }
+        break;
     }
   };
 
@@ -284,64 +300,15 @@ export function ProductForm({
 
           <div className="space-y-2">
             <Label>Product Images</Label>
-            <div className="flex items-center gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => document.getElementById('product-image-upload')?.click()}
-                className="flex items-center gap-2"
-                aria-label="Upload images"
-                tabIndex={0}
-                onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') document.getElementById('product-image-upload')?.click(); }}
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5-5m0 0l5 5m-5-5v12" /></svg>
-                Upload
-              </Button>
-              <Input
-                id="product-image-upload"
-                type="file"
-                accept="image/*"
-                multiple
-                onChange={handleImageChange}
-                className="hidden"
-                tabIndex={-1}
-                aria-label="Select images to upload"
-              />
-            </div>
-            {images.length > 0 && (
-              <div className="flex flex-wrap gap-3 mt-2">
-                {images.map((img, idx) => (
-                  <div key={idx} className="relative w-24 h-24 group border rounded overflow-hidden">
-                    {typeof img === "string" ? (
-                      <img
-                        src={getImageUrl(img)}
-                        alt={`Product image ${idx + 1}`}
-                        className="object-cover w-full h-full"
-                      />
-                    ) : (
-                      <img
-                        src={URL.createObjectURL(img)}
-                        alt={`Product image ${idx + 1}`}
-                        className="object-cover w-full h-full"
-                      />
-                    )}
-                    <button
-                      type="button"
-                      aria-label="Remove image"
-                      tabIndex={0}
-                      onClick={() => handleRemoveImage(idx)}
-                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') handleRemoveImage(idx); }}
-                      className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center opacity-80 hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-red-400 z-10"
-                    >
-                      &times;
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-            {images.length > 0 && (
-              <p className="text-sm text-muted-foreground">{images.length} image(s) selected</p>
-            )}
+            <ImageUploadButton
+              onImagesSelected={handleImagesSelected}
+              currentImages={images}
+              onRemoveImage={handleRemoveImage}
+              multiple={true}
+              label="Upload Product Images"
+              acceptedTypes={["image/*"]}
+              maxSize={10 * 1024 * 1024}
+            />
           </div>
 
           <div className="flex flex-col gap-4 sm:flex-row">
