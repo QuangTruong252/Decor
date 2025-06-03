@@ -158,9 +158,6 @@ namespace DecorStore.API.Data
                 .OnDelete(DeleteBehavior.Restrict)
                 .IsRequired(false);
 
-            // Use identity columns in PostgreSQL
-            modelBuilder.UseIdentityByDefaultColumns();
-
             // Seed data with a fixed date converted to UTC
             var seedDate = new DateTime(2024, 3, 7, 0, 0, 0, DateTimeKind.Utc);
 

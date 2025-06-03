@@ -11,6 +11,7 @@ namespace DecorStore.API.Mappings
         {
             // Image mapping
             CreateMap<Image, ImageDTO>();
+            CreateMap<Image, ImageResponseDTO>();
 
             // Product mappings
             CreateMap<Product, ProductDTO>()

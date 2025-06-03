@@ -26,9 +26,7 @@ namespace DecorStore.API.Services
         public async Task<IEnumerable<Product>> GetAllAsync(ProductFilterDTO filter)
         {
             return await _unitOfWork.Products.GetAllAsync(filter);
-        }
-
-        public async Task<Product> CreateAsync(CreateProductDTO productDto)
+        }        public async Task<Product> CreateAsync(CreateProductDTO productDto)
         {
             // Verify category exists
             _ = await _unitOfWork.Categories.GetByIdAsync(productDto.CategoryId)
@@ -37,24 +35,39 @@ namespace DecorStore.API.Services
             // Map DTO to entity
             var product = _mapper.Map<Product>(productDto);
 
-            // Upload images
-            if (productDto.Images != null && productDto.Images.Count > 0)
+            // Handle image assignment using ImageIds
+            if (productDto.ImageIds != null && productDto.ImageIds.Count > 0)
             {
-                var images = new List<Image>();
-                foreach (var formFile in productDto.Images)
+                // Verify that all image IDs exist and are available (not already assigned to another product)
+                var images = await _imageService.GetImagesByIdsAsync(productDto.ImageIds);
+                
+                // Check if any images are already assigned to other products
+                var unavailableImages = images.Where(img => img.ProductId.HasValue).ToList();
+                if (unavailableImages.Any())
                 {
-                    var imagePath = await _imageService.UploadImageAsync(formFile, _folderImageName);
-                    images.Add(new Image { FilePath = imagePath, FileName = formFile.FileName });
+                    var unavailableIds = string.Join(", ", unavailableImages.Select(img => img.Id));
+                    throw new InvalidOperationException($"The following images are already assigned to other products: {unavailableIds}");
                 }
+                
                 product.Images = images;
             }
 
+            // Create the product
             await _unitOfWork.Products.CreateAsync(product);
             await _unitOfWork.SaveChangesAsync();
+            
+            // Associate images with the product
+            if (productDto.ImageIds != null && productDto.ImageIds.Count > 0 && product.Images != null)
+            {
+                foreach (var image in product.Images)
+                {
+                    image.ProductId = product.Id;
+                }
+                await _unitOfWork.SaveChangesAsync();
+            }
+            
             return product;
-        }
-
-        public async Task UpdateAsync(int id, UpdateProductDTO productDto)
+        }        public async Task UpdateAsync(int id, UpdateProductDTO productDto)
         {
             // Verify category exists
             _ = await _unitOfWork.Categories.GetByIdAsync(productDto.CategoryId)
@@ -64,50 +77,61 @@ namespace DecorStore.API.Services
             var product = await _unitOfWork.Products.GetByIdAsync(id)
                 ?? throw new NotFoundException("Product not found");
 
-            // Map DTO to entity
+            // Map basic product properties (excluding images)
             _mapper.Map(productDto, product);
 
-            // Handle existing images deletion
-            if (productDto.ExistingImages != null && productDto.ExistingImages.Length > 0)
+            // Handle image associations: Remove old associations and create new ones
+            await _unitOfWork.ExecuteWithExecutionStrategyAsync(async () =>
             {
-                if (product.Images != null)
+                await _unitOfWork.BeginTransactionAsync();
+                
+                try
                 {
-                    foreach (var img in product.Images)
+                    // Step 1: Remove all existing image associations for this product
+                    if (product.Images != null && product.Images.Any())
                     {
-                        if (!productDto.ExistingImages.Contains(img.FilePath))
+                        foreach (var existingImage in product.Images.ToList())
                         {
-                            await _imageService.DeleteImageAsync(img.FilePath);
+                            existingImage.ProductId = null; // Unassociate from this product
+                        }
+                        product.Images.Clear(); // Clear the collection
+                    }
+
+                    // Step 2: Associate new images if provided
+                    if (productDto.ImageIds != null && productDto.ImageIds.Count > 0)
+                    {
+                        // Verify that all image IDs exist and are available
+                        var newImages = await _imageService.GetImagesByIdsAsync(productDto.ImageIds);
+                        
+                        // Check if any images are already assigned to other products
+                        var unavailableImages = newImages.Where(img => img.ProductId.HasValue && img.ProductId != id).ToList();
+                        if (unavailableImages.Any())
+                        {
+                            var unavailableIds = string.Join(", ", unavailableImages.Select(img => img.Id));
+                            throw new InvalidOperationException($"The following images are already assigned to other products: {unavailableIds}");
+                        }
+                        
+                        // Associate new images with this product
+                        foreach (var newImage in newImages)
+                        {
+                            newImage.ProductId = product.Id;
+                            product.Images.Add(newImage);
                         }
                     }
-                }
-            }
 
-            // Handle new images upload
-            if (productDto.NewImages != null && productDto.NewImages.Count > 0)
-            {
-                var images = new List<Image>();
-                foreach (var formFile in productDto.NewImages)
-                {
-                    var imagePath = await _imageService.UploadImageAsync(formFile, _folderImageName);
-                    images.Add(new Image { FilePath = imagePath, FileName = formFile.FileName });
+                    // Step 3: Update product and save changes
+                    await _unitOfWork.Products.UpdateAsync(product);
+                    await _unitOfWork.SaveChangesAsync();
+                    await _unitOfWork.CommitTransactionAsync();
+                    
+                    return Task.CompletedTask; // Return type for ExecuteWithExecutionStrategyAsync
                 }
-                // Add new images to the product
-                if (product.Images == null)
+                catch
                 {
-                    product.Images = images;
+                    await _unitOfWork.RollbackTransactionAsync();
+                    throw;
                 }
-                else
-                {
-                    // Add each image individually since ICollection doesn't have AddRange
-                    foreach (var image in images)
-                    {
-                        product.Images.Add(image);
-                    }
-                }
-            }
-
-            await _unitOfWork.Products.UpdateAsync(product);
-            await _unitOfWork.SaveChangesAsync();
+            });
         }
 
         public async Task<IEnumerable<ProductDTO>> GetAllProductsAsync()

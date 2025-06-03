@@ -1,4 +1,6 @@
-﻿namespace DecorStore.API.Interfaces
+﻿using DecorStore.API.Models;
+
+namespace DecorStore.API.Interfaces
 {
     public interface IImageService
     {
@@ -6,5 +8,11 @@
         Task<bool> DeleteImageAsync(string imageUrl);
         Task<string> UpdateImageAsync(string oldImageUrl, IFormFile file, string folderName);
         bool IsValidImage(IFormFile file);
+        
+        // New methods for enhanced image service
+        Task<List<int>> GetOrCreateImagesAsync(List<IFormFile> files);
+        Task<bool> ImageExistsInSystemAsync(string fileName);
+        Task<List<Image>> GetImagesByIdsAsync(List<int> imageIds);
+        Task<List<Image>> GetAllImagesAsync();
     }
 }

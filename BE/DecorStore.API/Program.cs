@@ -10,56 +10,11 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
-using Npgsql;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Read environment variable DATABASE_URL (if any) and prioritize using it
+// Get connection string from configuration
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
-var databaseUrl = Environment.GetEnvironmentVariable("DATABASE_URL");
-
-// If DATABASE_URL is not set and running in Development environment, use hardcoded Railway connection string
-if (string.IsNullOrEmpty(databaseUrl) && builder.Environment.IsDevelopment())
-{
-    // Use Railway connection string for Development environment
-    databaseUrl = "postgresql://postgres:aDXFZErwvtuSNUMPQNgIFRqhbPkhCrKb@crossover.proxy.rlwy.net:18693/railway";
-    Console.WriteLine("Using hardcoded Railway connection string for Development environment");
-}
-
-if (!string.IsNullOrEmpty(databaseUrl))
-{
-    try
-    {
-        // Convert Railway PostgreSQL URL to Npgsql connection string
-        var uri = new Uri(databaseUrl);
-        var userInfo = uri.UserInfo.Split(':');
-
-        var npgsqlBuilder = new NpgsqlConnectionStringBuilder
-        {
-            Host = uri.Host,
-            Port = uri.Port,
-            Database = uri.AbsolutePath.TrimStart('/'),
-            Username = userInfo[0],
-            Password = userInfo[1],
-            SslMode = SslMode.Require,
-            TrustServerCertificate = true,
-            Pooling = true,
-            MinPoolSize = 0,
-            MaxPoolSize = 100,
-            ConnectionIdleLifetime = 300,
-            Timeout = 60, // Increase timeout to 60 seconds
-            CommandTimeout = 60 // Increase command timeout to 60 seconds
-        };
-
-        connectionString = npgsqlBuilder.ToString();
-        Console.WriteLine($"Successfully parsed DATABASE_URL to connection string");
-    }
-    catch (Exception ex)
-    {
-        Console.WriteLine($"Error parsing DATABASE_URL: {ex.Message}");
-        // Keep connection string from appsettings.json if there's an error
-    }
-}
 
 // Add services to the container.
 builder.Services.AddControllers().AddJsonOptions(options =>
@@ -69,27 +24,20 @@ builder.Services.AddControllers().AddJsonOptions(options =>
     options.JsonSerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
 });
 
-// Configure DbContext with PostgreSQL with resilience
+// Configure DbContext with SQL Server
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
 {
-    options.UseNpgsql(connectionString, npgsqlOptions =>
+    options.UseSqlServer(connectionString, sqlServerOptions =>
     {
-        // Configure retry policy with more retries and longer delays
-        npgsqlOptions.EnableRetryOnFailure(
-            maxRetryCount: 10,
-            maxRetryDelay: TimeSpan.FromSeconds(60),
-            errorCodesToAdd: null);
-
-        // Increase command timeout to 120 seconds
-        npgsqlOptions.CommandTimeout(120);
+        // Configure retry policy
+        sqlServerOptions.EnableRetryOnFailure(
+            maxRetryCount: 5,
+            maxRetryDelay: TimeSpan.FromSeconds(30),
+            errorNumbersToAdd: null);
 
         // Configure migration history table
-        npgsqlOptions.MigrationsHistoryTable("__EFMigrationsHistory");
+        sqlServerOptions.MigrationsHistoryTable("__EFMigrationsHistory");
     });
-
-    // Ignore PendingModelChangesWarning to avoid migration issues
-    options.ConfigureWarnings(warnings =>
-        warnings.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning));
 });
 
 // Add Unit of Work

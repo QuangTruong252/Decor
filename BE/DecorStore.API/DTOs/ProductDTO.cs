@@ -39,9 +39,7 @@ namespace DecorStore.API.DTOs
 
         // Detailed image information
         public List<ImageDTO> ImageDetails { get; set; } = new List<ImageDTO>();
-    }
-
-    // DTO for creating a new product
+    }    // DTO for creating a new product
     public class CreateProductDTO
     {
         [Required]
@@ -65,7 +63,7 @@ namespace DecorStore.API.DTOs
 
         [Required]
         [StringLength(50)]
-        public string SKU { get; set; }
+        public string SKU { get; set; } = string.Empty;
 
         [Required]
         public int CategoryId { get; set; }
@@ -74,21 +72,19 @@ namespace DecorStore.API.DTOs
 
         public bool IsActive { get; set; } = true;
 
-        // For image upload
-        public List<IFormFile>? Images { get; set; }
-    }
-
-    // DTO for updating a product
+        // Use ImageIds to associate existing images with product
+        public List<int> ImageIds { get; set; } = new List<int>();
+    }    // DTO for updating a product
     public class UpdateProductDTO
     {
         [Required]
         [StringLength(255, MinimumLength = 3)]
-        public string Name { get; set; }
+        public string Name { get; set; } = string.Empty;
 
         [StringLength(255)]
-        public string Slug { get; set; }
+        public string Slug { get; set; } = string.Empty;
 
-        public string Description { get; set; }
+        public string? Description { get; set; }
 
         [Required]
         [Range(0.01, double.MaxValue, ErrorMessage = "Price must be greater than 0")]
@@ -99,7 +95,7 @@ namespace DecorStore.API.DTOs
         public int StockQuantity { get; set; }
 
         [StringLength(50)]
-        public string SKU { get; set; }
+        public string SKU { get; set; } = string.Empty;
 
         public int CategoryId { get; set; }
 
@@ -107,10 +103,8 @@ namespace DecorStore.API.DTOs
 
         public bool IsActive { get; set; }
 
-        // For image upload
-        public string[]? ExistingImages { get; set; }
-
-        public List<IFormFile> NewImages { get; set; }
+        // Use ImageIds to associate existing images with product  
+        public List<int> ImageIds { get; set; } = new List<int>();
     }
 
     // DTO for product filtering/searching
