@@ -26,7 +26,8 @@ namespace DecorStore.API.Services
         public async Task<IEnumerable<Product>> GetAllAsync(ProductFilterDTO filter)
         {
             return await _unitOfWork.Products.GetAllAsync(filter);
-        }        public async Task<Product> CreateAsync(CreateProductDTO productDto)
+        }        
+        public async Task<Product> CreateAsync(CreateProductDTO productDto)
         {
             // Verify category exists
             _ = await _unitOfWork.Categories.GetByIdAsync(productDto.CategoryId)

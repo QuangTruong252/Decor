@@ -95,7 +95,7 @@ namespace DecorStore.API.Services
             return true;
         }
         
-        public async Task<List<int>> GetOrCreateImagesAsync(List<IFormFile> files)
+        public async Task<List<int>> GetOrCreateImagesAsync(List<IFormFile> files, string folderName = "images")
         {
             var imageIds = new List<int>();
             
@@ -116,8 +116,8 @@ namespace DecorStore.API.Services
                 else
                 {
                     // Upload new image
-                    var imagePath = await UploadImageAsync(file, "products");
-                    
+                    var imagePath = await UploadImageAsync(file, folderName);
+
                     // Create image record in database
                     var image = new Image
                     {

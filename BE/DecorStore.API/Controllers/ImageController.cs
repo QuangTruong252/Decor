@@ -41,7 +41,7 @@ namespace DecorStore.API.Controllers
                 }
 
                 // Get or create images and return their IDs
-                var imageIds = await _imageService.GetOrCreateImagesAsync(uploadDto.Files);
+                var imageIds = await _imageService.GetOrCreateImagesAsync(uploadDto.Files, uploadDto.folderName);
                 
                 // Get the full image details
                 var images = await _imageService.GetImagesByIdsAsync(imageIds);
@@ -113,7 +113,7 @@ namespace DecorStore.API.Controllers
         /// </summary>
         /// <param name="ids">Comma-separated list of image IDs</param>
         /// <returns>List of images</returns>
-        [HttpGet("by-ids/{ids}")]
+        [HttpGet("{ids}")]
         public async Task<ActionResult<ImageUploadResponseDTO>> GetImagesByIds(string ids)
         {
             try

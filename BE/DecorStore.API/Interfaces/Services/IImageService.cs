@@ -10,7 +10,7 @@ namespace DecorStore.API.Interfaces
         bool IsValidImage(IFormFile file);
         
         // New methods for enhanced image service
-        Task<List<int>> GetOrCreateImagesAsync(List<IFormFile> files);
+        Task<List<int>> GetOrCreateImagesAsync(List<IFormFile> files, string folderName = "images");
         Task<bool> ImageExistsInSystemAsync(string fileName);
         Task<List<Image>> GetImagesByIdsAsync(List<int> imageIds);
         Task<List<Image>> GetAllImagesAsync();

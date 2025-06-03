@@ -21,5 +21,6 @@ namespace DecorStore.API.DTOs
     {
         [Required]
         public List<IFormFile> Files { get; set; } = new List<IFormFile>();
+        public string? folderName { get; set; } = "images";
     }
 }
