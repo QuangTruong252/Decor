@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using DecorStore.API.DTOs;
 using DecorStore.API.DTOs.Excel;
-using DecorStore.API.Services;
+using DecorStore.API.Interfaces.Services;
 using DecorStore.API.Services.Excel;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;

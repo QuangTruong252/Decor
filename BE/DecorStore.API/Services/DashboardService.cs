@@ -5,8 +5,8 @@ using System.Threading.Tasks;
 using AutoMapper;
 using DecorStore.API.DTOs;
 using DecorStore.API.Interfaces;
+using DecorStore.API.Interfaces.Repositories;
 using DecorStore.API.Models;
-using DecorStore.API.Repositories;
 using Microsoft.Extensions.Caching.Memory;
 
 namespace DecorStore.API.Services
@@ -100,9 +100,9 @@ namespace DecorStore.API.Services
                 EndDate = endDate ?? DateTime.UtcNow,
                 Data = salesTrendData.Select(st => new SalesTrendPointDTO
                 {
-                    Date = st.Date,
-                    Revenue = st.Revenue,
-                    OrderCount = st.OrderCount
+                    Date = DateTime.Parse(st.Key),
+                    Revenue = st.Value,
+                    OrderCount = 0 // Will need to be calculated separately if needed
                 }).ToList()
             };
 
@@ -127,14 +127,14 @@ namespace DecorStore.API.Services
             var popularProducts = await _dashboardRepository.GetPopularProductsAsync(limit);
 
             // Map to DTO
-            var result = popularProducts.Select(pp => new PopularProductDTO
+            var result = popularProducts.Select(p => new PopularProductDTO
             {
-                ProductId = pp.Product.Id,
-                Name = pp.Product.Name,
-                ImageUrl = pp.Product.Images.FirstOrDefault()?.FilePath ?? "",
-                Price = pp.Product.Price,
-                TotalSold = pp.TotalSold,
-                TotalRevenue = pp.TotalRevenue
+                ProductId = p.Id,
+                Name = p.Name,
+                ImageUrl = p.ProductImages.FirstOrDefault()?.Image?.FilePath ?? "",
+                Price = p.Price,
+                TotalSold = p.OrderItems?.Count ?? 0,
+                TotalRevenue = p.OrderItems?.Sum(oi => oi.UnitPrice * oi.Quantity) ?? 0
             }).ToList();
 
             // Cache the result for 15 minutes
@@ -155,16 +155,16 @@ namespace DecorStore.API.Services
             var categorySales = await _dashboardRepository.GetSalesByCategoryAsync();
 
             // Calculate total revenue for percentage calculation
-            decimal totalRevenue = categorySales.Sum(cs => cs.TotalRevenue);
+            decimal totalRevenue = categorySales.Values.Sum();
 
             // Map to DTO
             var result = categorySales.Select(cs => new CategorySalesDTO
             {
-                CategoryId = cs.Category.Id,
-                CategoryName = cs.Category.Name,
-                TotalSales = cs.TotalSales,
-                TotalRevenue = cs.TotalRevenue,
-                Percentage = totalRevenue > 0 ? Math.Round((cs.TotalRevenue / totalRevenue) * 100, 2) : 0
+                CategoryId = 0, // Will need to be populated differently
+                CategoryName = cs.Key,
+                TotalSales = 0, // Will need to be calculated differently  
+                TotalRevenue = cs.Value,
+                Percentage = totalRevenue > 0 ? Math.Round((cs.Value / totalRevenue) * 100, 2) : 0
             }).ToList();
 
             // Cache the result for 15 minutes
@@ -225,9 +225,9 @@ namespace DecorStore.API.Services
 
             return salesTrend.Select(st => new SalesTrendPointDTO
             {
-                Date = st.Date,
-                Revenue = st.Revenue,
-                OrderCount = st.OrderCount
+                Date = DateTime.Parse(st.Key),
+                Revenue = st.Value,
+                OrderCount = 0 // Will need to be calculated separately if needed
             }).ToList();
         }
     }

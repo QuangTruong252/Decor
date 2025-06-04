@@ -1,8 +1,8 @@
-using DecorStore.API.Models;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using DecorStore.API.Models;
 
-namespace DecorStore.API.Repositories
+namespace DecorStore.API.Interfaces.Repositories
 {
     public interface IReviewRepository
     {

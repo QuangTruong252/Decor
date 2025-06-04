@@ -65,20 +65,34 @@ namespace DecorStore.API.Services
                 {
                     throw new InvalidOperationException($"Parent category with ID {categoryDto.ParentId.Value} does not exist");
                 }
-            }
-
-            // Map DTO to entity
+            }            // Map DTO to entity
             var category = _mapper.Map<Category>(categoryDto);
 
-            // Handle image upload
-            if (categoryDto.ImageFile != null)
-            {
-                var imagePath = await _imageService.UploadImageAsync(categoryDto.ImageFile, _folderImageName);
-                category.ImageUrl = imagePath;
-            }
-
+            // Create the category first
             await _unitOfWork.Categories.CreateAsync(category);
             await _unitOfWork.SaveChangesAsync();
+
+            // Handle image assignment using ImageIds via many-to-many relationship
+            if (categoryDto.ImageIds != null && categoryDto.ImageIds.Count > 0)
+            {
+                // Verify that all image IDs exist
+                var images = await _imageService.GetImagesByIdsAsync(categoryDto.ImageIds);
+                
+                if (images.Count() != categoryDto.ImageIds.Count)
+                {
+                    var foundIds = images.Select(img => img.Id).ToList();
+                    var missingIds = categoryDto.ImageIds.Except(foundIds).ToList();
+                    throw new NotFoundException($"The following image IDs were not found: {string.Join(", ", missingIds)}");
+                }
+
+                // Associate images with the category using junction table
+                foreach (var imageId in categoryDto.ImageIds)
+                {
+                    await _unitOfWork.Images.AddCategoryImageAsync(imageId, category.Id);
+                }
+                await _unitOfWork.SaveChangesAsync();
+            }
+            
             return category;
         }
 
@@ -111,18 +125,54 @@ namespace DecorStore.API.Services
                 }
             }
 
-            // Map DTO to entity
-            _mapper.Map(categoryDto, category);
-
-            // Handle image update if new image is provided
-            if (categoryDto.ImageFile != null)
+            // Map basic category properties (excluding images)
+            _mapper.Map(categoryDto, category);            // Handle image associations: Remove old associations and create new ones
+            await _unitOfWork.ExecuteWithExecutionStrategyAsync(async () =>
             {
-                var imagePath = await _imageService.UpdateImageAsync(category.ImageUrl, categoryDto.ImageFile, _folderImageName);
-                category.ImageUrl = imagePath;
-            }
+                await _unitOfWork.BeginTransactionAsync();
+                
+                try
+                {
+                    // Step 1: Remove all existing image associations for this category
+                    var existingCategoryImages = await _unitOfWork.Images.GetCategoryImagesByCategoryIdAsync(id);
+                    foreach (var categoryImage in existingCategoryImages)
+                    {
+                        _unitOfWork.Images.RemoveCategoryImage(categoryImage.ImageId, categoryImage.CategoryId);
+                    }
 
-            await _unitOfWork.Categories.UpdateAsync(category);
-            await _unitOfWork.SaveChangesAsync();
+                    // Step 2: Associate new images if provided
+                    if (categoryDto.ImageIds != null && categoryDto.ImageIds.Count > 0)
+                    {
+                        // Verify that all image IDs exist
+                        var newImages = await _imageService.GetImagesByIdsAsync(categoryDto.ImageIds);
+                        
+                        if (newImages.Count() != categoryDto.ImageIds.Count)
+                        {
+                            var foundIds = newImages.Select(img => img.Id).ToList();
+                            var missingIds = categoryDto.ImageIds.Except(foundIds).ToList();
+                            throw new NotFoundException($"The following image IDs were not found: {string.Join(", ", missingIds)}");
+                        }
+                        
+                        // Associate new images with this category using junction table
+                        foreach (var imageId in categoryDto.ImageIds)
+                        {
+                            await _unitOfWork.Images.AddCategoryImageAsync(imageId, category.Id);
+                        }
+                    }
+
+                    // Step 3: Update category and save changes
+                    await _unitOfWork.Categories.UpdateAsync(category);
+                    await _unitOfWork.SaveChangesAsync();
+                    await _unitOfWork.CommitTransactionAsync();
+                    
+                    return Task.CompletedTask; // Return type for ExecuteWithExecutionStrategyAsync
+                }
+                catch
+                {
+                    await _unitOfWork.RollbackTransactionAsync();
+                    throw;
+                }
+            });
         }
 
         public async Task DeleteAsync(int id)
@@ -136,11 +186,16 @@ namespace DecorStore.API.Services
             // Check if the category is used in any products
             if (category.Products != null && category.Products.Count > 0)
                 throw new InvalidOperationException("Cannot delete category that is used in products");
-            // Delete the image if it exists
-            if (!string.IsNullOrEmpty(category.ImageUrl))
+            
+            // Delete images from storage and unassociate them
+            if (category.Images != null && category.Images.Count > 0)
             {
-                await _imageService.DeleteImageAsync(category.ImageUrl);
+                foreach (var img in category.Images)
+                {
+                    await _imageService.DeleteImageAsync(img.FilePath);
+                }
             }
+            
             await _unitOfWork.Categories.DeleteAsync(id);
             await _unitOfWork.SaveChangesAsync();
         }

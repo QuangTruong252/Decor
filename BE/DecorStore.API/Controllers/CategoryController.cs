@@ -79,7 +79,7 @@ namespace DecorStore.API.Controllers
         // POST: api/Category
         [HttpPost]
         [Authorize(Roles = "Admin")]
-        public async Task<ActionResult<Category>> CreateCategory([FromForm] CreateCategoryDTO categoryDto)
+        public async Task<ActionResult<Category>> CreateCategory(CreateCategoryDTO categoryDto)
         {
             try
             {
@@ -106,7 +106,7 @@ namespace DecorStore.API.Controllers
         // PUT: api/Category/5
         [HttpPut("{id}")]
         [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> UpdateCategory(int id, [FromForm] UpdateCategoryDTO categoryDto)
+        public async Task<IActionResult> UpdateCategory(int id, UpdateCategoryDTO categoryDto)
         {
             try
             {

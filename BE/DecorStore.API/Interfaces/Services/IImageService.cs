@@ -1,4 +1,5 @@
 ﻿using DecorStore.API.Models;
+using Microsoft.AspNetCore.Http;
 
 namespace DecorStore.API.Interfaces
 {
@@ -8,11 +9,13 @@ namespace DecorStore.API.Interfaces
         Task<bool> DeleteImageAsync(string imageUrl);
         Task<string> UpdateImageAsync(string oldImageUrl, IFormFile file, string folderName);
         bool IsValidImage(IFormFile file);
-        
-        // New methods for enhanced image service
         Task<List<int>> GetOrCreateImagesAsync(List<IFormFile> files, string folderName = "images");
-        Task<bool> ImageExistsInSystemAsync(string fileName);
+        Task<bool> ImageExistsInSystemAsync(string filePath);
         Task<List<Image>> GetImagesByIdsAsync(List<int> imageIds);
         Task<List<Image>> GetAllImagesAsync();
+        Task AssignImageToProductAsync(int imageId, int productId);
+        Task AssignImageToCategoryAsync(int imageId, int categoryId);
+        void UnassignImageFromProduct(int imageId, int productId);
+        void UnassignImageFromCategory(int imageId, int categoryId);
     }
 }

@@ -3,6 +3,7 @@ using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Collections.Generic;
 using System.Text.Json.Serialization;
+using System.Linq;
 
 namespace DecorStore.API.Models
 {
@@ -25,9 +26,6 @@ namespace DecorStore.API.Models
 
         public int? ParentId { get; set; }
 
-        [StringLength(255)]
-        public string ImageUrl { get; set; }
-
         public bool IsDeleted { get; set; } = false;
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
@@ -43,14 +41,22 @@ namespace DecorStore.API.Models
         [JsonIgnore]
         public virtual ICollection<Product> Products { get; set; }
 
+        [JsonIgnore]
+        public virtual ICollection<CategoryImage> CategoryImages { get; set; }
+
+        // Computed property for Images access
+        [NotMapped]
+        [JsonIgnore]
+        public virtual ICollection<Image> Images => CategoryImages?.Select(ci => ci.Image).Where(i => i != null).ToList() ?? new List<Image>();
+
         public Category()
         {
             Products = new List<Product>();
             Subcategories = new List<Category>();
+            CategoryImages = new List<CategoryImage>();
             Name = string.Empty;
             Slug = string.Empty;
             Description = string.Empty;
-            ImageUrl = string.Empty;
         }
     }
 }

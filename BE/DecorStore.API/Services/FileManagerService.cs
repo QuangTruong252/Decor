@@ -239,12 +239,11 @@ namespace DecorStore.API.Services
                     else if (Directory.Exists(fullPath))
                     {
                         Directory.Delete(fullPath, true);
-                        
-                        // Delete related database records
+                          // Delete related database records
                         var folderImages = await _imageRepository.GetByFolderAsync(safePath.Replace("\\", "/"));
                         foreach (var image in folderImages)
                         {
-                            await _imageRepository.DeleteAsync(image.Id);
+                            await _imageRepository.DeleteAsync(image);
                         }
                     }
 
@@ -545,13 +544,12 @@ namespace DecorStore.API.Services
         {
             var count = 0;
             var dbImages = await _imageRepository.GetAllAsync();
-            
-            foreach (var image in dbImages)
+              foreach (var image in dbImages)
             {
                 var fullPath = Path.Combine(_uploadsPath, image.FilePath);
                 if (!File.Exists(fullPath))
                 {
-                    await _imageRepository.DeleteAsync(image.Id);
+                    await _imageRepository.DeleteAsync(image);
                     count++;
                 }
             }
@@ -564,14 +562,12 @@ namespace DecorStore.API.Services
             var count = 0;
             var imageFiles = Directory.GetFiles(_uploadsPath, "*.*", SearchOption.AllDirectories)
                 .Where(f => IsImageFile(f))
-                .ToList();
-
-            foreach (var filePath in imageFiles)
+                .ToList();            foreach (var filePath in imageFiles)
             {
                 var relativePath = Path.GetRelativePath(_uploadsPath, filePath).Replace("\\", "/");
-                var exists = await _imageRepository.ExistsAsync(relativePath);
+                var existingImage = await _imageRepository.GetByFilePathAsync(relativePath);
                 
-                if (!exists)
+                if (existingImage == null)
                 {
                     var image = new DecorStore.API.Models.Image
                     {

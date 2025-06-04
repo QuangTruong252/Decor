@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using DecorStore.API.DTOs;
 
-namespace DecorStore.API.Repositories
+namespace DecorStore.API.Interfaces.Repositories
 {
     public interface IProductRepository
     {

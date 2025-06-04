@@ -16,11 +16,13 @@ namespace DecorStore.API.Mappings
             // Product mappings
             CreateMap<Product, ProductDTO>()
                 .ForMember(dest => dest.CategoryName, opt => opt.MapFrom(src => src.Category != null ? src.Category.Name : string.Empty))
-                .ForMember(dest => dest.Images, opt => opt.MapFrom(src => src.Images != null ? src.Images.Select(img => img.FilePath).ToArray() : new string[0]))
-                .ForMember(dest => dest.ImageDetails, opt => opt.MapFrom(src => src.Images));
+                .ForMember(dest => dest.Images, opt => opt.MapFrom(src => 
+                    src.ProductImages != null ? src.ProductImages.Select(pi => pi.Image.FilePath).ToArray() : new string[0]))
+                .ForMember(dest => dest.ImageDetails, opt => opt.MapFrom(src => 
+                    src.ProductImages != null ? src.ProductImages.Select(pi => pi.Image) : Enumerable.Empty<Image>()));
 
             CreateMap<CreateProductDTO, Product>()
-                .ForMember(dest => dest.Images, opt => opt.Ignore())
+                .ForMember(dest => dest.ProductImages, opt => opt.Ignore())
                 .ForMember(dest => dest.CreatedAt, opt => opt.MapFrom(_ => System.DateTime.UtcNow))
                 .ForMember(dest => dest.UpdatedAt, opt => opt.MapFrom(_ => System.DateTime.UtcNow))
                 .ForMember(dest => dest.Category, opt => opt.Ignore())
@@ -28,7 +30,7 @@ namespace DecorStore.API.Mappings
                 .ForMember(dest => dest.OrderItems, opt => opt.Ignore());
 
             CreateMap<UpdateProductDTO, Product>()
-                .ForMember(dest => dest.Images, opt => opt.Ignore())
+                .ForMember(dest => dest.ProductImages, opt => opt.Ignore())
                 .ForMember(dest => dest.UpdatedAt, opt => opt.MapFrom(_ => System.DateTime.UtcNow))
                 .ForMember(dest => dest.Category, opt => opt.Ignore())
                 .ForMember(dest => dest.Reviews, opt => opt.Ignore())
@@ -37,17 +39,19 @@ namespace DecorStore.API.Mappings
             // Category mappings
             CreateMap<Category, CategoryDTO>()
                 .ForMember(dest => dest.ParentName, opt => opt.MapFrom(src => src.ParentCategory != null ? src.ParentCategory.Name : string.Empty))
-                .ForMember(dest => dest.Subcategories, opt => opt.MapFrom(src => src.Subcategories));
+                .ForMember(dest => dest.Subcategories, opt => opt.MapFrom(src => src.Subcategories))
+                .ForMember(dest => dest.ImageDetails, opt => opt.MapFrom(src => 
+                    src.CategoryImages != null ? src.CategoryImages.Select(ci => ci.Image) : Enumerable.Empty<Image>()));
 
             CreateMap<CreateCategoryDTO, Category>()
                 .ForMember(dest => dest.CreatedAt, opt => opt.MapFrom(_ => System.DateTime.UtcNow))
-                .ForMember(dest => dest.ImageUrl, opt => opt.Ignore())
+                .ForMember(dest => dest.CategoryImages, opt => opt.Ignore())
                 .ForMember(dest => dest.ParentCategory, opt => opt.Ignore())
                 .ForMember(dest => dest.Subcategories, opt => opt.Ignore())
                 .ForMember(dest => dest.Products, opt => opt.Ignore());
 
             CreateMap<UpdateCategoryDTO, Category>()
-                .ForMember(dest => dest.ImageUrl, opt => opt.Ignore())
+                .ForMember(dest => dest.CategoryImages, opt => opt.Ignore())
                 .ForMember(dest => dest.ParentCategory, opt => opt.Ignore())
                 .ForMember(dest => dest.Subcategories, opt => opt.Ignore())
                 .ForMember(dest => dest.Products, opt => opt.Ignore());
@@ -88,7 +92,9 @@ namespace DecorStore.API.Mappings
 
             CreateMap<OrderItem, OrderItemDTO>()
                 .ForMember(dest => dest.ProductName, opt => opt.MapFrom(src => src.Product != null ? src.Product.Name : string.Empty))
-                .ForMember(dest => dest.ProductImageUrl, opt => opt.MapFrom(src => src.Product != null && src.Product.Images.Any() ? src.Product.Images.First().FilePath : string.Empty))
+                .ForMember(dest => dest.ProductImageUrl, opt => opt.MapFrom(src => 
+                    src.Product != null && src.Product.ProductImages.Any() ? 
+                    src.Product.ProductImages.First().Image.FilePath : string.Empty))
                 .ForMember(dest => dest.Subtotal, opt => opt.MapFrom(src => src.UnitPrice * src.Quantity));
 
             CreateMap<CreateOrderDTO, Order>()
@@ -120,7 +126,7 @@ namespace DecorStore.API.Mappings
                 .ForMember(dest => dest.ProductName, opt => opt.MapFrom(src => src.Product.Name))
                 .ForMember(dest => dest.ProductSlug, opt => opt.MapFrom(src => src.Product.Slug))
                 .ForMember(dest => dest.ProductImage, opt => opt.MapFrom(src =>
-                    src.Product.Images.Any() ? src.Product.Images.First().FilePath : null))
+                    src.Product.ProductImages.Any() ? src.Product.ProductImages.First().Image.FilePath : null))
                 .ForMember(dest => dest.Subtotal, opt => opt.MapFrom(src => src.Quantity * src.UnitPrice));
 
             // Customer mappings

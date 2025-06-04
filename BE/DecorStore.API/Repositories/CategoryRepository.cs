@@ -1,10 +1,11 @@
-using DecorStore.API.Data;
-using DecorStore.API.Models;
-using DecorStore.API.DTOs;
-using Microsoft.EntityFrameworkCore;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using DecorStore.API.Data;
+using DecorStore.API.DTOs;
+using DecorStore.API.Interfaces.Repositories;
+using DecorStore.API.Models;
+using Microsoft.EntityFrameworkCore;
 
 namespace DecorStore.API.Repositories
 {
@@ -17,37 +18,68 @@ namespace DecorStore.API.Repositories
             _context = context;
         }
 
+        public async Task<PagedResult<Category>> GetPagedAsync(CategoryFilterDTO filter)
+        {
+            var query = GetFilteredCategories(filter);
+            var totalCount = await query.CountAsync();
+
+            var items = await query
+                .Skip((filter.PageNumber - 1) * filter.PageSize)
+                .Take(filter.PageSize)
+                .ToListAsync();
+
+            return new PagedResult<Category>(items, totalCount, filter.PageNumber, filter.PageSize);
+        }
+
         public async Task<IEnumerable<Category>> GetAllAsync()
         {
             return await _context.Categories
-                .OrderBy(c => c.Name)
+                .Include(c => c.ParentCategory)
+                .Include(c => c.Subcategories)
+                .Include(c => c.CategoryImages)
+                .ThenInclude(ci => ci.Image)
                 .ToListAsync();
         }
 
         public async Task<IEnumerable<Category>> GetRootCategoriesWithChildrenAsync()
         {
             return await _context.Categories
-                .Where(c => c.ParentId == null)
                 .Include(c => c.Subcategories)
-                .OrderBy(c => c.Name)
+                .Include(c => c.CategoryImages)
+                .ThenInclude(ci => ci.Image)
+                .Where(c => c.ParentId == null)
                 .ToListAsync();
         }
 
         public async Task<Category> GetByIdAsync(int id)
         {
-            return await _context.Categories.FindAsync(id);
+            return await _context.Categories
+                .Include(c => c.ParentCategory)
+                .Include(c => c.Subcategories)
+                .Include(c => c.CategoryImages)
+                .ThenInclude(ci => ci.Image)
+                .FirstOrDefaultAsync(c => c.Id == id);
         }
 
         public async Task<Category> GetByIdWithChildrenAsync(int id)
         {
             return await _context.Categories
+                .Include(c => c.ParentCategory)
                 .Include(c => c.Subcategories)
+                    .ThenInclude(sc => sc.CategoryImages)
+                    .ThenInclude(ci => ci.Image)
+                .Include(c => c.CategoryImages)
+                .ThenInclude(ci => ci.Image)
                 .FirstOrDefaultAsync(c => c.Id == id);
         }
 
         public async Task<Category> GetBySlugAsync(string slug)
         {
             return await _context.Categories
+                .Include(c => c.ParentCategory)
+                .Include(c => c.Subcategories)
+                .Include(c => c.CategoryImages)
+                .ThenInclude(ci => ci.Image)
                 .FirstOrDefaultAsync(c => c.Slug == slug);
         }
 
@@ -61,15 +93,21 @@ namespace DecorStore.API.Repositories
             return await _context.Categories.AnyAsync(c => c.Slug == slug);
         }
 
+        public async Task<int> GetTotalCountAsync(CategoryFilterDTO filter)
+        {
+            return await GetFilteredCategories(filter).CountAsync();
+        }
+
         public async Task<Category> CreateAsync(Category category)
         {
-            _context.Categories.Add(category);
+            await _context.Categories.AddAsync(category);
             return category;
         }
 
         public async Task UpdateAsync(Category category)
         {
-            _context.Categories.Update(category);
+            _context.Entry(category).State = EntityState.Modified;
+            await Task.CompletedTask;
         }
 
         public async Task DeleteAsync(int id)
@@ -78,67 +116,51 @@ namespace DecorStore.API.Repositories
             if (category != null)
             {
                 category.IsDeleted = true;
+                _context.Entry(category).State = EntityState.Modified;
             }
-        }
-
-        public async Task<PagedResult<Category>> GetPagedAsync(CategoryFilterDTO filter)
-        {
-            if (filter == null)
-                throw new ArgumentNullException(nameof(filter));
-
-            var query = BuildCategoryQuery(filter);
-
-            // Get total count for pagination
-            var totalCount = await query.CountAsync();
-
-            // Apply sorting
-            query = ApplySorting(query, filter);
-
-            // Apply pagination
-            var items = await query
-                .Skip(filter.Skip)
-                .Take(filter.PageSize)
-                .ToListAsync();
-
-            return new PagedResult<Category>(items, totalCount, filter.PageNumber, filter.PageSize);
-        }
-
-        public async Task<int> GetTotalCountAsync(CategoryFilterDTO filter)
-        {
-            var query = BuildCategoryQuery(filter);
-            return await query.CountAsync();
         }
 
         public async Task<IEnumerable<Category>> GetCategoriesWithProductCountAsync()
         {
             return await _context.Categories
                 .Include(c => c.Products)
-                .Where(c => !c.IsDeleted)
-                .OrderBy(c => c.Name)
+                .Include(c => c.CategoryImages)
+                .ThenInclude(ci => ci.Image)
+                .Select(c => new Category
+                {
+                    Id = c.Id,
+                    Name = c.Name,
+                    Slug = c.Slug,
+                    Description = c.Description,
+                    ParentId = c.ParentId,
+                    CategoryImages = c.CategoryImages,
+                    Products = c.Products.Where(p => !p.IsDeleted).ToList()
+                })
                 .ToListAsync();
         }
 
         public async Task<IEnumerable<Category>> GetSubcategoriesAsync(int parentId)
         {
             return await _context.Categories
-                .Where(c => c.ParentId == parentId && !c.IsDeleted)
-                .OrderBy(c => c.Name)
+                .Include(c => c.CategoryImages)
+                .ThenInclude(ci => ci.Image)
+                .Where(c => c.ParentId == parentId)
                 .ToListAsync();
         }
 
         public async Task<int> GetProductCountByCategoryAsync(int categoryId)
         {
             return await _context.Products
-                .Where(p => p.CategoryId == categoryId && !p.IsDeleted)
-                .CountAsync();
+                .CountAsync(p => p.CategoryId == categoryId && !p.IsDeleted);
         }
 
         public async Task<IEnumerable<Category>> GetPopularCategoriesAsync(int count = 10)
         {
             return await _context.Categories
                 .Include(c => c.Products)
-                .Where(c => !c.IsDeleted)
-                .OrderByDescending(c => c.Products.Count(p => !p.IsDeleted))
+                .Include(c => c.CategoryImages)
+                .ThenInclude(ci => ci.Image)
+                .OrderByDescending(c => c.Products.Count)
                 .Take(count)
                 .ToListAsync();
         }
@@ -147,92 +169,72 @@ namespace DecorStore.API.Repositories
         {
             return await _context.Categories
                 .Include(c => c.ParentCategory)
-                .Include(c => c.Subcategories)
-                .Include(c => c.Products.Where(p => !p.IsDeleted))
-                .Where(c => !c.IsDeleted)
-                .OrderBy(c => c.Name)
+                .Include(c => c.Products)
+                .Include(c => c.CategoryImages)
+                .ThenInclude(ci => ci.Image)
                 .ToListAsync();
         }
 
-        private IQueryable<Category> BuildCategoryQuery(CategoryFilterDTO filter)
+        private IQueryable<Category> GetFilteredCategories(CategoryFilterDTO filter)
         {
-            var query = _context.Categories.AsQueryable();
+            var query = _context.Categories
+                .Include(c => c.ParentCategory)
+                .Include(c => c.CategoryImages)
+                .ThenInclude(ci => ci.Image)
+                .AsQueryable();
 
-            // Apply base filters
-            if (!filter.IncludeDeleted)
-            {
-                query = query.Where(c => !c.IsDeleted);
-            }
-
-            // Apply search filter
-            if (!string.IsNullOrEmpty(filter.SearchTerm))
+            if (!string.IsNullOrWhiteSpace(filter.SearchTerm))
             {
                 var searchTerm = filter.SearchTerm.ToLower();
                 query = query.Where(c =>
                     c.Name.ToLower().Contains(searchTerm) ||
-                    c.Description.ToLower().Contains(searchTerm));
+                    c.Description.ToLower().Contains(searchTerm)
+                );
             }
 
-            // Apply parent filter
             if (filter.ParentId.HasValue)
             {
-                query = query.Where(c => c.ParentId == filter.ParentId.Value);
+                query = query.Where(c => c.ParentId == filter.ParentId);
             }
 
-            // Apply root category filter
             if (filter.IsRootCategory.HasValue)
             {
-                if (filter.IsRootCategory.Value)
-                {
-                    query = query.Where(c => c.ParentId == null);
-                }
-                else
-                {
-                    query = query.Where(c => c.ParentId != null);
-                }
+                query = filter.IsRootCategory.Value
+                    ? query.Where(c => c.ParentId == null)
+                    : query.Where(c => c.ParentId != null);
             }
 
-            // Apply date range filters
-            if (filter.CreatedAfter.HasValue)
-            {
-                query = query.Where(c => c.CreatedAt >= filter.CreatedAfter.Value);
-            }
-
-            if (filter.CreatedBefore.HasValue)
-            {
-                query = query.Where(c => c.CreatedAt <= filter.CreatedBefore.Value);
-            }
-
-            // Include related data based on filter options
             if (filter.IncludeSubcategories)
             {
                 query = query.Include(c => c.Subcategories);
             }
 
-            if (filter.IncludeProductCount)
+            if (filter.CreatedAfter.HasValue)
             {
-                query = query.Include(c => c.Products);
+                query = query.Where(c => c.CreatedAt >= filter.CreatedAfter);
             }
 
-            return query;
-        }
-
-        private IQueryable<Category> ApplySorting(IQueryable<Category> query, PaginationParameters filter)
-        {
-            if (string.IsNullOrEmpty(filter.SortBy))
+            if (filter.CreatedBefore.HasValue)
             {
-                return query.OrderBy(c => c.Name);
+                query = query.Where(c => c.CreatedAt <= filter.CreatedBefore);
             }
 
-            return filter.SortBy.ToLower() switch
+            if (!filter.IncludeDeleted)
             {
-                "name" => filter.IsDescending ? query.OrderByDescending(c => c.Name) : query.OrderBy(c => c.Name),
-                "createdat" => filter.IsDescending ? query.OrderByDescending(c => c.CreatedAt) : query.OrderBy(c => c.CreatedAt),
-                "productcount" => filter.IsDescending ?
-                    query.OrderByDescending(c => c.Products.Count(p => !p.IsDeleted)) :
-                    query.OrderBy(c => c.Products.Count(p => !p.IsDeleted)),
+                query = query.Where(c => !c.IsDeleted);
+            }
+
+            // Apply sorting
+            query = filter.SortBy?.ToLower() switch
+            {
+                "name_asc" => query.OrderBy(c => c.Name),
+                "name_desc" => query.OrderByDescending(c => c.Name),
+                "date_asc" => query.OrderBy(c => c.CreatedAt),
+                "date_desc" => query.OrderByDescending(c => c.CreatedAt),
                 _ => query.OrderBy(c => c.Name)
             };
+
+            return query;
         }
     }
 }

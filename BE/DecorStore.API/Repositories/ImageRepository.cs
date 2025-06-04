@@ -1,7 +1,10 @@
+using DecorStore.API.Models;
 using DecorStore.API.Data;
 using DecorStore.API.Interfaces.Repositories;
-using DecorStore.API.Models;
 using Microsoft.EntityFrameworkCore;
+using System.Threading.Tasks;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace DecorStore.API.Repositories
 {
@@ -14,129 +17,172 @@ namespace DecorStore.API.Repositories
             _context = context;
         }
 
-        public async Task<IEnumerable<Image>> GetAllAsync()
-        {
-            return await _context.Images
-                .Where(i => !i.IsDeleted)
-                .OrderByDescending(i => i.CreatedAt)
-                .ToListAsync();
-        }
-
         public async Task<Image?> GetByIdAsync(int id)
         {
             return await _context.Images
-                .FirstOrDefaultAsync(i => i.Id == id && !i.IsDeleted);
+                .Include(i => i.ProductImages)
+                .ThenInclude(pi => pi.Product)
+                .Include(i => i.CategoryImages)
+                .ThenInclude(ci => ci.Category)
+                .FirstOrDefaultAsync(i => i.Id == id);
         }
 
-        public async Task<Image?> GetByFilePathAsync(string filePath)
+        public async Task<List<Image>> GetManyByIdsAsync(List<int> ids)
         {
             return await _context.Images
-                .FirstOrDefaultAsync(i => i.FilePath == filePath && !i.IsDeleted);
-        }
-
-        public async Task<IEnumerable<Image>> GetByProductIdAsync(int productId)
-        {
-            return await _context.Images
-                .Where(i => i.ProductId == productId && !i.IsDeleted)
-                .OrderBy(i => i.Id)
+                .Include(i => i.ProductImages)
+                .ThenInclude(pi => pi.Product)
+                .Include(i => i.CategoryImages)
+                .ThenInclude(ci => ci.Category)
+                .Where(i => ids.Contains(i.Id))
                 .ToListAsync();
         }
 
-        public async Task<IEnumerable<Image>> GetOrphanedImagesAsync()
+        public async Task<List<Image>> GetByProductIdAsync(int productId)
         {
             return await _context.Images
-                .Where(i => !i.IsDeleted && i.ProductId == null)
-                .OrderByDescending(i => i.CreatedAt)
+                .Include(i => i.ProductImages)
+                .Where(i => i.ProductImages.Any(pi => pi.ProductId == productId))
                 .ToListAsync();
         }
 
+        public async Task<List<Image>> GetByCategoryIdAsync(int categoryId)
+        {
+            return await _context.Images
+                .Include(i => i.CategoryImages)
+                .Where(i => i.CategoryImages.Any(ci => ci.CategoryId == categoryId))
+                .ToListAsync();
+        }
+
+        public async Task AddAsync(Image image)
+        {
+            await _context.Images.AddAsync(image);
+        }
+
+        public void Update(Image image)
+        {
+            _context.Entry(image).State = EntityState.Modified;
+        }
+
+        public void Delete(Image image)
+        {
+            _context.Images.Remove(image);
+        }
+
+        public async Task<int> GetTotalImageCountAsync()
+        {
+            return await _context.Images.CountAsync();
+        }
+
+        public async Task<List<Image>> GetAllAsync()
+        {
+            return await _context.Images
+                .Include(i => i.ProductImages)
+                .ThenInclude(pi => pi.Product)
+                .Include(i => i.CategoryImages)
+                .ThenInclude(ci => ci.Category)
+                .ToListAsync();
+        }
+
+        public async Task AddProductImageAsync(int imageId, int productId)
+        {
+            var productImage = new ProductImage { ImageId = imageId, ProductId = productId };
+            await _context.ProductImages.AddAsync(productImage);
+        }
+
+        public async Task AddCategoryImageAsync(int imageId, int categoryId)
+        {
+            var categoryImage = new CategoryImage { ImageId = imageId, CategoryId = categoryId };
+            await _context.CategoryImages.AddAsync(categoryImage);
+        }
+
+        public void RemoveProductImage(int imageId, int productId)
+        {
+            var productImage = _context.ProductImages
+                .FirstOrDefault(pi => pi.ImageId == imageId && pi.ProductId == productId);
+            if (productImage != null)
+            {
+                _context.ProductImages.Remove(productImage);
+            }
+        }
+
+        public void RemoveCategoryImage(int imageId, int categoryId)
+        {
+            var categoryImage = _context.CategoryImages
+                .FirstOrDefault(ci => ci.ImageId == imageId && ci.CategoryId == categoryId);
+            if (categoryImage != null)
+            {
+                _context.CategoryImages.Remove(categoryImage);
+            }
+        }
+
+        // Additional methods implementation
         public async Task<Image> CreateAsync(Image image)
         {
-            _context.Images.Add(image);
+            await _context.Images.AddAsync(image);
             await _context.SaveChangesAsync();
             return image;
         }
 
         public async Task<Image> UpdateAsync(Image image)
         {
-            _context.Images.Update(image);
+            _context.Entry(image).State = EntityState.Modified;
             await _context.SaveChangesAsync();
             return image;
         }
 
-        public async Task<bool> DeleteAsync(int id)
+        public async Task DeleteAsync(Image image)
         {
-            var image = await GetByIdAsync(id);
-            if (image == null) return false;
-
-            image.IsDeleted = true;
+            _context.Images.Remove(image);
             await _context.SaveChangesAsync();
-            return true;
         }
 
-        public async Task<bool> DeleteByFilePathAsync(string filePath)
+        public async Task<bool> ExistsAsync(int id)
         {
-            var image = await GetByFilePathAsync(filePath);
-            if (image == null) return false;
-
-            image.IsDeleted = true;
-            await _context.SaveChangesAsync();
-            return true;
+            return await _context.Images.AnyAsync(i => i.Id == id);
         }
 
-        public async Task<int> GetTotalCountAsync()
+        public async Task<Image?> GetByFilePathAsync(string filePath)
         {
             return await _context.Images
-                .CountAsync(i => !i.IsDeleted);
+                .Include(i => i.ProductImages)
+                .Include(i => i.CategoryImages)
+                .FirstOrDefaultAsync(i => i.FilePath == filePath);
         }
 
-        public async Task<IEnumerable<Image>> SearchAsync(string searchTerm, int page = 1, int pageSize = 10)
+        public async Task<List<Image>> GetByFolderAsync(string folderName)
         {
-            var query = _context.Images
-                .Where(i => !i.IsDeleted);
+            return await _context.Images
+                .Include(i => i.ProductImages)
+                .Include(i => i.CategoryImages)
+                .Where(i => i.FilePath.Contains(folderName))
+                .ToListAsync();
+        }
 
-            if (!string.IsNullOrEmpty(searchTerm))
+        public async Task DeleteByFilePathAsync(string filePath)
+        {
+            var image = await _context.Images.FirstOrDefaultAsync(i => i.FilePath == filePath);
+            if (image != null)
             {
-                query = query.Where(i => 
-                    i.FileName.Contains(searchTerm) || 
-                    i.AltText.Contains(searchTerm) ||
-                    i.FilePath.Contains(searchTerm));
+                _context.Images.Remove(image);
+                await _context.SaveChangesAsync();
             }
+        }
 
-            return await query
-                .OrderByDescending(i => i.CreatedAt)
-                .Skip((page - 1) * pageSize)
-                .Take(pageSize)
+        public async Task<List<ProductImage>> GetProductImagesByProductIdAsync(int productId)
+        {
+            return await _context.ProductImages
+                .Include(pi => pi.Image)
+                .Where(pi => pi.ProductId == productId)
                 .ToListAsync();
         }
 
-        public async Task<bool> ExistsAsync(string filePath)
+        public async Task<List<CategoryImage>> GetCategoryImagesByCategoryIdAsync(int categoryId)
         {
-            return await _context.Images
-                .AnyAsync(i => i.FilePath == filePath && !i.IsDeleted);
-        }
-
-        public async Task<IEnumerable<Image>> GetByFolderAsync(string folderPath)
-        {
-            return await _context.Images
-                .Where(i => !i.IsDeleted && i.FilePath.StartsWith(folderPath))
-                .OrderByDescending(i => i.CreatedAt)
+            return await _context.CategoryImages
+                .Include(ci => ci.Image)
+                .Where(ci => ci.CategoryId == categoryId)
                 .ToListAsync();
-        }
-
-        public async Task<int> CleanupOrphanedImagesAsync()
-        {
-            var orphanedImages = await _context.Images
-                .Where(i => !i.IsDeleted && i.ProductId == null)
-                .ToListAsync();
-
-            foreach (var image in orphanedImages)
-            {
-                image.IsDeleted = true;
-            }
-
-            await _context.SaveChangesAsync();
-            return orphanedImages.Count;
         }
     }
 }

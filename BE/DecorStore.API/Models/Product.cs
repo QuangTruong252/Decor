@@ -3,6 +3,7 @@ using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Collections.Generic;
 using System.Text.Json.Serialization;
+using System.Linq;
 
 namespace DecorStore.API.Models
 {
@@ -10,7 +11,7 @@ namespace DecorStore.API.Models
     {
         public Product()
         {
-            Images = new List<Image>();
+            ProductImages = new List<ProductImage>();
             Reviews = new List<Review>();
             OrderItems = new List<OrderItem>();
             Description = string.Empty;
@@ -69,12 +70,17 @@ namespace DecorStore.API.Models
         public virtual Category Category { get; set; }
 
         [JsonIgnore]
-        public virtual ICollection<Image> Images { get; set; }
+        public virtual ICollection<ProductImage> ProductImages { get; set; }
 
         [JsonIgnore]
         public virtual ICollection<Review> Reviews { get; set; }
 
         [JsonIgnore]
         public virtual ICollection<OrderItem> OrderItems { get; set; }
+
+        // Computed property for Images access
+        [NotMapped]
+        [JsonIgnore]
+        public virtual ICollection<Image> Images => ProductImages?.Select(pi => pi.Image).Where(i => i != null).ToList() ?? new List<Image>();
     }
 }

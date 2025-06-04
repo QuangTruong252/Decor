@@ -13,9 +13,11 @@ namespace DecorStore.API.DTOs
         public string Description { get; set; }
         public int? ParentId { get; set; }
         public string ParentName { get; set; }
-        public string ImageUrl { get; set; }
         public DateTime CreatedAt { get; set; }
         public List<CategoryDTO> Subcategories { get; set; }
+        
+        // Image support - detailed image information
+        public List<ImageDTO> ImageDetails { get; set; } = new List<ImageDTO>();
     }
     
     public class CreateCategoryDTO
@@ -33,7 +35,8 @@ namespace DecorStore.API.DTOs
         
         public int? ParentId { get; set; }
         
-        public IFormFile ImageFile { get; set; }
+        public List<int> ImageIds { get; set; } = new List<int>();
+
     }
     
     public class UpdateCategoryDTO
@@ -50,6 +53,6 @@ namespace DecorStore.API.DTOs
         
         public int? ParentId { get; set; }
         
-        public IFormFile ImageFile { get; set; }
+        public List<int> ImageIds { get; set; } = new List<int>();
     }
-} 
+}

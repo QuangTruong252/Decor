@@ -2,6 +2,8 @@ using System.Text;
 using System.Text.Json.Serialization;
 using DecorStore.API.Data;
 using DecorStore.API.Interfaces;
+using DecorStore.API.Interfaces.Repositories;
+using DecorStore.API.Interfaces.Services;
 using DecorStore.API.Repositories;
 using DecorStore.API.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;

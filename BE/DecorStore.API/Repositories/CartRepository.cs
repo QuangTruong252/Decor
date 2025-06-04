@@ -1,7 +1,10 @@
-using DecorStore.API.Data;
 using DecorStore.API.Models;
+using DecorStore.API.Data;
+using DecorStore.API.Interfaces.Repositories;
 using Microsoft.EntityFrameworkCore;
+using System.Collections.Generic;
 using System.Threading.Tasks;
+using System.Linq;
 
 namespace DecorStore.API.Repositories
 {
@@ -18,8 +21,9 @@ namespace DecorStore.API.Repositories
         {
             return await _context.Carts
                 .Include(c => c.Items)
-                .ThenInclude(i => i.Product)
-                .ThenInclude(p => p.Images)
+                    .ThenInclude(i => i.Product)
+                        .ThenInclude(p => p.ProductImages)
+                            .ThenInclude(pi => pi.Image)
                 .FirstOrDefaultAsync(c => c.UserId == userId);
         }
 
@@ -27,64 +31,77 @@ namespace DecorStore.API.Repositories
         {
             return await _context.Carts
                 .Include(c => c.Items)
-                .ThenInclude(i => i.Product)
-                .ThenInclude(p => p.Images)
+                    .ThenInclude(i => i.Product)
+                        .ThenInclude(p => p.ProductImages)
+                            .ThenInclude(pi => pi.Image)
                 .FirstOrDefaultAsync(c => c.SessionId == sessionId);
         }
 
         public async Task<Cart?> GetByIdAsync(int id)
         {
-            return await _context.Carts.FindAsync(id);
+            return await _context.Carts
+                .Include(c => c.Items)
+                    .ThenInclude(i => i.Product)
+                        .ThenInclude(p => p.ProductImages)
+                            .ThenInclude(pi => pi.Image)
+                .FirstOrDefaultAsync(c => c.Id == id);
         }
 
         public async Task<Cart?> GetByIdWithItemsAsync(int id)
         {
             return await _context.Carts
                 .Include(c => c.Items)
-                .ThenInclude(i => i.Product)
-                .ThenInclude(p => p.Images)
+                    .ThenInclude(i => i.Product)
+                        .ThenInclude(p => p.ProductImages)
+                            .ThenInclude(pi => pi.Image)
                 .FirstOrDefaultAsync(c => c.Id == id);
         }
 
         public async Task<Cart> CreateAsync(Cart cart)
         {
-            _context.Carts.Add(cart);
+            await _context.Carts.AddAsync(cart);
             return cart;
         }
 
         public async Task UpdateAsync(Cart cart)
         {
-            cart.UpdatedAt = System.DateTime.UtcNow;
-            _context.Carts.Update(cart);
+            _context.Entry(cart).State = EntityState.Modified;
+            await Task.CompletedTask;
         }
 
         public async Task<CartItem?> GetCartItemByIdAsync(int id)
         {
             return await _context.CartItems
                 .Include(i => i.Product)
+                    .ThenInclude(p => p.ProductImages)
+                        .ThenInclude(pi => pi.Image)
                 .FirstOrDefaultAsync(i => i.Id == id);
         }
 
         public async Task<CartItem?> GetCartItemAsync(int cartId, int productId)
         {
             return await _context.CartItems
+                .Include(i => i.Product)
+                    .ThenInclude(p => p.ProductImages)
+                        .ThenInclude(pi => pi.Image)
                 .FirstOrDefaultAsync(i => i.CartId == cartId && i.ProductId == productId);
         }
 
         public async Task AddCartItemAsync(CartItem cartItem)
         {
-            _context.CartItems.Add(cartItem);
+            await _context.CartItems.AddAsync(cartItem);
         }
 
         public async Task UpdateCartItemAsync(CartItem cartItem)
         {
-            cartItem.UpdatedAt = System.DateTime.UtcNow;
-            _context.CartItems.Update(cartItem);
+            _context.Entry(cartItem).State = EntityState.Modified;
+            await Task.CompletedTask;
         }
 
         public async Task RemoveCartItemAsync(CartItem cartItem)
         {
             _context.CartItems.Remove(cartItem);
+            await Task.CompletedTask;
         }
 
         public async Task ClearCartAsync(int cartId)

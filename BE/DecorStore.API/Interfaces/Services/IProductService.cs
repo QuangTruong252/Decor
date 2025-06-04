@@ -3,7 +3,7 @@ using System.Threading.Tasks;
 using DecorStore.API.DTOs;
 using DecorStore.API.Models;
 
-namespace DecorStore.API.Services
+namespace DecorStore.API.Interfaces.Services
 {
     public interface IProductService
     {

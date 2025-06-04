@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using DecorStore.API.Data;
+using DecorStore.API.Interfaces.Repositories;
 using DecorStore.API.Models;
 using Microsoft.EntityFrameworkCore;
 
@@ -19,23 +20,17 @@ namespace DecorStore.API.Repositories
 
         public async Task<int> GetTotalProductCountAsync()
         {
-            return await _context.Products
-                .Where(p => !p.IsDeleted)
-                .CountAsync();
+            return await _context.Products.CountAsync(p => !p.IsDeleted);
         }
 
         public async Task<int> GetTotalOrderCountAsync()
         {
-            return await _context.Orders
-                .Where(o => !o.IsDeleted)
-                .CountAsync();
+            return await _context.Orders.CountAsync(o => !o.IsDeleted);
         }
 
         public async Task<int> GetTotalCustomerCountAsync()
         {
-            return await _context.Customers
-                .Where(c => !c.IsDeleted)
-                .CountAsync();
+            return await _context.Customers.CountAsync(c => !c.IsDeleted);
         }
 
         public async Task<decimal> GetTotalRevenueAsync()
@@ -45,160 +40,172 @@ namespace DecorStore.API.Repositories
                 .SumAsync(o => o.TotalAmount);
         }
 
-        public async Task<IEnumerable<Order>> GetRecentOrdersAsync(int count = 5)
+        public async Task<decimal> GetRevenueForPeriodAsync(DateTime startDate, DateTime endDate)
         {
             return await _context.Orders
-                .Where(o => !o.IsDeleted)
-                .Include(o => o.User)
+                .Where(o => !o.IsDeleted && o.OrderDate >= startDate && o.OrderDate <= endDate)
+                .SumAsync(o => o.TotalAmount);
+        }
+
+        public async Task<IEnumerable<Order>> GetRecentOrdersAsync(int count = 10)
+        {
+            return await _context.Orders
                 .Include(o => o.Customer)
+                .Include(o => o.OrderItems)
+                    .ThenInclude(oi => oi.Product)
+                .Where(o => !o.IsDeleted)
                 .OrderByDescending(o => o.OrderDate)
                 .Take(count)
                 .ToListAsync();
         }
 
-        public async Task<IEnumerable<(Product Product, int TotalSold, decimal TotalRevenue)>> GetPopularProductsAsync(int count = 5)
+        public async Task<IEnumerable<Product>> GetLowStockProductsAsync(int threshold = 10)
         {
-            // Get products with their sales data
-            var productSales = await _context.OrderItems
-                .Where(oi => !oi.IsDeleted && !oi.Order.IsDeleted)
-                .GroupBy(oi => oi.ProductId)
-                .Select(g => new
-                {
-                    ProductId = g.Key,
-                    TotalSold = g.Sum(oi => oi.Quantity),
-                    TotalRevenue = g.Sum(oi => oi.Quantity * oi.UnitPrice)
-                })
-                .OrderByDescending(x => x.TotalSold)
-                .Take(count)
+            return await _context.Products
+                .Include(p => p.Category)
+                .Include(p => p.ProductImages)
+                    .ThenInclude(pi => pi.Image)
+                .Where(p => !p.IsDeleted && p.StockQuantity <= threshold)
+                .OrderBy(p => p.StockQuantity)
                 .ToListAsync();
-
-            // Get the product details for these top-selling products
-            var productIds = productSales.Select(p => p.ProductId).ToList();
-            var products = await _context.Products
-                .Where(p => productIds.Contains(p.Id))
-                .Include(p => p.Images)
-                .ToListAsync();
-
-            // Join the product details with sales data
-            return productSales
-                .Join(products,
-                    ps => ps.ProductId,
-                    p => p.Id,
-                    (ps, p) => (p, ps.TotalSold, ps.TotalRevenue))
-                .ToList();
         }
 
-        public async Task<IEnumerable<(Category Category, int TotalSales, decimal TotalRevenue)>> GetSalesByCategoryAsync()
+        public async Task<Dictionary<string, int>> GetOrderStatusCountsAsync()
         {
-            // Get all categories with their sales data
-            var categorySales = await _context.OrderItems
-                .Where(oi => !oi.IsDeleted && !oi.Order.IsDeleted)
-                .Join(_context.Products,
-                    oi => oi.ProductId,
-                    p => p.Id,
-                    (oi, p) => new { OrderItem = oi, Product = p })
-                .GroupBy(x => x.Product.CategoryId)
-                .Select(g => new
-                {
-                    CategoryId = g.Key,
-                    TotalSales = g.Sum(x => x.OrderItem.Quantity),
-                    TotalRevenue = g.Sum(x => x.OrderItem.Quantity * x.OrderItem.UnitPrice)
-                })
-                .ToListAsync();
+            return await _context.Orders
+                .Where(o => !o.IsDeleted)
+                .GroupBy(o => o.OrderStatus)
+                .Select(g => new { Status = g.Key, Count = g.Count() })
+                .ToDictionaryAsync(x => x.Status, x => x.Count);
+        }
 
-            // Get the category details
-            var categoryIds = categorySales.Select(c => c.CategoryId).ToList();
-            var categories = await _context.Categories
-                .Where(c => categoryIds.Contains(c.Id))
-                .ToListAsync();
+        public async Task<Dictionary<string, decimal>> GetSalesByMonthAsync(int year)
+        {
+            var monthlySales = await _context.Orders
+                .Where(o => !o.IsDeleted && o.OrderDate.Year == year)
+                .GroupBy(o => o.OrderDate.Month)
+                .Select(g => new { Month = g.Key, Total = g.Sum(o => o.TotalAmount) })
+                .ToDictionaryAsync(x => GetMonthName(x.Month), x => x.Total);
 
-            // Join the category details with sales data
-            return categorySales
-                .Join(categories,
-                    cs => cs.CategoryId,
-                    c => c.Id,
-                    (cs, c) => (c, cs.TotalSales, cs.TotalRevenue))
-                .OrderByDescending(x => x.TotalSales)
-                .ToList();
+            // Ensure all months are included with 0 if no sales
+            var allMonths = Enumerable.Range(1, 12)
+                .ToDictionary(m => GetMonthName(m), m => monthlySales.ContainsKey(GetMonthName(m)) ? monthlySales[GetMonthName(m)] : 0m);
+
+            return allMonths;
+        }
+
+        public async Task<Dictionary<string, decimal>> GetSalesByCategoryAsync()
+        {
+            return await _context.OrderItems
+                .Include(oi => oi.Product)
+                .ThenInclude(p => p.Category)
+                .Where(oi => !oi.Order.IsDeleted && !oi.Product.IsDeleted)
+                .GroupBy(oi => oi.Product.Category.Name)
+                .Select(g => new { Category = g.Key, Total = g.Sum(oi => oi.UnitPrice * oi.Quantity) })
+                .ToDictionaryAsync(x => x.Category, x => x.Total);
         }
 
         public async Task<Dictionary<string, int>> GetOrderStatusDistributionAsync()
         {
-            var statusCounts = await _context.Orders
+            return await _context.Orders
                 .Where(o => !o.IsDeleted)
                 .GroupBy(o => o.OrderStatus)
-                .Select(g => new
-                {
-                    Status = g.Key,
-                    Count = g.Count()
-                })
-                .ToListAsync();
-
-            var result = new Dictionary<string, int>();
-            
-            // Ensure all statuses are represented
-            string[] validStatuses = { "Pending", "Processing", "Shipped", "Delivered", "Cancelled" };
-            foreach (var status in validStatuses)
-            {
-                result[status] = statusCounts.FirstOrDefault(s => s.Status == status)?.Count ?? 0;
-            }
-
-            return result;
+                .Select(g => new { Status = g.Key, Count = g.Count() })
+                .ToDictionaryAsync(x => x.Status, x => x.Count);
         }
 
-        public async Task<IEnumerable<(DateTime Date, decimal Revenue, int OrderCount)>> GetSalesTrendAsync(
-            string period = "daily", 
-            DateTime? startDate = null, 
-            DateTime? endDate = null)
+        public async Task<IEnumerable<Product>> GetPopularProductsAsync(int count = 10)
         {
-            // Set default date range if not provided
-            endDate ??= DateTime.UtcNow.Date;
-            
-            // Default start date based on period if not provided
-            if (startDate == null)
-            {
-                startDate = period.ToLower() switch
-                {
-                    "daily" => endDate.Value.AddDays(-30),
-                    "weekly" => endDate.Value.AddDays(-90),
-                    "monthly" => endDate.Value.AddMonths(-12),
-                    _ => endDate.Value.AddDays(-30)
-                };
-            }
-
-            // Get all orders within the date range
-            var orders = await _context.Orders
-                .Where(o => !o.IsDeleted && 
-                           o.OrderDate >= startDate.Value && 
-                           o.OrderDate <= endDate.Value)
+            return await _context.Products
+                .Include(p => p.Category)
+                .Include(p => p.ProductImages)
+                    .ThenInclude(pi => pi.Image)
+                .Include(p => p.OrderItems)
+                .Where(p => !p.IsDeleted)
+                .OrderByDescending(p => p.OrderItems.Count)
+                .Take(count)
                 .ToListAsync();
+        }
 
-            // Group by the appropriate period
-            var groupedOrders = period.ToLower() switch
+        public async Task<Dictionary<string, decimal>> GetSalesTrendAsync(string interval, DateTime? startDate = null, DateTime? endDate = null)
+        {
+            var query = _context.Orders.Where(o => !o.IsDeleted);
+
+            if (startDate.HasValue)
+                query = query.Where(o => o.OrderDate >= startDate.Value);
+            if (endDate.HasValue)
+                query = query.Where(o => o.OrderDate <= endDate.Value);
+
+            return interval.ToLower() switch
             {
-                "daily" => orders.GroupBy(o => o.OrderDate.Date),
-                "weekly" => orders.GroupBy(o => new DateTime(
-                    o.OrderDate.Year, 
-                    o.OrderDate.Month, 
-                    ((o.OrderDate.Day - 1) / 7) * 7 + 1)),
-                "monthly" => orders.GroupBy(o => new DateTime(
-                    o.OrderDate.Year, 
-                    o.OrderDate.Month, 
-                    1)),
-                _ => orders.GroupBy(o => o.OrderDate.Date)
+                "daily" => await query
+                    .GroupBy(o => o.OrderDate.Date)
+                    .Select(g => new { Date = g.Key.ToString("yyyy-MM-dd"), Total = g.Sum(o => o.TotalAmount) })
+                    .ToDictionaryAsync(x => x.Date, x => x.Total),
+
+                "weekly" => await query
+                    .GroupBy(o => o.OrderDate.AddDays(-(int)o.OrderDate.DayOfWeek).Date)
+                    .Select(g => new { WeekStart = g.Key.ToString("yyyy-MM-dd"), Total = g.Sum(o => o.TotalAmount) })
+                    .ToDictionaryAsync(x => x.WeekStart, x => x.Total),
+
+                "monthly" => await query
+                    .GroupBy(o => new { o.OrderDate.Year, o.OrderDate.Month })
+                    .Select(g => new { Date = $"{g.Key.Year}-{g.Key.Month:D2}", Total = g.Sum(o => o.TotalAmount) })
+                    .ToDictionaryAsync(x => x.Date, x => x.Total),
+
+                _ => throw new ArgumentException("Invalid interval. Use 'daily', 'weekly', or 'monthly'.")
             };
+        }
 
-            // Calculate revenue and order count for each period
-            var result = groupedOrders
-                .Select(g => (
-                    Date: g.Key,
-                    Revenue: g.Sum(o => o.TotalAmount),
-                    OrderCount: g.Count()
-                ))
-                .OrderBy(x => x.Date)
-                .ToList();
+        private static string GetMonthName(int month)
+        {
+            return new DateTime(2000, month, 1).ToString("MMMM");
+        }
 
-            return result;
+        // Legacy method implementations for backward compatibility
+        public async Task<int> GetTotalProductsCountAsync()
+        {
+            return await GetTotalProductCountAsync();
+        }
+
+        public async Task<int> GetTotalOrdersCountAsync()
+        {
+            return await GetTotalOrderCountAsync();
+        }
+
+        public async Task<int> GetTotalCustomersCountAsync()
+        {
+            return await GetTotalCustomerCountAsync();
+        }
+
+        public async Task<Dictionary<string, decimal>> GetMonthlySalesAsync(int year)
+        {
+            return await GetSalesByMonthAsync(year);
+        }
+
+        public async Task<Dictionary<string, int>> GetProductCategoriesDistributionAsync()
+        {
+            return await _context.Products
+                .Include(p => p.Category)
+                .Where(p => !p.IsDeleted)
+                .GroupBy(p => p.Category.Name)
+                .Select(g => new { Category = g.Key, Count = g.Count() })
+                .ToDictionaryAsync(x => x.Category, x => x.Count);
+        }
+
+        public async Task<IEnumerable<Product>> GetTopSellingProductsAsync(int count = 10)
+        {
+            return await GetPopularProductsAsync(count);
+        }
+
+        public async Task<IEnumerable<Customer>> GetTopCustomersAsync(int count = 10)
+        {
+            return await _context.Customers
+                .Include(c => c.Orders)
+                .Where(c => !c.IsDeleted)
+                .OrderByDescending(c => c.Orders.Sum(o => o.TotalAmount))
+                .Take(count)
+                .ToListAsync();
         }
     }
 }

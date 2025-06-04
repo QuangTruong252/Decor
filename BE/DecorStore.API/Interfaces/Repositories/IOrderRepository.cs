@@ -1,9 +1,10 @@
-using DecorStore.API.Models;
-using DecorStore.API.DTOs;
+using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using DecorStore.API.DTOs;
+using DecorStore.API.Models;
 
-namespace DecorStore.API.Repositories
+namespace DecorStore.API.Interfaces.Repositories
 {
     public interface IOrderRepository
     {

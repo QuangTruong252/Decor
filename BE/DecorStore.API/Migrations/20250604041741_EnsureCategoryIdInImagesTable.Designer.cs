@@ -4,6 +4,7 @@ using DecorStore.API.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace DecorStore.API.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250604041741_EnsureCategoryIdInImagesTable")]
+    partial class EnsureCategoryIdInImagesTable
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -190,21 +193,6 @@ namespace DecorStore.API.Migrations
                         });
                 });
 
-            modelBuilder.Entity("DecorStore.API.Models.CategoryImage", b =>
-                {
-                    b.Property<int>("CategoryId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("ImageId")
-                        .HasColumnType("int");
-
-                    b.HasKey("CategoryId", "ImageId");
-
-                    b.HasIndex("ImageId");
-
-                    b.ToTable("CategoryImages");
-                });
-
             modelBuilder.Entity("DecorStore.API.Models.Customer", b =>
                 {
                     b.Property<int>("Id")
@@ -288,6 +276,9 @@ namespace DecorStore.API.Migrations
                         .HasMaxLength(255)
                         .HasColumnType("nvarchar(255)");
 
+                    b.Property<int?>("CategoryId")
+                        .HasColumnType("int");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
@@ -304,7 +295,14 @@ namespace DecorStore.API.Migrations
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("bit");
 
+                    b.Property<int?>("ProductId")
+                        .HasColumnType("int");
+
                     b.HasKey("Id");
+
+                    b.HasIndex("CategoryId");
+
+                    b.HasIndex("ProductId");
 
                     b.ToTable("Images");
                 });
@@ -530,21 +528,6 @@ namespace DecorStore.API.Migrations
                         });
                 });
 
-            modelBuilder.Entity("DecorStore.API.Models.ProductImage", b =>
-                {
-                    b.Property<int>("ProductId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("ImageId")
-                        .HasColumnType("int");
-
-                    b.HasKey("ProductId", "ImageId");
-
-                    b.HasIndex("ImageId");
-
-                    b.ToTable("ProductImages");
-                });
-
             modelBuilder.Entity("DecorStore.API.Models.Review", b =>
                 {
                     b.Property<int>("Id")
@@ -682,23 +665,21 @@ namespace DecorStore.API.Migrations
                     b.Navigation("ParentCategory");
                 });
 
-            modelBuilder.Entity("DecorStore.API.Models.CategoryImage", b =>
+            modelBuilder.Entity("DecorStore.API.Models.Image", b =>
                 {
                     b.HasOne("DecorStore.API.Models.Category", "Category")
-                        .WithMany("CategoryImages")
+                        .WithMany("Images")
                         .HasForeignKey("CategoryId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Cascade);
 
-                    b.HasOne("DecorStore.API.Models.Image", "Image")
-                        .WithMany("CategoryImages")
-                        .HasForeignKey("ImageId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                    b.HasOne("DecorStore.API.Models.Product", "Product")
+                        .WithMany("Images")
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Cascade);
 
                     b.Navigation("Category");
 
-                    b.Navigation("Image");
+                    b.Navigation("Product");
                 });
 
             modelBuilder.Entity("DecorStore.API.Models.Order", b =>
@@ -749,25 +730,6 @@ namespace DecorStore.API.Migrations
                     b.Navigation("Category");
                 });
 
-            modelBuilder.Entity("DecorStore.API.Models.ProductImage", b =>
-                {
-                    b.HasOne("DecorStore.API.Models.Image", "Image")
-                        .WithMany("ProductImages")
-                        .HasForeignKey("ImageId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("DecorStore.API.Models.Product", "Product")
-                        .WithMany("ProductImages")
-                        .HasForeignKey("ProductId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Image");
-
-                    b.Navigation("Product");
-                });
-
             modelBuilder.Entity("DecorStore.API.Models.Review", b =>
                 {
                     b.HasOne("DecorStore.API.Models.Product", "Product")
@@ -794,7 +756,7 @@ namespace DecorStore.API.Migrations
 
             modelBuilder.Entity("DecorStore.API.Models.Category", b =>
                 {
-                    b.Navigation("CategoryImages");
+                    b.Navigation("Images");
 
                     b.Navigation("Products");
 
@@ -806,13 +768,6 @@ namespace DecorStore.API.Migrations
                     b.Navigation("Orders");
                 });
 
-            modelBuilder.Entity("DecorStore.API.Models.Image", b =>
-                {
-                    b.Navigation("CategoryImages");
-
-                    b.Navigation("ProductImages");
-                });
-
             modelBuilder.Entity("DecorStore.API.Models.Order", b =>
                 {
                     b.Navigation("OrderItems");
@@ -820,9 +775,9 @@ namespace DecorStore.API.Migrations
 
             modelBuilder.Entity("DecorStore.API.Models.Product", b =>
                 {
-                    b.Navigation("OrderItems");
+                    b.Navigation("Images");
 
-                    b.Navigation("ProductImages");
+                    b.Navigation("OrderItems");
 
                     b.Navigation("Reviews");
                 });

@@ -17,6 +17,8 @@ namespace DecorStore.API.Data
         public DbSet<Cart> Carts { get; set; }
         public DbSet<CartItem> CartItems { get; set; }
         public DbSet<Customer> Customers { get; set; }
+        public DbSet<ProductImage> ProductImages { get; set; }
+        public DbSet<CategoryImage> CategoryImages { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -67,10 +69,35 @@ namespace DecorStore.API.Data
                 .HasForeignKey(p => p.CategoryId)
                 .OnDelete(DeleteBehavior.Restrict);
 
-            modelBuilder.Entity<Product>()
-                .HasMany(p => p.Images)
-                .WithOne(i => i.Product)
-                .HasForeignKey(i => i.ProductId)
+            // Configure many-to-many relationships for Images
+            modelBuilder.Entity<ProductImage>()
+                .HasKey(pi => new { pi.ProductId, pi.ImageId });
+
+            modelBuilder.Entity<ProductImage>()
+                .HasOne(pi => pi.Product)
+                .WithMany(p => p.ProductImages)
+                .HasForeignKey(pi => pi.ProductId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<ProductImage>()
+                .HasOne(pi => pi.Image)
+                .WithMany(i => i.ProductImages)
+                .HasForeignKey(pi => pi.ImageId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<CategoryImage>()
+                .HasKey(ci => new { ci.CategoryId, ci.ImageId });
+
+            modelBuilder.Entity<CategoryImage>()
+                .HasOne(ci => ci.Category)
+                .WithMany(c => c.CategoryImages)
+                .HasForeignKey(ci => ci.CategoryId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<CategoryImage>()
+                .HasOne(ci => ci.Image)
+                .WithMany(i => i.CategoryImages)
+                .HasForeignKey(ci => ci.ImageId)
                 .OnDelete(DeleteBehavior.Cascade);
 
             modelBuilder.Entity<Product>()

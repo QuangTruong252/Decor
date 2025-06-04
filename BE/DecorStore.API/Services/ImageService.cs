@@ -1,9 +1,11 @@
 ﻿using DecorStore.API.Interfaces;
 using DecorStore.API.Interfaces.Repositories;
 using DecorStore.API.Models;
+using Microsoft.AspNetCore.Http;
 
 namespace DecorStore.API.Services
-{    public class ImageService : IImageService
+{
+    public class ImageService : IImageService
     {
         private readonly string _baseImagePath;
         private readonly string[] _allowedExtensions = { ".jpg", ".jpeg", ".png", ".gif" };
@@ -24,7 +26,8 @@ namespace DecorStore.API.Services
                 Directory.CreateDirectory(_baseImagePath);
             }
         }
-        public Task<string> UploadImageAsync(IFormFile file, string folderName)
+
+        public async Task<string> UploadImageAsync(IFormFile file, string folderName)
         {
             if(file == null || file.Length == 0)
             {
@@ -44,10 +47,11 @@ namespace DecorStore.API.Services
             var filePath = Path.Combine(uploadPath, fileName);
             using (var stream = new FileStream(filePath, FileMode.Create))
             {
-                file.CopyTo(stream);
+                await file.CopyToAsync(stream);
             }
-            return Task.FromResult(Path.Combine(folderName, fileName));
+            return Path.Combine(folderName, fileName);
         }
+
         public Task<bool> DeleteImageAsync(string imageUrl)
         {
             if (string.IsNullOrEmpty(imageUrl))
@@ -70,6 +74,7 @@ namespace DecorStore.API.Services
                 throw new Exception("Error deleting image", ex);
             }
         }
+
         public async Task<string> UpdateImageAsync(string oldImageUrl, IFormFile file, string folderName)
         {
             // delete the old image if it exists
@@ -81,6 +86,7 @@ namespace DecorStore.API.Services
             // upload the new image
             return await UploadImageAsync(file, folderName);
         }
+
         public bool IsValidImage(IFormFile file)
         {
             if (file.Length > _maxFileSize)
@@ -106,61 +112,59 @@ namespace DecorStore.API.Services
                     throw new ArgumentException($"Invalid file type: {file.FileName}");
                 }
 
-                // Check if image exists by filename
-                var existingImage = await _imageRepository.GetByFilePathAsync(file.FileName);
-                
-                if (existingImage != null)
-                {
-                    imageIds.Add(existingImage.Id);
-                }
-                else
-                {
-                    // Upload new image
-                    var imagePath = await UploadImageAsync(file, folderName);
+                // Upload new image
+                var imagePath = await UploadImageAsync(file, folderName);
 
-                    // Create image record in database
-                    var image = new Image
-                    {
-                        FileName = file.FileName,
-                        FilePath = imagePath,
-                        AltText = Path.GetFileNameWithoutExtension(file.FileName),
-                        CreatedAt = DateTime.UtcNow
-                    };
-                    
-                    var createdImage = await _imageRepository.CreateAsync(image);
-                    imageIds.Add(createdImage.Id);
-                }
+                // Create image record in database
+                var image = new Image
+                {
+                    FileName = file.FileName,
+                    FilePath = imagePath,
+                    AltText = Path.GetFileNameWithoutExtension(file.FileName),
+                    CreatedAt = DateTime.UtcNow
+                };
+                
+                await _imageRepository.AddAsync(image);
+                imageIds.Add(image.Id);
             }
             
             return imageIds;
         }
 
-        public async Task<bool> ImageExistsInSystemAsync(string fileName)
+        public async Task<bool> ImageExistsInSystemAsync(string filePath)
         {
-            var image = await _imageRepository.GetByFilePathAsync(fileName);
-            return image != null && !image.IsDeleted;
+            var images = await _imageRepository.GetAllAsync();
+            return images.Any(i => i.FilePath == filePath && !i.IsDeleted);
         }
 
         public async Task<List<Image>> GetImagesByIdsAsync(List<int> imageIds)
         {
-            var images = new List<Image>();
-            
-            foreach (var imageId in imageIds)
-            {
-                var image = await _imageRepository.GetByIdAsync(imageId);
-                if (image != null && !image.IsDeleted)
-                {
-                    images.Add(image);
-                }
-            }
-            
-            return images;
+            return await _imageRepository.GetManyByIdsAsync(imageIds);
         }
 
         public async Task<List<Image>> GetAllImagesAsync()
         {
-            var images = await _imageRepository.GetAllAsync();
-            return images.ToList();
+            return await _imageRepository.GetAllAsync();
+        }
+
+        public async Task AssignImageToProductAsync(int imageId, int productId)
+        {
+            await _imageRepository.AddProductImageAsync(imageId, productId);
+        }
+
+        public async Task AssignImageToCategoryAsync(int imageId, int categoryId)
+        {
+            await _imageRepository.AddCategoryImageAsync(imageId, categoryId);
+        }
+
+        public void UnassignImageFromProduct(int imageId, int productId)
+        {
+            _imageRepository.RemoveProductImage(imageId, productId);
+        }
+
+        public void UnassignImageFromCategory(int imageId, int categoryId)
+        {
+            _imageRepository.RemoveCategoryImage(imageId, categoryId);
         }
     }
 }

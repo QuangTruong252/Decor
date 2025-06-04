@@ -2,7 +2,7 @@ using DecorStore.API.Models;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
-namespace DecorStore.API.Repositories
+namespace DecorStore.API.Interfaces.Repositories
 {
     public interface IBannerRepository
     {
@@ -13,4 +13,4 @@ namespace DecorStore.API.Repositories
         Task UpdateAsync(Banner banner);
         Task DeleteAsync(int id);
     }
-} 
+}

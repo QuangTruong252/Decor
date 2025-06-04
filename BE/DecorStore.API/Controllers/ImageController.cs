@@ -64,7 +64,8 @@ namespace DecorStore.API.Controllers
             {
                 return StatusCode(500, $"An error occurred while uploading images: {ex.Message}");
             }
-        }        /// <summary>
+        }        
+        /// <summary>
         /// Get all images in the system
         /// </summary>
         /// <returns>List of all images</returns>

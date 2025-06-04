@@ -2,6 +2,7 @@ using DecorStore.API.DTOs;
 using DecorStore.API.Models;
 using DecorStore.API.Exceptions;
 using DecorStore.API.Interfaces;
+using DecorStore.API.Interfaces.Services;
 using AutoMapper;
 using Microsoft.AspNetCore.Http;
 
@@ -26,8 +27,7 @@ namespace DecorStore.API.Services
         public async Task<IEnumerable<Product>> GetAllAsync(ProductFilterDTO filter)
         {
             return await _unitOfWork.Products.GetAllAsync(filter);
-        }        
-        public async Task<Product> CreateAsync(CreateProductDTO productDto)
+        }          public async Task<Product> CreateAsync(CreateProductDTO productDto)
         {
             // Verify category exists
             _ = await _unitOfWork.Categories.GetByIdAsync(productDto.CategoryId)
@@ -36,33 +36,27 @@ namespace DecorStore.API.Services
             // Map DTO to entity
             var product = _mapper.Map<Product>(productDto);
 
-            // Handle image assignment using ImageIds
-            if (productDto.ImageIds != null && productDto.ImageIds.Count > 0)
-            {
-                // Verify that all image IDs exist and are available (not already assigned to another product)
-                var images = await _imageService.GetImagesByIdsAsync(productDto.ImageIds);
-                
-                // Check if any images are already assigned to other products
-                var unavailableImages = images.Where(img => img.ProductId.HasValue).ToList();
-                if (unavailableImages.Any())
-                {
-                    var unavailableIds = string.Join(", ", unavailableImages.Select(img => img.Id));
-                    throw new InvalidOperationException($"The following images are already assigned to other products: {unavailableIds}");
-                }
-                
-                product.Images = images;
-            }
-
-            // Create the product
+            // Create the product first
             await _unitOfWork.Products.CreateAsync(product);
             await _unitOfWork.SaveChangesAsync();
-            
-            // Associate images with the product
-            if (productDto.ImageIds != null && productDto.ImageIds.Count > 0 && product.Images != null)
+
+            // Handle image assignment using ImageIds via many-to-many relationship
+            if (productDto.ImageIds != null && productDto.ImageIds.Count > 0)
             {
-                foreach (var image in product.Images)
+                // Verify that all image IDs exist
+                var images = await _imageService.GetImagesByIdsAsync(productDto.ImageIds);
+                
+                if (images.Count() != productDto.ImageIds.Count)
                 {
-                    image.ProductId = product.Id;
+                    var foundIds = images.Select(img => img.Id).ToList();
+                    var missingIds = productDto.ImageIds.Except(foundIds).ToList();
+                    throw new NotFoundException($"The following image IDs were not found: {string.Join(", ", missingIds)}");
+                }
+
+                // Associate images with the product using junction table
+                foreach (var imageId in productDto.ImageIds)
+                {
+                    await _unitOfWork.Images.AddProductImageAsync(imageId, product.Id);
                 }
                 await _unitOfWork.SaveChangesAsync();
             }
@@ -79,44 +73,36 @@ namespace DecorStore.API.Services
                 ?? throw new NotFoundException("Product not found");
 
             // Map basic product properties (excluding images)
-            _mapper.Map(productDto, product);
-
-            // Handle image associations: Remove old associations and create new ones
+            _mapper.Map(productDto, product);            // Handle image associations: Remove old associations and create new ones
             await _unitOfWork.ExecuteWithExecutionStrategyAsync(async () =>
             {
                 await _unitOfWork.BeginTransactionAsync();
                 
                 try
-                {
-                    // Step 1: Remove all existing image associations for this product
-                    if (product.Images != null && product.Images.Any())
+                {                    // Step 1: Remove all existing image associations for this product
+                    var existingProductImages = await _unitOfWork.Images.GetProductImagesByProductIdAsync(id);
+                    foreach (var productImage in existingProductImages)
                     {
-                        foreach (var existingImage in product.Images.ToList())
-                        {
-                            existingImage.ProductId = null; // Unassociate from this product
-                        }
-                        product.Images.Clear(); // Clear the collection
+                        _unitOfWork.Images.RemoveProductImage(productImage.ImageId, productImage.ProductId);
                     }
 
                     // Step 2: Associate new images if provided
                     if (productDto.ImageIds != null && productDto.ImageIds.Count > 0)
                     {
-                        // Verify that all image IDs exist and are available
+                        // Verify that all image IDs exist
                         var newImages = await _imageService.GetImagesByIdsAsync(productDto.ImageIds);
                         
-                        // Check if any images are already assigned to other products
-                        var unavailableImages = newImages.Where(img => img.ProductId.HasValue && img.ProductId != id).ToList();
-                        if (unavailableImages.Any())
+                        if (newImages.Count() != productDto.ImageIds.Count)
                         {
-                            var unavailableIds = string.Join(", ", unavailableImages.Select(img => img.Id));
-                            throw new InvalidOperationException($"The following images are already assigned to other products: {unavailableIds}");
+                            var foundIds = newImages.Select(img => img.Id).ToList();
+                            var missingIds = productDto.ImageIds.Except(foundIds).ToList();
+                            throw new NotFoundException($"The following image IDs were not found: {string.Join(", ", missingIds)}");
                         }
                         
-                        // Associate new images with this product
-                        foreach (var newImage in newImages)
+                        // Associate new images with this product using junction table
+                        foreach (var imageId in productDto.ImageIds)
                         {
-                            newImage.ProductId = product.Id;
-                            product.Images.Add(newImage);
+                            await _unitOfWork.Images.AddProductImageAsync(imageId, product.Id);
                         }
                     }
 
@@ -220,9 +206,7 @@ namespace DecorStore.API.Services
             });
 
             return true;
-        }
-
-        public async Task<bool> AddImageToProductAsync(int productId, IFormFile image)
+        }        public async Task<bool> AddImageToProductAsync(int productId, IFormFile image)
         {
             var product = await _unitOfWork.Products.GetByIdAsync(productId)
                 ?? throw new NotFoundException("Product not found");
@@ -240,35 +224,44 @@ namespace DecorStore.API.Services
             {
                 FileName = image.FileName,
                 FilePath = imagePath,
-                ProductId = productId,
                 AltText = Path.GetFileNameWithoutExtension(image.FileName) // Default alt text
             };
 
-            // Add the image to the product
-            product.Images.Add(newImage);
-
+            // Add the image to database first
+            await _unitOfWork.Images.AddAsync(newImage);
             await _unitOfWork.SaveChangesAsync();
-            return true;
-        }
 
-        public async Task<bool> RemoveImageFromProductAsync(int productId, int imageId)
+            // Associate the image with the product using junction table
+            await _unitOfWork.Images.AddProductImageAsync(newImage.Id, productId);
+            await _unitOfWork.SaveChangesAsync();
+            
+            return true;
+        }        public async Task<bool> RemoveImageFromProductAsync(int productId, int imageId)
         {
             var product = await _unitOfWork.Products.GetByIdAsync(productId)
                 ?? throw new NotFoundException("Product not found");
 
-            var image = product.Images.FirstOrDefault(i => i.Id == imageId);
-            if (image == null)
+            // Check if the image is associated with this product
+            var productImages = await _unitOfWork.Images.GetProductImagesByProductIdAsync(productId);
+            var productImage = productImages.FirstOrDefault(pi => pi.ImageId == imageId);
+            
+            if (productImage == null)
             {
-                throw new NotFoundException("Image not found");
+                throw new NotFoundException("Image not associated with this product");
             }
 
-            // Delete the image file from storage
-            await _imageService.DeleteImageAsync(image.FilePath);
+            // Get the image to delete the file
+            var image = await _unitOfWork.Images.GetByIdAsync(imageId);
+            if (image != null)
+            {
+                // Delete the image file from storage
+                await _imageService.DeleteImageAsync(image.FilePath);
+            }
 
-            // Remove the image from the product
-            product.Images.Remove(image);
-
+            // Remove the association between product and image
+            _unitOfWork.Images.RemoveProductImage(imageId, productId);
             await _unitOfWork.SaveChangesAsync();
+            
             return true;
         }
 

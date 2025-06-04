@@ -1,14 +1,14 @@
 using System;
 using System.Threading.Tasks;
-using DecorStore.API.Repositories;
+using DecorStore.API.Interfaces.Repositories;
 
 namespace DecorStore.API.Interfaces
-{
-    public interface IUnitOfWork : IDisposable
+{    public interface IUnitOfWork : IDisposable
     {
         // Repositories
         IProductRepository Products { get; }
         ICategoryRepository Categories { get; }
+        IImageRepository Images { get; }
         IOrderRepository Orders { get; }
         IReviewRepository Reviews { get; }
         IBannerRepository Banners { get; }
