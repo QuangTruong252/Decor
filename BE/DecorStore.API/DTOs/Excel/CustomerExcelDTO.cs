@@ -16,7 +16,7 @@ namespace DecorStore.API.DTOs.Excel
         public static Dictionary<string, string> GetImportColumnMappingsWithoutId()
         {
             var mappings = GetImportColumnMappings();
-            mappings.Remove(nameof(Id)); // Assuming "Id" is the key for the Id column
+            mappings.Remove(nameof(Id), out _); // Assuming "Id" is the key for the Id column
             return mappings;
         }
 

@@ -13,9 +13,10 @@ namespace DecorStore.API.Interfaces
         Task<bool> ImageExistsInSystemAsync(string filePath);
         Task<List<Image>> GetImagesByIdsAsync(List<int> imageIds);
         Task<List<Image>> GetAllImagesAsync();
+        Task<List<Image>> GetImagesByFilePathsAsync(List<string> filePaths);
         Task AssignImageToProductAsync(int imageId, int productId);
         Task AssignImageToCategoryAsync(int imageId, int categoryId);
-        void UnassignImageFromProduct(int imageId, int productId);
-        void UnassignImageFromCategory(int imageId, int categoryId);
+        Task UnassignImageFromProductAsync(int imageId, int productId);
+        Task UnassignImageFromCategoryAsync(int imageId, int categoryId);
     }
 }

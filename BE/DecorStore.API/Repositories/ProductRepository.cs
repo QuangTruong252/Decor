@@ -69,12 +69,22 @@ namespace DecorStore.API.Repositories
 
         public async Task<bool> SlugExistsAsync(string slug)
         {
-            return await _context.Products.AnyAsync(p => p.Slug == slug);
+            return await _context.Products.AnyAsync(p => p.Slug == slug && !p.IsDeleted);
+        }
+
+        public async Task<bool> SlugExistsAsync(string slug, int excludeProductId)
+        {
+            return await _context.Products.AnyAsync(p => p.Slug == slug && !p.IsDeleted && p.Id != excludeProductId);
         }
 
         public async Task<bool> SkuExistsAsync(string sku)
         {
-            return await _context.Products.AnyAsync(p => p.SKU == sku);
+            return await _context.Products.AnyAsync(p => p.SKU == sku && !p.IsDeleted);
+        }
+
+        public async Task<bool> SkuExistsAsync(string sku, int excludeProductId)
+        {
+            return await _context.Products.AnyAsync(p => p.SKU == sku && !p.IsDeleted && p.Id != excludeProductId);
         }
 
         public async Task<Product> CreateAsync(Product product)

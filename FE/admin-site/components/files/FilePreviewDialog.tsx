@@ -39,6 +39,7 @@ import Image from "next/image"
 import { CopyFileDialog } from "./CopyFileDialog";
 import { useConfirmationDialog } from "../ui/confirmation-dialog";
 import { useFileManager } from "@/hooks/useFileManager";
+import { useFileManagerContext } from "@/contexts/FileManagerContext";
 interface FilePreviewDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -85,6 +86,7 @@ export const FilePreviewDialog = ({
   const [showCopyDialog, setShowCopyDialog] = useState(false);
   const { confirm } = useConfirmationDialog();
   const { deleteItem } = useFileManager();
+  const { downloadFile } = useFileManagerContext();
   useEffect(() => {
     if (open && filePath) {
       loadFileInfo();
@@ -120,6 +122,12 @@ export const FilePreviewDialog = ({
       }
     })
   }
+
+  const handleDownload = () => {
+    if (fileInfo) {
+      downloadFile(fileInfo.relativePath);
+    }
+  };
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleClose = (isRefresh = false) => {
@@ -192,7 +200,7 @@ export const FilePreviewDialog = ({
                 <div className="flex items-center justify-between">
                   <h3 className="text-lg font-semibold">File Information</h3>
                   <div className="flex items-center gap-2">
-                    <Button variant="outline" size="sm">
+                    <Button variant="outline" size="sm" onClick={handleDownload}>
                       <Download className="h-4 w-4" />
                     </Button>
                     <Button variant="outline" size="sm" onClick={() => setShowCopyDialog(true)}>

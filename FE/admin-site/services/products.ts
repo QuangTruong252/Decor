@@ -4,6 +4,16 @@ import { API_URL, fetchWithAuth, fetchWithAuthFormData } from "@/lib/api-utils";
 import { buildApiUrl, cleanFilters } from "@/lib/query-utils";
 import { ProductFilters, PagedResult } from "@/types/api";
 
+// Image DTO from API spec
+export interface ImageDTO {
+  id: number;
+  fileName: string;
+  filePath: string;
+  altText?: string;
+  createdAt: string;
+}
+
+// Product interface matching API spec
 export interface Product {
   id: number;
   name: string;
@@ -23,30 +33,49 @@ export interface Product {
   images: string[] | null;
 }
 
+// ProductDTO with enhanced image details matching API spec
 export interface ProductDTO extends Product {
-  imageDetails?: {
-    id: number;
-    url: string;
-    altText?: string;
-  }[];
+  imageDetails?: ImageDTO[];
 }
 
-export interface CreateProductPayload {
-  name: string;
-  slug: string;
-  description?: string;
-  price: number;
+// CreateProductDTO matching API spec exactly
+export interface CreateProductDTO {
+  name: string; // 3-255 chars, required
+  slug: string; // 0-255 chars, required
+  description?: string; // nullable
+  price: number; // min 0.01, required
   originalPrice?: number;
-  stockQuantity: number;
-  sku: string;
-  categoryId: number;
+  stockQuantity: number; // required
+  sku: string; // 0-50 chars, required
+  categoryId: number; // required
   isFeatured?: boolean;
   isActive?: boolean;
+  imageIds?: number[]; // nullable - for linking existing images
+}
+
+// UpdateProductDTO matching API spec exactly
+export interface UpdateProductDTO {
+  name: string; // 3-255 chars, required
+  slug?: string; // 0-255 chars, nullable
+  description?: string; // nullable
+  price: number; // min 0.01, required
+  originalPrice?: number;
+  stockQuantity?: number;
+  sku?: string; // 0-50 chars, nullable
+  categoryId?: number;
+  isFeatured?: boolean;
+  isActive?: boolean;
+  imageIds?: number[]; // nullable - for linking existing images
+}
+
+// Form payload that includes file uploads
+export interface CreateProductPayload extends CreateProductDTO {
   images?: File[];
 }
 
-export interface UpdateProductPayload extends Partial<CreateProductPayload> {
+export interface UpdateProductPayload extends UpdateProductDTO {
   id: number;
+  images?: File[];
 }
 
 export async function getProducts(filters?: ProductFilters): Promise<PagedResult<ProductDTO>> {
@@ -98,47 +127,31 @@ export async function getProductById(id: number): Promise<Product> {
 
 export async function createProduct(product: CreateProductPayload): Promise<Product> {
   try {
-    // Create FormData to send both data and images
-    const formData = new FormData();
+    const productData: CreateProductDTO = {
+      name: product.name,
+      slug: product.slug,
+      description: product.description,
+      price: product.price,
+      originalPrice: product.originalPrice,
+      stockQuantity: product.stockQuantity,
+      sku: product.sku,
+      categoryId: product.categoryId,
+      isFeatured: product.isFeatured ?? false,
+      isActive: product.isActive ?? true,
+      imageIds: product.imageIds,
+    };
 
-    // Add product information fields to FormData
-    if (product.images && product.images.length > 0) {
-      product.images.forEach((image) => {
-        formData.append("Images", image);
-      });
-    }
-
-    // Build URL with query params
-    let url = `${API_URL}/api/Products?`;
-    url += `Name=${encodeURIComponent(product.name)}`;
-    url += `&Slug=${encodeURIComponent(product.slug)}`;
-    url += `&Price=${product.price}`;
-    url += `&StockQuantity=${product.stockQuantity}`;
-    url += `&SKU=${encodeURIComponent(product.sku)}`;
-    url += `&CategoryId=${product.categoryId}`;
-
-    if (product.description) {
-      url += `&Description=${encodeURIComponent(product.description)}`;
-    }
-
-    if (product.originalPrice) {
-      url += `&OriginalPrice=${product.originalPrice}`;
-    }
-
-    if (product.isFeatured !== undefined) {
-      url += `&IsFeatured=${product.isFeatured}`;
-    }
-
-    if (product.isActive !== undefined) {
-      url += `&IsActive=${product.isActive}`;
-    }
-
-    const response = await fetchWithAuthFormData(url, formData);
+    const response = await fetchWithAuth(`${API_URL}/api/Products`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(productData),
+    });
 
     if (!response.ok) {
       throw new Error("Unable to create product");
     }
-
     return response.json();
   } catch (error) {
     console.error("Create product error:", error);
@@ -148,60 +161,16 @@ export async function createProduct(product: CreateProductPayload): Promise<Prod
 
 export async function updateProduct(product: UpdateProductPayload): Promise<void> {
   try {
-    // Create FormData to send both data and images
-    const formData = new FormData();
+    const { id, ...updateData } = product;
+    const productData: UpdateProductDTO = updateData;
 
-    // Add product information fields to FormData
-    if (product.images && product.images.length > 0) {
-      product.images.forEach((image) => {
-        formData.append("Images", image);
-      });
-    }
-
-    // Build URL with query params
-    let url = `${API_URL}/api/Products/${product.id}?`;
-
-    if (product.name) {
-      url += `Name=${encodeURIComponent(product.name)}`;
-    }
-
-    if (product.slug) {
-      url += `&Slug=${encodeURIComponent(product.slug)}`;
-    }
-
-    if (product.price !== undefined) {
-      url += `&Price=${product.price}`;
-    }
-
-    if (product.stockQuantity !== undefined) {
-      url += `&StockQuantity=${product.stockQuantity}`;
-    }
-
-    if (product.sku) {
-      url += `&SKU=${encodeURIComponent(product.sku)}`;
-    }
-
-    if (product.categoryId !== undefined) {
-      url += `&CategoryId=${product.categoryId}`;
-    }
-
-    if (product.description) {
-      url += `&Description=${encodeURIComponent(product.description)}`;
-    }
-
-    if (product.originalPrice !== undefined) {
-      url += `&OriginalPrice=${product.originalPrice}`;
-    }
-
-    if (product.isFeatured !== undefined) {
-      url += `&IsFeatured=${product.isFeatured}`;
-    }
-
-    if (product.isActive !== undefined) {
-      url += `&IsActive=${product.isActive}`;
-    }
-
-    const response = await fetchWithAuthFormData(url, formData, "PUT");
+    const response = await fetchWithAuth(`${API_URL}/api/Products/${id}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(productData),
+    });
 
     if (!response.ok) {
       throw new Error("Unable to update product");
@@ -243,5 +212,116 @@ export async function bulkDeleteProducts(ids: number[]): Promise<void> {
   } catch (error) {
     console.error(`Bulk delete products error:`, error);
     throw new Error("Unable to delete products. Please try again later.");
+  }
+}
+
+
+export async function addProductImages(productId: number, images: File[]): Promise<void> {
+  try {
+    const formData = new FormData();
+    images.forEach((image) => {
+      formData.append("Images", image);
+    });
+
+    const response = await fetchWithAuthFormData(`${API_URL}/api/Products/${productId}/images`, formData);
+
+    if (!response.ok) {
+      throw new Error("Unable to add product images");
+    }
+  } catch (error) {
+    console.error(`Add product images error:`, error);
+    throw new Error("Unable to add product images. Please try again later.");
+  }
+}
+
+export async function deleteProductImage(productId: number, imageId: number): Promise<void> {
+  try {
+    const response = await fetchWithAuth(`${API_URL}/api/Products/${productId}/images/${imageId}`, {
+      method: "DELETE",
+    });
+
+    if (!response.ok) {
+      throw new Error("Unable to delete product image");
+    }
+  } catch (error) {
+    console.error(`Delete product image error:`, error);
+    throw new Error("Unable to delete product image. Please try again later.");
+  }
+}
+
+// Additional API endpoints from specification
+
+export async function getProductsByCategory(categoryId: number, count: number = 20): Promise<ProductDTO[]> {
+  try {
+    const response = await fetchWithAuth(`${API_URL}/api/Products/category/${categoryId}?count=${count}`);
+
+    if (!response.ok) {
+      throw new Error("Unable to fetch products by category");
+    }
+
+    return response.json();
+  } catch (error) {
+    console.error(`Get products by category ${categoryId} error:`, error);
+    throw new Error("Unable to fetch products by category. Please try again later.");
+  }
+}
+
+export async function getFeaturedProducts(count: number = 10): Promise<ProductDTO[]> {
+  try {
+    const response = await fetchWithAuth(`${API_URL}/api/Products/featured?count=${count}`);
+
+    if (!response.ok) {
+      throw new Error("Unable to fetch featured products");
+    }
+
+    return response.json();
+  } catch (error) {
+    console.error("Get featured products error:", error);
+    throw new Error("Unable to fetch featured products. Please try again later.");
+  }
+}
+
+export async function getTopRatedProducts(count: number = 10): Promise<ProductDTO[]> {
+  try {
+    const response = await fetchWithAuth(`${API_URL}/api/Products/top-rated?count=${count}`);
+
+    if (!response.ok) {
+      throw new Error("Unable to fetch top rated products");
+    }
+
+    return response.json();
+  } catch (error) {
+    console.error("Get top rated products error:", error);
+    throw new Error("Unable to fetch top rated products. Please try again later.");
+  }
+}
+
+export async function getLowStockProducts(threshold: number = 10): Promise<ProductDTO[]> {
+  try {
+    const response = await fetchWithAuth(`${API_URL}/api/Products/low-stock?threshold=${threshold}`);
+
+    if (!response.ok) {
+      throw new Error("Unable to fetch low stock products");
+    }
+
+    return response.json();
+  } catch (error) {
+    console.error("Get low stock products error:", error);
+    throw new Error("Unable to fetch low stock products. Please try again later.");
+  }
+}
+
+export async function getRelatedProducts(id: number, count: number = 5): Promise<ProductDTO[]> {
+  try {
+    const response = await fetchWithAuth(`${API_URL}/api/Products/${id}/related?count=${count}`);
+
+    if (!response.ok) {
+      throw new Error("Unable to fetch related products");
+    }
+
+    return response.json();
+  } catch (error) {
+    console.error(`Get related products for ${id} error:`, error);
+    throw new Error("Unable to fetch related products. Please try again later.");
   }
 }

@@ -1,6 +1,9 @@
 "use client";
 
 import { ReactNode } from "react";
+import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 import { Sidebar } from "./Sidebar";
 import { Navbar } from "./Navbar";
 import { SidebarProvider, useSidebar } from "./SidebarProvider";
@@ -12,6 +15,38 @@ interface AdminLayoutProps {
 
 function AdminLayoutContent({ children }: AdminLayoutProps) {
   const { isCollapsed, collapse } = useSidebar();
+  const { data: session, status } = useSession();
+  const router = useRouter();
+
+  useEffect(() => {
+    console.log("[AdminLayout] Session status:", status);
+    console.log("[AdminLayout] Session data:", session);
+    
+    if (status === "loading") return; // Still loading
+    
+    if (status === "unauthenticated") {
+      console.log("[AdminLayout] User not authenticated, redirecting to login");
+      router.push("/login");
+      return;
+    }
+  }, [status, session, router]);
+
+  // Show loading while checking authentication
+  if (status === "loading") {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <div className="text-center">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
+          <p className="mt-2 text-sm text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Don't render anything if not authenticated (will redirect)
+  if (status === "unauthenticated") {
+    return null;
+  }
 
   return (
     <div className="flex h-screen bg-background relative">

@@ -195,7 +195,7 @@ export const SystemFilesTab = ({
             </div>
           ) : (
             <div className="grid grid-cols-2 gap-4">
-              {browseData?.items.map((file) => (
+              {browseData?.items.map((file: any) => (
                 <div
                   key={file.relativePath}
                   className={cn(

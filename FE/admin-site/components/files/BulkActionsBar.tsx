@@ -14,7 +14,7 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import { useFileManager } from "@/hooks/useFileManager";
+import { useFileManagerContext } from "@/contexts/FileManagerContext";
 import { CopyFileDialog } from "./CopyFileDialog";
 import { MoveFileDialog } from "./MoveFileDialog";
 import { useConfirmationDialog } from "../ui/confirmation-dialog";
@@ -30,18 +30,50 @@ export const BulkActionsBar = ({
 }: BulkActionsBarProps) => {
   const [showMoveDialog, setShowMoveDialog] = useState(false);
   const [showCopyDialog, setShowCopyDialog] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
   const { confirm } = useConfirmationDialog();
-  const { deleteSelectedItems } = useFileManager();
-  const handleDelete = () => {
-    confirm({
-      title: "Delete Items",
-      message: `Are you sure you want to delete ${selectedCount} selected item${selectedCount !== 1 ? "s" : ""}? This action cannot be undone.`,
-      confirmText: "Delete Items",
-      variant: "destructive",
-      onConfirm: () => {
-        deleteSelectedItems();
-      },
-    })
+  const { deleteSelectedItems, selectedItems, downloadFile } = useFileManagerContext();
+  const handleDelete = async () => {
+    try {
+      confirm({
+        title: "Delete Items",
+        message: `Are you sure you want to delete ${selectedCount} selected item${selectedCount !== 1 ? "s" : ""}? This action cannot be undone.`,
+        confirmText: "Delete Items",
+        variant: "destructive",
+        onConfirm: () => {
+          deleteSelectedItems();
+        },
+      });
+
+    } catch (error) {
+      console.error("Error with confirmation dialog:", error);
+    }
+  };
+
+  const handleDownload = async () => {
+    if (selectedItems.length === 0) return;
+
+    setIsDownloading(true);
+    
+    try {
+      if (selectedItems.length === 1) {
+        // Single file download
+        downloadFile(selectedItems[0]);
+      } else {
+        // Multiple files - download sequentially with small delays
+        for (const item of selectedItems) {
+          downloadFile(item);
+          // Small delay between downloads to avoid overwhelming the browser
+          if (selectedItems.indexOf(item) < selectedItems.length - 1) {
+            await new Promise(resolve => setTimeout(resolve, 500));
+          }
+        }
+      }
+    } catch (error) {
+      console.error("Error downloading files:", error);
+    } finally {
+      setIsDownloading(false);
+    }
   };
 
   return (
@@ -66,9 +98,14 @@ export const BulkActionsBar = ({
           {/* Actions */}
           <div className="flex items-center gap-2">
             {/* Download */}
-            <Button variant="outline" size="sm">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={handleDownload}
+              disabled={isDownloading}
+            >
               <Download className="h-4 w-4 mr-2" />
-              Download
+              {isDownloading ? "Downloading..." : "Download"}
             </Button>
 
             <Separator orientation="vertical" className="h-4" />

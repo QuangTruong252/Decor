@@ -19,7 +19,9 @@ namespace DecorStore.API.Interfaces.Repositories
         Task<int> GetTotalCountAsync(ProductFilterDTO filter);
         Task<bool> ExistsAsync(int id);
         Task<bool> SlugExistsAsync(string slug);
+        Task<bool> SlugExistsAsync(string slug, int excludeProductId);
         Task<bool> SkuExistsAsync(string sku);
+        Task<bool> SkuExistsAsync(string sku, int excludeProductId);
 
         // CRUD operations
         Task<Product> CreateAsync(Product product);

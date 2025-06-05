@@ -74,7 +74,9 @@ namespace DecorStore.API.DTOs
 
         // Use ImageIds to associate existing images with product
         public List<int> ImageIds { get; set; } = new List<int>();
-    }    // DTO for updating a product
+    }
+
+    // DTO for updating a product
     public class UpdateProductDTO
     {
         [Required]

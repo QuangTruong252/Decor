@@ -27,6 +27,7 @@ namespace DecorStore.API.Interfaces.Repositories
         Task DeleteAsync(Image image);
         Task<bool> ExistsAsync(int id);
         Task<Image?> GetByFilePathAsync(string filePath);
+        Task<List<Image>> GetByFilePathsAsync(List<string> filePaths);
         Task<List<Image>> GetByFolderAsync(string folderName);
         Task DeleteByFilePathAsync(string filePath);
     }

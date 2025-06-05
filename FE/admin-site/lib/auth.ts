@@ -6,9 +6,9 @@ import { getServerSession } from "next-auth/next";
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
 interface BackendUser {
-  id: string;
+  id: number;
+  username: string;
   email: string;
-  name: string;
   role: string;
 }
 
@@ -25,7 +25,7 @@ export const authOptions: NextAuthOptions = {
         email: { label: "Email", type: "email" },
         password: { label: "Password", type: "password" },
       },
-      async authorize(credentials, req) {
+      async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) {
           return null;
         }
@@ -51,9 +51,9 @@ export const authOptions: NextAuthOptions = {
 
           if (data.token && data.user) {
             return {
-              id: data.user.id,
+              id: data.user.id.toString(), // Convert to string for NextAuth compatibility
               email: data.user.email,
-              name: data.user.name,
+              name: data.user.username, // Use username from API
               role: data.user.role,
               accessToken: data.token,
             };

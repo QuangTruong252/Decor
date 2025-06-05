@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Resolver, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -13,7 +13,6 @@ import { Loader2 } from "lucide-react";
 import { Product } from "@/services/products";
 import { useHierarchicalCategories } from "@/hooks/useCategoryStore";
 import { HierarchicalSelect } from "@/components/ui/hierarchical-select";
-// Select components removed - using HierarchicalSelect instead
 import {
   Form,
   FormControl,
@@ -22,28 +21,28 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-
 import { ImageUploadButton, ImageUploadResult } from "@/components/shared/ImageUpload";
+import { imageService } from "@/services/images";
 
-// Define the form schema with zod
 const productSchema = z.object({
-  name: z.string().min(1, "Name is required"),
-  slug: z.string().min(1, "Slug is required"),
+  name: z.string().min(3, "Name must be at least 3 characters").max(255, "Name must be less than 255 characters"),
+  slug: z.string().max(255, "Slug must be less than 255 characters"),
   description: z.string().optional(),
-  price: z.coerce.number().min(0, "Price must be a positive number"),
+  price: z.coerce.number().min(0.01, "Price must be at least 0.01"),
   originalPrice: z.coerce.number().min(0, "Original price must be a positive number").optional(),
   stockQuantity: z.coerce.number().min(0, "Stock quantity must be a non-negative number"),
-  sku: z.string().min(1, "SKU is required"),
+  sku: z.string().max(50, "SKU must be less than 50 characters"),
   categoryId: z.coerce.number().min(1, "Category is required"),
   isFeatured: z.boolean().default(false),
   isActive: z.boolean().default(true),
   images: z.array(z.instanceof(File)).optional().default([]),
+  imageIds: z.array(z.number()).optional().default([]),
 });
 
 export type ProductFormValues = z.infer<typeof productSchema>;
 
 interface ProductFormProps {
-  initialData?: Product;
+  initialData?: Product & { imageDetails?: { id: number; fileName: string; filePath: string }[] };
   onSubmit: (data: ProductFormValues) => Promise<void>;
   isSubmitting: boolean;
 }
@@ -53,14 +52,40 @@ export function ProductForm({
   onSubmit,
   isSubmitting,
 }: ProductFormProps) {
-  // State for images (support both File and string for edit mode)
   const [images, setImages] = useState<(File | string)[]>(
-    initialData && initialData.images ? initialData.images : []
+    initialData?.images || []
   );
+  const [existingImageIds, setExistingImageIds] = useState<number[]>([]);
+  const [pendingUploadResults, setPendingUploadResults] = useState<ImageUploadResult[]>([]);
+
   const { data: categoriesData, isLoading: isCategoriesLoading } = useHierarchicalCategories();
   const categories = categoriesData || [];
 
-  // Initialize the form with react-hook-form
+  useEffect(() => {
+    if (initialData) {
+      const existingIds: number[] = [];
+      const imageUrls: string[] = [];
+      
+      // Extract image IDs from imageDetails if available
+      if (initialData.imageDetails && initialData.imageDetails.length > 0) {
+        initialData.imageDetails.forEach((detail) => {
+          existingIds.push(detail.id);
+          imageUrls.push(detail.filePath);
+        });
+      } else if (initialData.images && initialData.images.length > 0) {
+        // Fallback to image URLs if no imageDetails
+        initialData.images.forEach((img) => {
+          if (typeof img === 'string') {
+            imageUrls.push(img);
+          }
+        });
+      }
+      
+      setImages(imageUrls);
+      setExistingImageIds(existingIds);
+    }
+  }, [initialData]);
+
   const form = useForm<ProductFormValues>({
     resolver: zodResolver(productSchema) as Resolver<ProductFormValues>,
     defaultValues: initialData
@@ -84,56 +109,97 @@ export function ProductForm({
           originalPrice: 0,
           stockQuantity: 0,
           sku: "",
-          categoryId: 1, // Default category ID
+          categoryId: 1,
           isFeatured: false,
           isActive: true,
         },
   });
 
-  // Handle image upload from new component
-  const handleImagesSelected = (result: ImageUploadResult) => {
+  const handleImagesSelected = async (result: ImageUploadResult) => {
+    const validation = imageService.validateUploadResult(result);
+    if (!validation.isValid) {
+      return;
+    }
+
+    // Store the upload result for processing during submit
+    setPendingUploadResults(prev => [...prev, result]);
+
+    // Update the images display array
     switch (result.source) {
       case "device":
         if (result.files) {
-          setImages((prev) => [...prev, ...result.files!]);
+          setImages(prev => [...prev, ...result.files!]);
         }
         break;
       case "url":
         if (result.urls) {
-          setImages((prev) => [...prev, ...result.urls!]);
+          setImages(prev => [...prev, ...result.urls!]);
         }
         break;
       case "system":
         if (result.systemFiles) {
-          // Convert system files to their URLs
           const urls = result.systemFiles.map(file => file.relativePath);
-          setImages((prev) => [...prev, ...urls]);
+          setImages(prev => [...prev, ...urls]);
         }
         break;
     }
   };
 
-  // Remove image (by index)
-  const handleRemoveImage = (idx: number) => {
-    setImages((prev) => prev.filter((_, i) => i !== idx));
+  const handleRemoveImage = (index: number) => {
+    const imageToRemove = images[index];
+    
+    // If removing an existing image (string URL), also remove its ID from existingImageIds
+    if (typeof imageToRemove === 'string' && initialData?.imageDetails) {
+      const imageDetail = initialData.imageDetails.find(detail => detail.filePath === imageToRemove);
+      if (imageDetail) {
+        setExistingImageIds(prev => prev.filter(id => id !== imageDetail.id));
+      }
+    }
+    
+    // Remove from pending upload results if it exists
+    setPendingUploadResults(prev => {
+      return prev.filter(result => {
+        if (result.source === "device" && result.files) {
+          return !result.files.some(file => file === imageToRemove);
+        }
+        if (result.source === "url" && result.urls) {
+          return !result.urls.some(url => url === imageToRemove);
+        }
+        if (result.source === "system" && result.systemFiles) {
+          return !result.systemFiles.some(file => file.relativePath === imageToRemove);
+        }
+        return true;
+      });
+    });
+    
+    setImages(prev => prev.filter((_, i) => i !== index));
   };
 
-  // Handle form submission
   const handleSubmit = async (data: ProductFormValues) => {
     try {
-      // Add images to the data
+      const allImageIds: number[] = [...existingImageIds];
+      
+      // Process all pending upload results
+      for (const result of pendingUploadResults) {
+        const processResult = await imageService.processImageUpload(result, { folderPath: "products" });
+        
+        if (processResult.success && processResult.imageIds) {
+          allImageIds.push(...processResult.imageIds);
+        } else {
+          throw new Error(processResult.error || `Failed to process ${result.source} images`);
+        }
+      }
+
       await onSubmit({
         ...data,
-        // Filter out string images and only keep File objects
-        images: images.filter((img): img is File => img instanceof File)
+        images: [],
+        imageIds: allImageIds,
       });
-      // Don't reset the form here, as the dialog will be closed by the parent component
     } catch (error) {
-      console.error("Form submission error:", error);
+      throw error;
     }
   };
 
-  // Generate slug from name
   const generateSlug = () => {
     const name = form.getValues("name");
     if (name) {
@@ -143,6 +209,19 @@ export function ProductForm({
         .replace(/\s+/g, "-");
       form.setValue("slug", slug);
     }
+  };
+
+  const generateSKU = () => {
+    const name = form.getValues("name");
+    // get first letter of each word, convert to uppercase, and join with hyphens
+    if (!name) return;
+    // remove any non-alphanumeric characters and extra spaces
+    const cleanedName = name.replace(/[^a-zA-Z0-9\s]/g, "").replace(/\s+/g, " ");
+    const sku = cleanedName
+      .split(" ")
+      .map(word => word.charAt(0).toUpperCase())
+      .join("");
+    form.setValue("sku", sku);
   };
 
   return (
@@ -259,22 +338,30 @@ export function ProductForm({
                 </FormItem>
               )}
             />
-
-            <FormField
-              control={form.control}
-              name="sku"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>SKU</FormLabel>
-                  <FormControl>
-                    <Input placeholder="SKU-12345" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            <div className="flex items-end">
+              <FormField
+                control={form.control}
+                name="sku"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>SKU</FormLabel>
+                    <FormControl>
+                      <Input placeholder="SKU-12345" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <Button
+                type="button"
+                variant="outline"
+                onClick={generateSKU}
+                className="shrink-0 ml-2"
+              >
+                Generate
+              </Button>
+            </div>
           </div>
-
           <FormField
             control={form.control}
             name="categoryId"
@@ -291,7 +378,6 @@ export function ProductForm({
                   showPath={false}
                   leafOnly={false}
                   className="w-full"
-                  onScroll={(e) => console.log('ProductForm scroll event:', e.target)}
                 />
                 <FormMessage />
               </FormItem>

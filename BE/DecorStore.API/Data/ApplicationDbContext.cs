@@ -37,30 +37,36 @@ namespace DecorStore.API.Data
             // Add matching query filter for CartItem to match Product's filter
             modelBuilder.Entity<CartItem>().HasQueryFilter(ci => ci.Product == null || !ci.Product.IsDeleted);
 
-            // Configure unique indexes
+            // Configure unique indexes with filters for soft-delete support
             modelBuilder.Entity<User>()
                 .HasIndex(u => u.Email)
-                .IsUnique();
+                .IsUnique()
+                .HasFilter("[IsDeleted] = 0");
 
             modelBuilder.Entity<User>()
                 .HasIndex(u => u.Username)
-                .IsUnique();
+                .IsUnique()
+                .HasFilter("[IsDeleted] = 0");
 
             modelBuilder.Entity<Product>()
                 .HasIndex(p => p.Slug)
-                .IsUnique();
+                .IsUnique()
+                .HasFilter("[IsDeleted] = 0");
 
             modelBuilder.Entity<Product>()
                 .HasIndex(p => p.SKU)
-                .IsUnique();
+                .IsUnique()
+                .HasFilter("[IsDeleted] = 0");
 
             modelBuilder.Entity<Category>()
                 .HasIndex(c => c.Slug)
-                .IsUnique();
+                .IsUnique()
+                .HasFilter("[IsDeleted] = 0");
 
             modelBuilder.Entity<Customer>()
                 .HasIndex(c => c.Email)
-                .IsUnique();
+                .IsUnique()
+                .HasFilter("[IsDeleted] = 0");
 
             // Configure relationships
             modelBuilder.Entity<Product>()

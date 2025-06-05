@@ -93,6 +93,14 @@ const FileCard = ({
     setShowContextMenu(false);
   };
 
+  const handleCheckboxChange = () => {
+    onSelect();
+  };
+
+  const handleCheckboxClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+  };
+
   return (
     <Card
       className={cn(
@@ -103,12 +111,17 @@ const FileCard = ({
       onContextMenu={handleContextMenu}
     >
       {/* Selection Checkbox */}
-      <div className="absolute top-2 left-2 z-10 opacity-0 group-hover:opacity-100 transition-opacity">
-        <Checkbox
-          checked={isSelected}
-          onCheckedChange={onSelect}
-          className="bg-background border-2"
-        />
+      <div className={cn(
+        "absolute top-2 left-2 z-10 transition-opacity",
+        isSelected ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+      )}>
+        <div onClick={handleCheckboxClick}>
+          <Checkbox
+            checked={isSelected}
+            onCheckedChange={handleCheckboxChange}
+            className="bg-background border-2"
+          />
+        </div>
       </div>
 
       {/* Context Menu */}

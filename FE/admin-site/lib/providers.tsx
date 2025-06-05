@@ -5,6 +5,8 @@ import { SessionProvider } from 'next-auth/react' // Import SessionProvider
 import { ReactNode, useState } from 'react'
 import { ToastProvider } from '@/providers/ToastProvider'
 import { CategoryStoreProvider } from '@/providers/CategoryStoreProvider'
+import { FileManagerProvider } from '@/contexts/FileManagerContext'
+import { ConfirmationDialogProvider } from '@/components/ui/confirmation-dialog'
 
 export function Providers({ children }: { children: ReactNode }) {
   const [queryClient] = useState(() => new QueryClient())
@@ -15,7 +17,11 @@ export function Providers({ children }: { children: ReactNode }) {
       <QueryClientProvider client={queryClient}>
         <CategoryStoreProvider>
           <ToastProvider>
-            {children}
+            <FileManagerProvider>
+              <ConfirmationDialogProvider>
+                {children}
+              </ConfirmationDialogProvider>
+            </FileManagerProvider>
           </ToastProvider>
         </CategoryStoreProvider>
       </QueryClientProvider>

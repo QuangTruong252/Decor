@@ -36,6 +36,9 @@ export default function LoginPage() {
   const onSubmit = async (data: LoginFormData) => {
     setIsLoading(true);
     setError(null);
+    
+    console.log("Login attempt:", { email: data.email, callbackUrl });
+    
     try {
       const result = await signIn("credentials", {
         redirect: false, // We'll handle redirection manually
@@ -44,10 +47,13 @@ export default function LoginPage() {
         callbackUrl: callbackUrl,
       });
 
+      console.log("Login result:", result);
+
       if (result?.error) {
         const errorMessage = result.error === "CredentialsSignin"
           ? "Invalid email or password"
           : result.error;
+        console.error("Login error:", errorMessage);
         toastError({
           title: "Error",
           description: errorMessage,
@@ -55,14 +61,20 @@ export default function LoginPage() {
         setError(errorMessage);
         setIsLoading(false);
       } else if (result?.ok) {
+        console.log("Login successful, redirecting to:", callbackUrl);
         success({
           title: "Success",
           description: "Login successful! Redirecting...",
         });
-        router.push(callbackUrl); // Redirect to the callbackUrl or dashboard
+        
+        // Add a small delay to ensure session is properly set
+        setTimeout(() => {
+          router.push(callbackUrl);
+        }, 100);
       } else {
         // Handle other cases, though typically one of the above will occur
         const errorMessage = "An unexpected error occurred. Please try again.";
+        console.error("Unexpected login result:", result);
         toastError({
           title: "Error",
           description: errorMessage,
@@ -70,9 +82,10 @@ export default function LoginPage() {
         setError(errorMessage);
         setIsLoading(false);
       }
-    } catch (err) {
+    } catch (error) {
       // This catch block might be for network errors or other unexpected issues
       const errorMessage = "Login failed. Please check your connection and try again.";
+      console.error("Login catch error:", error);
       toastError({
         title: "Error",
         description: errorMessage,

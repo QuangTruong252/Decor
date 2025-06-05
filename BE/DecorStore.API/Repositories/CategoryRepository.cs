@@ -90,7 +90,12 @@ namespace DecorStore.API.Repositories
 
         public async Task<bool> SlugExistsAsync(string slug)
         {
-            return await _context.Categories.AnyAsync(c => c.Slug == slug);
+            return await _context.Categories.AnyAsync(c => c.Slug == slug && !c.IsDeleted);
+        }
+
+        public async Task<bool> SlugExistsAsync(string slug, int excludeCategoryId)
+        {
+            return await _context.Categories.AnyAsync(c => c.Slug == slug && !c.IsDeleted && c.Id != excludeCategoryId);
         }
 
         public async Task<int> GetTotalCountAsync(CategoryFilterDTO filter)

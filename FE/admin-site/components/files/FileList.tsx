@@ -100,6 +100,14 @@ const FileRow = ({
     setShowContextMenu(false);
   };
 
+  const handleCheckboxChange = () => {
+    onSelect();
+  };
+
+  const handleCheckboxClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+  };
+
   return (
     <TableRow
       className={cn(
@@ -111,10 +119,12 @@ const FileRow = ({
     >
       {/* Selection */}
       <TableCell className="w-12">
-        <Checkbox
-          checked={isSelected}
-          onCheckedChange={onSelect}
-        />
+        <div onClick={handleCheckboxClick}>
+          <Checkbox
+            checked={isSelected}
+            onCheckedChange={handleCheckboxChange}
+          />
+        </div>
       </TableCell>
 
       {/* Icon & Name */}

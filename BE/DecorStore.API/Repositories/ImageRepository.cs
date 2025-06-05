@@ -150,6 +150,17 @@ namespace DecorStore.API.Repositories
                 .FirstOrDefaultAsync(i => i.FilePath == filePath);
         }
 
+        public async Task<List<Image>> GetByFilePathsAsync(List<string> filePaths)
+        {
+            return await _context.Images
+                 .Include(i => i.ProductImages)
+                 .ThenInclude(pi => pi.Product)
+                 .Include(i => i.CategoryImages)
+                 .ThenInclude(ci => ci.Category)
+                .Where(i => filePaths.Contains(i.FilePath))
+                .ToListAsync();
+        }
+
         public async Task<List<Image>> GetByFolderAsync(string folderName)
         {
             return await _context.Images

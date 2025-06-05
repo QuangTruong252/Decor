@@ -12,7 +12,7 @@ import { Package, ShoppingCart, Users, DollarSign } from "lucide-react";
 
 export default function DashboardPage() {
   const { data, isLoading, error } = useGetBasicDashboardData();
-
+  console.log("Dashboard data:", data, "Loading:", isLoading, "Error:", error);
   if (isLoading) {
     return <DashboardSkeleton />;
   }

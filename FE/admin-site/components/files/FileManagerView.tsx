@@ -20,8 +20,9 @@ import { FileUploadDialog } from "./FileUploadDialog";
 import { FolderTree } from "./FolderTree";
 import { FileList } from "./FileList";
 
-import type { FileItem } from "@/types/fileManager"; // Ensure FileItem is imported if not already
-export const FileManagerView = () => {
+import type { FileItem } from "@/types/fileManager";
+
+const FileManagerContent = () => {
   const {
     browseData,
     rootFolderStructure,
@@ -42,9 +43,6 @@ export const FileManagerView = () => {
     resetFilters,
     uploadFiles,
     createFolder,
-    deleteSelectedItems,
-    moveSelectedItems,
-    copySelectedItems,
     hasSelection,
     selectedCount,
     canNavigateUp,
@@ -63,7 +61,7 @@ export const FileManagerView = () => {
       navigateToPath(relativePath);
     } else {
       // For non-folder types, trigger preview
-      const itemToPreview = browseData?.items.find(item => item.relativePath === relativePath);
+      const itemToPreview = browseData?.items.find((item: FileItem) => item.relativePath === relativePath);
       if (itemToPreview) {
         handlePreviewFile(itemToPreview);
       }
@@ -257,4 +255,8 @@ export const FileManagerView = () => {
       )}
     </div>
   );
+};
+
+export const FileManagerView = () => {
+  return <FileManagerContent />;
 };

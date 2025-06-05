@@ -1,6 +1,6 @@
 "use client";
 
-import { API_URL, fetchWithAuth, fetchWithAuthFormData } from "@/lib/api-utils";
+import { API_URL, fetchWithAuth } from "@/lib/api-utils";
 import { buildApiUrl, cleanFilters } from "@/lib/query-utils";
 import { CategoryFilters, PagedResult } from "@/types/api";
 
@@ -54,7 +54,7 @@ export interface CreateCategoryPayload {
   parentId?: number | null;
   isActive?: boolean;
   displayOrder?: number;
-  image?: File;
+  imageId?: number;
 }
 
 /**
@@ -156,28 +156,23 @@ export async function getCategoryById(id: number): Promise<Category> {
  */
 export async function createCategory(category: CreateCategoryPayload): Promise<Category> {
   try {
-    // Create FormData to send data as multipart/form-data
-    const formData = new FormData();
+    const categoryData = {
+      name: category.name,
+      slug: category.slug,
+      description: category.description,
+      parentId: category.parentId,
+      isActive: category.isActive ?? true,
+      displayOrder: category.displayOrder ?? 0,
+      imageId: category.imageId,
+    };
 
-    // Add required fields
-    formData.append("Name", category.name);
-    formData.append("Slug", category.slug);
-
-    // Add optional fields
-    if (category.description) {
-      formData.append("Description", category.description);
-    }
-
-    if (category.parentId !== undefined && category.parentId !== null) {
-      formData.append("ParentId", category.parentId.toString());
-    }
-
-    // Add image if provided
-    if (category.image) {
-      formData.append("ImageFile", category.image);
-    }
-
-    const response = await fetchWithAuthFormData(`${API_URL}/api/Category`, formData);
+    const response = await fetchWithAuth(`${API_URL}/api/Category`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(categoryData),
+    });
 
     if (!response.ok) {
       throw new Error("Unable to create category");
@@ -198,33 +193,37 @@ export async function createCategory(category: CreateCategoryPayload): Promise<C
  */
 export async function updateCategory(category: UpdateCategoryPayload): Promise<void> {
   try {
-    // Create FormData to send data as multipart/form-data
-    const formData = new FormData();
+    const categoryData: any = {};
 
-    // Add required fields (Name is required for update)
     if (category.name) {
-      formData.append("Name", category.name);
+      categoryData.name = category.name;
     }
-
-    // Add optional fields
     if (category.slug) {
-      formData.append("Slug", category.slug);
+      categoryData.slug = category.slug;
     }
-
     if (category.description !== undefined) {
-      formData.append("Description", category.description || '');
+      categoryData.description = category.description;
+    }
+    if (category.parentId !== undefined) {
+      categoryData.parentId = category.parentId;
+    }
+    if (category.isActive !== undefined) {
+      categoryData.isActive = category.isActive;
+    }
+    if (category.displayOrder !== undefined) {
+      categoryData.displayOrder = category.displayOrder;
+    }
+    if (category.imageId !== undefined) {
+      categoryData.imageId = category.imageId;
     }
 
-    if (category.parentId !== undefined && category.parentId !== null) {
-      formData.append("ParentId", category.parentId.toString());
-    }
-
-    // Add image if provided
-    if (category.image) {
-      formData.append("ImageFile", category.image);
-    }
-
-    const response = await fetchWithAuthFormData(`${API_URL}/api/Category/${category.id}`, formData, "PUT");
+    const response = await fetchWithAuth(`${API_URL}/api/Category/${category.id}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(categoryData),
+    });
 
     if (!response.ok) {
       throw new Error("Unable to update category");
@@ -274,5 +273,128 @@ export async function getProductsByCategory(categoryId: number): Promise<Product
   } catch (error) {
     console.error(`Get products by category ${categoryId} error:`, error);
     throw new Error("Unable to fetch products for this category. Please try again later.");
+  }
+}
+
+/**
+ * Get category by slug
+ * @param slug Category slug
+ * @returns Category details
+ * @endpoint GET /api/Category/slug/{slug}
+ */
+export async function getCategoryBySlug(slug: string): Promise<Category> {
+  try {
+    const response = await fetchWithAuth(`${API_URL}/api/Category/slug/${encodeURIComponent(slug)}`);
+
+    if (!response.ok) {
+      throw new Error("Unable to fetch category");
+    }
+
+    return response.json();
+  } catch (error) {
+    console.error(`Get category by slug ${slug} error:`, error);
+    throw new Error("Unable to fetch category. Please try again later.");
+  }
+}
+
+/**
+ * Get categories with product count
+ * @returns List of categories with product counts
+ * @endpoint GET /api/Category/with-product-count
+ */
+export async function getCategoriesWithProductCount(): Promise<CategoryDTO[]> {
+  try {
+    const response = await fetchWithAuth(`${API_URL}/api/Category/with-product-count`);
+
+    if (!response.ok) {
+      throw new Error("Unable to fetch categories with product count");
+    }
+
+    return response.json();
+  } catch (error) {
+    console.error("Get categories with product count error:", error);
+    throw new Error("Unable to fetch categories with product count. Please try again later.");
+  }
+}
+
+/**
+ * Get subcategories
+ * @param parentId Parent category ID
+ * @returns List of subcategories
+ * @endpoint GET /api/Category/{parentId}/subcategories
+ */
+export async function getSubcategories(parentId: number): Promise<CategoryDTO[]> {
+  try {
+    const response = await fetchWithAuth(`${API_URL}/api/Category/${parentId}/subcategories`);
+
+    if (!response.ok) {
+      throw new Error("Unable to fetch subcategories");
+    }
+
+    return response.json();
+  } catch (error) {
+    console.error(`Get subcategories for parent ${parentId} error:`, error);
+    throw new Error("Unable to fetch subcategories. Please try again later.");
+  }
+}
+
+/**
+ * Get category product count
+ * @param categoryId Category ID
+ * @returns Product count for the category
+ * @endpoint GET /api/Category/{categoryId}/product-count
+ */
+export async function getCategoryProductCount(categoryId: number): Promise<number> {
+  try {
+    const response = await fetchWithAuth(`${API_URL}/api/Category/${categoryId}/product-count`);
+
+    if (!response.ok) {
+      throw new Error("Unable to fetch category product count");
+    }
+
+    return response.json();
+  } catch (error) {
+    console.error(`Get category product count for ${categoryId} error:`, error);
+    throw new Error("Unable to fetch category product count. Please try again later.");
+  }
+}
+
+/**
+ * Get popular categories
+ * @returns List of popular categories
+ * @endpoint GET /api/Category/popular
+ */
+export async function getPopularCategories(): Promise<CategoryDTO[]> {
+  try {
+    const response = await fetchWithAuth(`${API_URL}/api/Category/popular`);
+
+    if (!response.ok) {
+      throw new Error("Unable to fetch popular categories");
+    }
+
+    return response.json();
+  } catch (error) {
+    console.error("Get popular categories error:", error);
+    throw new Error("Unable to fetch popular categories. Please try again later.");
+  }
+}
+
+/**
+ * Get root categories
+ * @returns List of root categories
+ * @endpoint GET /api/Category/root
+ */
+export async function getRootCategories(): Promise<CategoryDTO[]> {
+  try {
+    const response = await fetchWithAuth(`${API_URL}/api/Category/root`);
+
+    if (!response.ok) {
+      throw new Error("Unable to fetch root categories");
+    }
+
+    return response.json();
+  } catch (error) {
+    console.error("Get root categories error:", error);
+    throw new Error("Unable to fetch root categories. Please try again later.");
   }
 }

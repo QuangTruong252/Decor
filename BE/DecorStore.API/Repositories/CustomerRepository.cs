@@ -65,6 +65,12 @@ namespace DecorStore.API.Repositories
                 .AnyAsync(c => c.Email == email && !c.IsDeleted);
         }
 
+        public async Task<bool> EmailExistsAsync(string email, int excludeCustomerId)
+        {
+            return await _context.Customers
+                .AnyAsync(c => c.Email == email && !c.IsDeleted && c.Id != excludeCustomerId);
+        }
+
         public async Task<int> GetTotalCountAsync(CustomerFilterDTO filter)
         {
             return await GetFilteredCustomers(filter).CountAsync();

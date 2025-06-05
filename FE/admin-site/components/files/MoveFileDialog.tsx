@@ -3,27 +3,46 @@ import { Button } from "../ui/button";
 import { DestinationSelect } from "./DestinationSelect";
 import { FolderStructure } from "@/types/fileManager";
 import { useFileManager } from "@/hooks/useFileManager";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 interface MoveFileDialogProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
 }
+
 export const MoveFileDialog = ({
     open,
     onOpenChange,
 }: MoveFileDialogProps) => {
-    const { selectedCount, rootFolderStructure, moveSelectedItems } = useFileManager();
+    const { selectedCount, rootFolderStructure, moveSelectedItems, isMoving } = useFileManager();
     const [destinationPath, setDestinationPath] = useState<string>('');
 
     const folderOptions: FolderStructure[] = rootFolderStructure?.subfolders || [];
-    const handleMove = () => {
-        if (destinationPath) {
-            moveSelectedItems(destinationPath);
-            onOpenChange(false);
-            setDestinationPath("");
+    
+    // Reset destination path when dialog opens/closes
+    useEffect(() => {
+        if (!open) {
+            setDestinationPath('');
+        }
+    }, [open]);
+
+    const handleMove = async () => {
+        if (destinationPath !== undefined) {
+            try {
+                await moveSelectedItems(destinationPath);
+                onOpenChange(false);
+            } catch (error) {
+                // Error handling is done in the hook
+                console.error('Move operation failed:', error);
+            }
         }
     };
+
+    const handleCancel = () => {
+        setDestinationPath('');
+        onOpenChange(false);
+    };
+
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent>
@@ -35,18 +54,25 @@ export const MoveFileDialog = ({
                 </DialogHeader>
 
                 <div className="space-y-4">
-                    <DestinationSelect options={folderOptions} onChange={setDestinationPath} value={destinationPath} />
+                    <DestinationSelect 
+                        options={folderOptions} 
+                        onChange={setDestinationPath} 
+                        value={destinationPath} 
+                    />
                 </div>
 
                 <DialogFooter>
-                    <Button variant="outline" onClick={() => onOpenChange(false)}>
+                    <Button variant="outline" onClick={handleCancel} disabled={isMoving}>
                         Cancel
                     </Button>
-                    <Button onClick={handleMove} disabled={!destinationPath}>
-                        Move Items
+                    <Button 
+                        onClick={handleMove} 
+                        disabled={destinationPath === undefined || isMoving}
+                    >
+                        {isMoving ? "Moving..." : "Move Items"}
                     </Button>
                 </DialogFooter>
             </DialogContent>
         </Dialog>
-    )
-}
+    );
+};

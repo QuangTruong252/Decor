@@ -56,25 +56,21 @@ const FolderNode = ({ folder, currentPath, onNavigateToPath, level = 0 }: Folder
           level > 0 && "ml-2"
         )}
         onClick={handleClick}
-        style={{ paddingLeft: `${level*2}px` }}
+        style={{ paddingLeft: `${level*level*3}px` }}
       >
-        {hasChildren ? (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleToggle}
-            className="h-4 w-4 p-0 hover:bg-transparent"
-          >
-            {isOpen ? (
-              <ChevronDown className="h-3 w-3" />
-            ) : (
-              <ChevronRight className="h-3 w-3" />
-            )}
-          </Button>
-        ) : (
-          <div className="w-4" />
-        )}
-        
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={hasChildren ? handleToggle : undefined}
+          className="h-4 w-5 p-0 hover:bg-transparent"
+        >
+          {hasChildren ? (isOpen ? (
+            <ChevronDown className="h-3 w-3" />
+          ) : (
+            <ChevronRight className="h-3 w-3" />
+          )) : null}
+        </Button>
+
         {isActive ? (
           <FolderOpen className="h-4 w-4 text-blue-500 flex-shrink-0" />
         ) : (

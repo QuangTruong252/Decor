@@ -9,6 +9,13 @@ import {
   updateProduct,
   deleteProduct,
   bulkDeleteProducts,
+  getProductsByCategory,
+  getFeaturedProducts,
+  getTopRatedProducts,
+  getLowStockProducts,
+  getRelatedProducts,
+  addProductImages,
+  deleteProductImage,
   type CreateProductPayload,
   type UpdateProductPayload
 } from "@/services/products";
@@ -121,6 +128,93 @@ export function useBulkDeleteProducts() {
       error({
         title: "Error",
         description: `Error deleting products: ${err.message}`
+      });
+    },
+  });
+}
+
+// Additional hooks for enhanced API functionality
+
+export function useGetProductsByCategory(categoryId: number, count?: number) {
+  return useQuery({
+    queryKey: ["products", "category", categoryId, count],
+    queryFn: () => getProductsByCategory(categoryId, count),
+    enabled: !!categoryId,
+  });
+}
+
+export function useGetFeaturedProducts(count?: number) {
+  return useQuery({
+    queryKey: ["products", "featured", count],
+    queryFn: () => getFeaturedProducts(count),
+  });
+}
+
+export function useGetTopRatedProducts(count?: number) {
+  return useQuery({
+    queryKey: ["products", "top-rated", count],
+    queryFn: () => getTopRatedProducts(count),
+  });
+}
+
+export function useGetLowStockProducts(threshold?: number) {
+  return useQuery({
+    queryKey: ["products", "low-stock", threshold],
+    queryFn: () => getLowStockProducts(threshold),
+  });
+}
+
+export function useGetRelatedProducts(id: number, count?: number) {
+  return useQuery({
+    queryKey: ["products", "related", id, count],
+    queryFn: () => getRelatedProducts(id, count),
+    enabled: !!id,
+  });
+}
+
+export function useAddProductImages() {
+  const queryClient = useQueryClient();
+  const { success, error } = useToast();
+
+  return useMutation({
+    mutationFn: ({ productId, images }: { productId: number; images: File[] }) => 
+      addProductImages(productId, images),
+    onSuccess: (_, variables) => {
+      success({
+        title: "Success",
+        description: "Images added successfully!"
+      });
+      queryClient.invalidateQueries({ queryKey: ["products"] });
+      queryClient.invalidateQueries({ queryKey: ["products", variables.productId] });
+    },
+    onError: (err: Error) => {
+      error({
+        title: "Error",
+        description: `Error adding images: ${err.message}`
+      });
+    },
+  });
+}
+
+export function useDeleteProductImage() {
+  const queryClient = useQueryClient();
+  const { success, error } = useToast();
+
+  return useMutation({
+    mutationFn: ({ productId, imageId }: { productId: number; imageId: number }) => 
+      deleteProductImage(productId, imageId),
+    onSuccess: (_, variables) => {
+      success({
+        title: "Success",
+        description: "Image deleted successfully!"
+      });
+      queryClient.invalidateQueries({ queryKey: ["products"] });
+      queryClient.invalidateQueries({ queryKey: ["products", variables.productId] });
+    },
+    onError: (err: Error) => {
+      error({
+        title: "Error",
+        description: `Error deleting image: ${err.message}`
       });
     },
   });

@@ -141,6 +141,8 @@ export const fileManagerService = {
    * Delete files/folders
    */
   async deleteFiles(request: DeleteRequest): Promise<DeleteResponse> {
+    console.log("Deleting files with request:", request);
+    
     const response = await fetchWithAuth(`${BASE_URL}/delete`, {
       method: "DELETE",
       body: JSON.stringify(request),
@@ -265,8 +267,8 @@ export const fileManagerService = {
    */
   getDownloadUrl(relativePath: string): string {
     // API_URL is imported from @/lib/api-utils
-    // Ensure your API has an endpoint like /api/filemanager/download?path=...
-    return `${API_URL}/api/filemanager/download?path=${encodeURIComponent(relativePath)}`;
+    // API endpoint uses filePath parameter as per documentation
+    return `${BASE_URL}/download?filePath=${encodeURIComponent(relativePath)}`;
   },
 };
 

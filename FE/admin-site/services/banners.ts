@@ -51,6 +51,17 @@ export async function getBanners(): Promise<BannerDTO[]> {
   }
 }
 
+export async function getActiveBanners(): Promise<BannerDTO[]> {
+  try {
+    const response = await fetchWithAuth(`${API_URL}/api/Banner/active`);
+    if (!response.ok) throw new Error("Unable to fetch active banners");
+    return response.json();
+  } catch (error) {
+    console.error("Get active banners error:", error);
+    throw new Error("Unable to fetch active banners. Please try again later.");
+  }
+}
+
 export async function getBannerById(id: number): Promise<BannerDTO> {
   try {
     const response = await fetchWithAuth(`${API_URL}/api/Banner/${id}`);

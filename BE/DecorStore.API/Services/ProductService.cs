@@ -27,11 +27,20 @@ namespace DecorStore.API.Services
         public async Task<IEnumerable<Product>> GetAllAsync(ProductFilterDTO filter)
         {
             return await _unitOfWork.Products.GetAllAsync(filter);
-        }          public async Task<Product> CreateAsync(CreateProductDTO productDto)
+        }
+
+        public async Task<Product> CreateAsync(CreateProductDTO productDto)
         {
             // Verify category exists
             _ = await _unitOfWork.Categories.GetByIdAsync(productDto.CategoryId)
                 ?? throw new NotFoundException("Category not found");
+
+            // Validate unique constraints
+            if (await _unitOfWork.Products.SkuExistsAsync(productDto.SKU))
+                throw new ArgumentException("SKU already exists");
+
+            if (await _unitOfWork.Products.SlugExistsAsync(productDto.Slug))
+                throw new ArgumentException("Slug already exists");
 
             // Map DTO to entity
             var product = _mapper.Map<Product>(productDto);
@@ -62,7 +71,9 @@ namespace DecorStore.API.Services
             }
             
             return product;
-        }        public async Task UpdateAsync(int id, UpdateProductDTO productDto)
+        }
+
+        public async Task UpdateAsync(int id, UpdateProductDTO productDto)
         {
             // Verify category exists
             _ = await _unitOfWork.Categories.GetByIdAsync(productDto.CategoryId)
@@ -72,14 +83,24 @@ namespace DecorStore.API.Services
             var product = await _unitOfWork.Products.GetByIdAsync(id)
                 ?? throw new NotFoundException("Product not found");
 
+            // Validate unique constraints if fields are being changed
+            if (product.SKU != productDto.SKU && await _unitOfWork.Products.SkuExistsAsync(productDto.SKU, id))
+                throw new ArgumentException("SKU already exists");
+
+            if (product.Slug != productDto.Slug && await _unitOfWork.Products.SlugExistsAsync(productDto.Slug, id))
+                throw new ArgumentException("Slug already exists");
+
             // Map basic product properties (excluding images)
-            _mapper.Map(productDto, product);            // Handle image associations: Remove old associations and create new ones
+            _mapper.Map(productDto, product);
+
+            // Handle image associations: Remove old associations and create new ones
             await _unitOfWork.ExecuteWithExecutionStrategyAsync(async () =>
             {
                 await _unitOfWork.BeginTransactionAsync();
                 
                 try
-                {                    // Step 1: Remove all existing image associations for this product
+                {
+                    // Step 1: Remove all existing image associations for this product
                     var existingProductImages = await _unitOfWork.Images.GetProductImagesByProductIdAsync(id);
                     foreach (var productImage in existingProductImages)
                     {
@@ -206,7 +227,9 @@ namespace DecorStore.API.Services
             });
 
             return true;
-        }        public async Task<bool> AddImageToProductAsync(int productId, IFormFile image)
+        }
+
+        public async Task<bool> AddImageToProductAsync(int productId, IFormFile image)
         {
             var product = await _unitOfWork.Products.GetByIdAsync(productId)
                 ?? throw new NotFoundException("Product not found");
@@ -236,7 +259,9 @@ namespace DecorStore.API.Services
             await _unitOfWork.SaveChangesAsync();
             
             return true;
-        }        public async Task<bool> RemoveImageFromProductAsync(int productId, int imageId)
+        }
+
+        public async Task<bool> RemoveImageFromProductAsync(int productId, int imageId)
         {
             var product = await _unitOfWork.Products.GetByIdAsync(productId)
                 ?? throw new NotFoundException("Product not found");

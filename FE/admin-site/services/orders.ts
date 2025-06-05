@@ -264,3 +264,156 @@ export async function deleteOrder(id: number): Promise<void> {
     throw new Error("Unable to delete order. Please try again later.");
   }
 }
+
+/**
+ * Bulk delete orders
+ * @param ids Array of order IDs to delete
+ * @returns void
+ * @endpoint DELETE /api/Order/bulk
+ */
+export async function bulkDeleteOrders(ids: number[]): Promise<void> {
+  try {
+    const response = await fetchWithAuth(`${API_URL}/api/Order/bulk`, {
+      method: "DELETE",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ ids }),
+    });
+
+    if (!response.ok) {
+      throw new Error("Unable to delete orders");
+    }
+  } catch (error) {
+    console.error(`Bulk delete orders error:`, error);
+    throw new Error("Unable to delete orders. Please try again later.");
+  }
+}
+
+/**
+ * Get recent orders
+ * @param limit Number of recent orders to return
+ * @returns List of recent orders
+ * @endpoint GET /api/Order/recent
+ */
+export async function getRecentOrders(limit?: number): Promise<OrderDTO[]> {
+  try {
+    let url = `${API_URL}/api/Order/recent`;
+    if (limit) {
+      url += `?limit=${limit}`;
+    }
+
+    const response = await fetchWithAuth(url);
+
+    if (!response.ok) {
+      throw new Error("Unable to fetch recent orders");
+    }
+
+    return response.json();
+  } catch (error) {
+    console.error("Get recent orders error:", error);
+    throw new Error("Unable to fetch recent orders. Please try again later.");
+  }
+}
+
+/**
+ * Get orders by status
+ * @param status Order status
+ * @returns List of orders with the specified status
+ * @endpoint GET /api/Order/status/{status}
+ */
+export async function getOrdersByStatus(status: string): Promise<OrderDTO[]> {
+  try {
+    const response = await fetchWithAuth(`${API_URL}/api/Order/status/${encodeURIComponent(status)}`);
+
+    if (!response.ok) {
+      throw new Error("Unable to fetch orders by status");
+    }
+
+    return response.json();
+  } catch (error) {
+    console.error(`Get orders by status ${status} error:`, error);
+    throw new Error("Unable to fetch orders by status. Please try again later.");
+  }
+}
+
+/**
+ * Get orders by date range
+ * @param startDate Start date
+ * @param endDate End date
+ * @returns List of orders within the date range
+ * @endpoint GET /api/Order/date-range
+ */
+export async function getOrdersByDateRange(startDate: string, endDate: string): Promise<OrderDTO[]> {
+  try {
+    const response = await fetchWithAuth(
+      `${API_URL}/api/Order/date-range?startDate=${encodeURIComponent(startDate)}&endDate=${encodeURIComponent(endDate)}`
+    );
+
+    if (!response.ok) {
+      throw new Error("Unable to fetch orders by date range");
+    }
+
+    return response.json();
+  } catch (error) {
+    console.error(`Get orders by date range error:`, error);
+    throw new Error("Unable to fetch orders by date range. Please try again later.");
+  }
+}
+
+/**
+ * Get revenue data
+ * @param startDate Optional start date
+ * @param endDate Optional end date
+ * @returns Revenue data
+ * @endpoint GET /api/Order/revenue
+ */
+export async function getRevenue(startDate?: string, endDate?: string): Promise<{ totalRevenue: number; currency: string }> {
+  try {
+    let url = `${API_URL}/api/Order/revenue`;
+    const params = [];
+    
+    if (startDate) {
+      params.push(`startDate=${encodeURIComponent(startDate)}`);
+    }
+    
+    if (endDate) {
+      params.push(`endDate=${encodeURIComponent(endDate)}`);
+    }
+    
+    if (params.length > 0) {
+      url += `?${params.join('&')}`;
+    }
+
+    const response = await fetchWithAuth(url);
+
+    if (!response.ok) {
+      throw new Error("Unable to fetch revenue data");
+    }
+
+    return response.json();
+  } catch (error) {
+    console.error("Get revenue error:", error);
+    throw new Error("Unable to fetch revenue data. Please try again later.");
+  }
+}
+
+/**
+ * Get status counts
+ * @returns Order status distribution
+ * @endpoint GET /api/Order/status-counts
+ */
+export async function getStatusCounts(): Promise<{ [status: string]: number }> {
+  try {
+    const response = await fetchWithAuth(`${API_URL}/api/Order/status-counts`);
+
+    if (!response.ok) {
+      throw new Error("Unable to fetch status counts");
+    }
+
+    return response.json();
+  } catch (error) {
+    console.error("Get status counts error:", error);
+    throw new Error("Unable to fetch status counts. Please try again later.");
+  }
+}

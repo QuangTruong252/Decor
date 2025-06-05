@@ -145,5 +145,30 @@ namespace DecorStore.API.Controllers
                 return StatusCode(500, $"An error occurred while retrieving images: {ex.Message}");
             }
         }
+        [HttpGet("get-by-filepaths")]
+        public async Task<ActionResult<ImageUploadResponseDTO>> GetImagesByFilePaths([FromQuery] List<string> filePaths)
+        {
+            try
+            {
+                if (filePaths == null || !filePaths.Any())
+                {
+                    return BadRequest("No file paths provided");
+                }
+
+                var images = await _imageService.GetImagesByFilePathsAsync(filePaths);
+                var imageResponseDtos = _mapper.Map<List<ImageResponseDTO>>(images);
+
+                var response = new ImageUploadResponseDTO
+                {
+                    Images = imageResponseDtos
+                };
+
+                return Ok(response);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"An error occurred while retrieving images: {ex.Message}");
+            }
+        }
     }
 }

@@ -180,10 +180,10 @@ export async function getSalesByCategory(): Promise<CategorySales[]> {
 
 /**
  * Get order status distribution
- * @returns List of order status counts
+ * @returns Order status distribution object
  * @endpoint GET /api/Dashboard/order-status-distribution
  */
-export async function getOrderStatusDistribution(): Promise<OrderStatusCount[]> {
+export async function getOrderStatusDistribution(): Promise<OrderStatusDistribution> {
   try {
     const response = await fetchWithAuth(`${API_URL}/api/Dashboard/order-status-distribution`);
 

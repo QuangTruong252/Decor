@@ -216,3 +216,159 @@ export async function deleteCustomer(id: number): Promise<void> {
     throw new Error("Unable to delete customer. Please try again later.");
   }
 }
+
+/**
+ * Get customers with orders
+ * @returns List of customers with their orders
+ * @endpoint GET /api/Customer/with-orders
+ */
+export async function getCustomersWithOrders(): Promise<CustomerWithOrdersDTO[]> {
+  try {
+    const response = await fetchWithAuth(`${API_URL}/api/Customer/with-orders`);
+
+    if (!response.ok) {
+      throw new Error("Unable to fetch customers with orders");
+    }
+
+    return response.json();
+  } catch (error) {
+    console.error("Get customers with orders error:", error);
+    throw new Error("Unable to fetch customers with orders. Please try again later.");
+  }
+}
+
+/**
+ * Get top customers by order count
+ * @param limit Number of top customers to return
+ * @returns List of top customers by order count
+ * @endpoint GET /api/Customer/top-by-order-count
+ */
+export async function getTopCustomersByOrderCount(limit?: number): Promise<CustomerDTO[]> {
+  try {
+    let url = `${API_URL}/api/Customer/top-by-order-count`;
+    if (limit) {
+      url += `?limit=${limit}`;
+    }
+
+    const response = await fetchWithAuth(url);
+
+    if (!response.ok) {
+      throw new Error("Unable to fetch top customers by order count");
+    }
+
+    return response.json();
+  } catch (error) {
+    console.error("Get top customers by order count error:", error);
+    throw new Error("Unable to fetch top customers by order count. Please try again later.");
+  }
+}
+
+/**
+ * Get top customers by spending
+ * @param limit Number of top customers to return
+ * @returns List of top customers by spending
+ * @endpoint GET /api/Customer/top-by-spending
+ */
+export async function getTopCustomersBySpending(limit?: number): Promise<CustomerDTO[]> {
+  try {
+    let url = `${API_URL}/api/Customer/top-by-spending`;
+    if (limit) {
+      url += `?limit=${limit}`;
+    }
+
+    const response = await fetchWithAuth(url);
+
+    if (!response.ok) {
+      throw new Error("Unable to fetch top customers by spending");
+    }
+
+    return response.json();
+  } catch (error) {
+    console.error("Get top customers by spending error:", error);
+    throw new Error("Unable to fetch top customers by spending. Please try again later.");
+  }
+}
+
+/**
+ * Get customer order count
+ * @param customerId Customer ID
+ * @returns Number of orders for the customer
+ * @endpoint GET /api/Customer/{customerId}/order-count
+ */
+export async function getCustomerOrderCount(customerId: number): Promise<number> {
+  try {
+    const response = await fetchWithAuth(`${API_URL}/api/Customer/${customerId}/order-count`);
+
+    if (!response.ok) {
+      throw new Error("Unable to fetch customer order count");
+    }
+
+    return response.json();
+  } catch (error) {
+    console.error(`Get customer order count for ${customerId} error:`, error);
+    throw new Error("Unable to fetch customer order count. Please try again later.");
+  }
+}
+
+/**
+ * Get customer total spent
+ * @param customerId Customer ID
+ * @returns Total amount spent by the customer
+ * @endpoint GET /api/Customer/{customerId}/total-spent
+ */
+export async function getCustomerTotalSpent(customerId: number): Promise<number> {
+  try {
+    const response = await fetchWithAuth(`${API_URL}/api/Customer/${customerId}/total-spent`);
+
+    if (!response.ok) {
+      throw new Error("Unable to fetch customer total spent");
+    }
+
+    return response.json();
+  } catch (error) {
+    console.error(`Get customer total spent for ${customerId} error:`, error);
+    throw new Error("Unable to fetch customer total spent. Please try again later.");
+  }
+}
+
+/**
+ * Get customers by location
+ * @param city Optional city filter
+ * @param state Optional state filter
+ * @param country Optional country filter
+ * @returns List of customers filtered by location
+ * @endpoint GET /api/Customer/by-location
+ */
+export async function getCustomersByLocation(city?: string, state?: string, country?: string): Promise<CustomerDTO[]> {
+  try {
+    let url = `${API_URL}/api/Customer/by-location`;
+    const params = [];
+    
+    if (city) {
+      params.push(`city=${encodeURIComponent(city)}`);
+    }
+    
+    if (state) {
+      params.push(`state=${encodeURIComponent(state)}`);
+    }
+    
+    if (country) {
+      params.push(`country=${encodeURIComponent(country)}`);
+    }
+    
+    if (params.length > 0) {
+      url += `?${params.join('&')}`;
+    }
+
+    const response = await fetchWithAuth(url);
+
+    if (!response.ok) {
+      throw new Error("Unable to fetch customers by location");
+    }
+
+    return response.json();
+  } catch (error) {
+    console.error("Get customers by location error:", error);
+    throw new Error("Unable to fetch customers by location. Please try again later.");
+  }
+}

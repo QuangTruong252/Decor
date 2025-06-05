@@ -20,6 +20,7 @@ namespace DecorStore.API.Interfaces.Repositories
         // Count and existence checks
         Task<bool> ExistsAsync(int id);
         Task<bool> SlugExistsAsync(string slug);
+        Task<bool> SlugExistsAsync(string slug, int excludeCategoryId);
         Task<int> GetTotalCountAsync(CategoryFilterDTO filter);
 
         // CRUD operations
