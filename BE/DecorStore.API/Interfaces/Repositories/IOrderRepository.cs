@@ -3,26 +3,22 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using DecorStore.API.DTOs;
 using DecorStore.API.Models;
+using DecorStore.API.Interfaces.Repositories.Base;
 
 namespace DecorStore.API.Interfaces.Repositories
 {
-    public interface IOrderRepository
+    public interface IOrderRepository : IRepository<Order>
     {
-        // Paginated queries
+        // Paginated queries (GetPagedAsync inherited from base)
         Task<PagedResult<Order>> GetPagedAsync(OrderFilterDTO filter);
-        Task<IEnumerable<Order>> GetAllAsync();
         Task<IEnumerable<Order>> GetByUserIdAsync(int userId);
 
-        // Single item queries
-        Task<Order> GetByIdAsync(int id);
+        // Single item queries (GetByIdAsync inherited from base)
         Task<Order> GetByIdWithItemsAsync(int id);
 
-        // CRUD operations
-        Task<Order> CreateAsync(Order order);
-        Task UpdateAsync(Order order);
+        // CRUD operations (basic CRUD inherited from base)
         Task UpdateStatusAsync(int id, string status);
-        Task DeleteAsync(int id);
-        Task BulkDeleteAsync(IEnumerable<int> ids);
+        new Task BulkDeleteAsync(IEnumerable<int> ids);
         void AddOrderItem(OrderItem orderItem);
 
         // Advanced queries

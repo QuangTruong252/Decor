@@ -2,6 +2,7 @@ using DecorStore.API.Models;
 using DecorStore.API.Data;
 using DecorStore.API.DTOs;
 using DecorStore.API.Interfaces.Repositories;
+using DecorStore.API.Repositories.Base;
 using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
@@ -10,13 +11,10 @@ using System.Threading.Tasks;
 
 namespace DecorStore.API.Repositories
 {
-    public class OrderRepository : IOrderRepository
+    public class OrderRepository : BaseRepository<Order>, IOrderRepository
     {
-        private readonly ApplicationDbContext _context;
-
-        public OrderRepository(ApplicationDbContext context)
+        public OrderRepository(ApplicationDbContext context) : base(context)
         {
-            _context = context;
         }
 
         public async Task<PagedResult<Order>> GetPagedAsync(OrderFilterDTO filter)
@@ -32,17 +30,6 @@ namespace DecorStore.API.Repositories
             return new PagedResult<Order>(items, totalCount, filter.PageNumber, filter.PageSize);
         }
 
-        public async Task<IEnumerable<Order>> GetAllAsync()
-        {
-            return await _context.Orders
-                .Include(o => o.Customer)
-                .Include(o => o.User)
-                .Include(o => o.OrderItems)
-                    .ThenInclude(oi => oi.Product)
-                .Where(o => !o.IsDeleted)
-                .ToListAsync();
-        }
-
         public async Task<IEnumerable<Order>> GetByUserIdAsync(int userId)
         {
             return await _context.Orders
@@ -51,16 +38,6 @@ namespace DecorStore.API.Repositories
                     .ThenInclude(oi => oi.Product)
                 .Where(o => o.UserId == userId && !o.IsDeleted)
                 .ToListAsync();
-        }
-
-        public async Task<Order> GetByIdAsync(int id)
-        {
-            return await _context.Orders
-                .Include(o => o.Customer)
-                .Include(o => o.User)
-                .Include(o => o.OrderItems)
-                    .ThenInclude(oi => oi.Product)
-                .FirstOrDefaultAsync(o => o.Id == id && !o.IsDeleted);
         }
 
         public async Task<Order> GetByIdWithItemsAsync(int id)
@@ -75,18 +52,6 @@ namespace DecorStore.API.Repositories
                 .FirstOrDefaultAsync(o => o.Id == id && !o.IsDeleted);
         }
 
-        public async Task<Order> CreateAsync(Order order)
-        {
-            await _context.Orders.AddAsync(order);
-            return order;
-        }
-
-        public async Task UpdateAsync(Order order)
-        {
-            _context.Entry(order).State = EntityState.Modified;
-            await Task.CompletedTask;
-        }
-
         public async Task UpdateStatusAsync(int id, string status)
         {
             var order = await GetByIdAsync(id);
@@ -98,17 +63,7 @@ namespace DecorStore.API.Repositories
             }
         }
 
-        public async Task DeleteAsync(int id)
-        {
-            var order = await GetByIdAsync(id);
-            if (order != null)
-            {
-                order.IsDeleted = true;
-                await UpdateAsync(order);
-            }
-        }
-
-        public async Task BulkDeleteAsync(IEnumerable<int> ids)
+        public new async Task BulkDeleteAsync(IEnumerable<int> ids)
         {
             var orders = await _context.Orders
                 .Where(o => ids.Contains(o.Id))

@@ -5,17 +5,15 @@ using DecorStore.API.Data;
 using DecorStore.API.DTOs;
 using DecorStore.API.Interfaces.Repositories;
 using DecorStore.API.Models;
+using DecorStore.API.Repositories.Base;
 using Microsoft.EntityFrameworkCore;
 
 namespace DecorStore.API.Repositories
 {
-    public class CategoryRepository : ICategoryRepository
+    public class CategoryRepository : BaseRepository<Category>, ICategoryRepository
     {
-        private readonly ApplicationDbContext _context;
-
-        public CategoryRepository(ApplicationDbContext context)
+        public CategoryRepository(ApplicationDbContext context) : base(context)
         {
-            _context = context;
         }
 
         public async Task<PagedResult<Category>> GetPagedAsync(CategoryFilterDTO filter)
@@ -31,16 +29,6 @@ namespace DecorStore.API.Repositories
             return new PagedResult<Category>(items, totalCount, filter.PageNumber, filter.PageSize);
         }
 
-        public async Task<IEnumerable<Category>> GetAllAsync()
-        {
-            return await _context.Categories
-                .Include(c => c.ParentCategory)
-                .Include(c => c.Subcategories)
-                .Include(c => c.CategoryImages)
-                .ThenInclude(ci => ci.Image)
-                .ToListAsync();
-        }
-
         public async Task<IEnumerable<Category>> GetRootCategoriesWithChildrenAsync()
         {
             return await _context.Categories
@@ -49,16 +37,6 @@ namespace DecorStore.API.Repositories
                 .ThenInclude(ci => ci.Image)
                 .Where(c => c.ParentId == null)
                 .ToListAsync();
-        }
-
-        public async Task<Category> GetByIdAsync(int id)
-        {
-            return await _context.Categories
-                .Include(c => c.ParentCategory)
-                .Include(c => c.Subcategories)
-                .Include(c => c.CategoryImages)
-                .ThenInclude(ci => ci.Image)
-                .FirstOrDefaultAsync(c => c.Id == id);
         }
 
         public async Task<Category> GetByIdWithChildrenAsync(int id)
@@ -83,11 +61,6 @@ namespace DecorStore.API.Repositories
                 .FirstOrDefaultAsync(c => c.Slug == slug);
         }
 
-        public async Task<bool> ExistsAsync(int id)
-        {
-            return await _context.Categories.AnyAsync(c => c.Id == id);
-        }
-
         public async Task<bool> SlugExistsAsync(string slug)
         {
             return await _context.Categories.AnyAsync(c => c.Slug == slug && !c.IsDeleted);
@@ -101,28 +74,6 @@ namespace DecorStore.API.Repositories
         public async Task<int> GetTotalCountAsync(CategoryFilterDTO filter)
         {
             return await GetFilteredCategories(filter).CountAsync();
-        }
-
-        public async Task<Category> CreateAsync(Category category)
-        {
-            await _context.Categories.AddAsync(category);
-            return category;
-        }
-
-        public async Task UpdateAsync(Category category)
-        {
-            _context.Entry(category).State = EntityState.Modified;
-            await Task.CompletedTask;
-        }
-
-        public async Task DeleteAsync(int id)
-        {
-            var category = await _context.Categories.FindAsync(id);
-            if (category != null)
-            {
-                category.IsDeleted = true;
-                _context.Entry(category).State = EntityState.Modified;
-            }
         }
 
         public async Task<IEnumerable<Category>> GetCategoriesWithProductCountAsync()

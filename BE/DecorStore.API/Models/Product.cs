@@ -4,10 +4,11 @@ using System.ComponentModel.DataAnnotations.Schema;
 using System.Collections.Generic;
 using System.Text.Json.Serialization;
 using System.Linq;
+using DecorStore.API.Interfaces;
 
 namespace DecorStore.API.Models
 {
-    public class Product
+    public class Product : IBaseEntity
     {
         public Product()
         {

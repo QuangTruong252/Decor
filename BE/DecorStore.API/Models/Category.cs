@@ -4,10 +4,11 @@ using System.ComponentModel.DataAnnotations.Schema;
 using System.Collections.Generic;
 using System.Text.Json.Serialization;
 using System.Linq;
+using DecorStore.API.Interfaces;
 
 namespace DecorStore.API.Models
 {
-    public class Category
+    public class Category : IBaseEntity
     {
         [Key]
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
@@ -26,9 +27,9 @@ namespace DecorStore.API.Models
 
         public int? ParentId { get; set; }
 
-        public bool IsDeleted { get; set; } = false;
+        public bool IsDeleted { get; set; } = false;        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
-        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
         // Navigation properties
         [ForeignKey("ParentId")]

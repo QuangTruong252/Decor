@@ -6,17 +6,15 @@ using DecorStore.API.Data;
 using DecorStore.API.DTOs;
 using DecorStore.API.Interfaces.Repositories;
 using DecorStore.API.Models;
+using DecorStore.API.Repositories.Base;
 using Microsoft.EntityFrameworkCore;
 
 namespace DecorStore.API.Repositories
 {
-    public class ProductRepository : IProductRepository
+    public class ProductRepository : BaseRepository<Product>, IProductRepository
     {
-        private readonly ApplicationDbContext _context;
-
-        public ProductRepository(ApplicationDbContext context)
+        public ProductRepository(ApplicationDbContext context) : base(context)
         {
-            _context = context;
         }
 
         public async Task<PagedResult<Product>> GetPagedAsync(ProductFilterDTO filter)
@@ -37,9 +35,10 @@ namespace DecorStore.API.Repositories
             return await GetFilteredProducts(filter).ToListAsync();
         }
 
-        public async Task<Product> GetByIdAsync(int id)
+        // Override base GetByIdAsync to include related data
+        public override async Task<Product?> GetByIdAsync(int id)
         {
-            return await _context.Products
+            return await GetQueryableNoTracking()
                 .Include(p => p.Category)
                 .Include(p => p.ProductImages)
                 .ThenInclude(pi => pi.Image)
@@ -47,9 +46,9 @@ namespace DecorStore.API.Repositories
                 .FirstOrDefaultAsync(p => p.Id == id);
         }
 
-        public async Task<Product> GetBySlugAsync(string slug)
+        public async Task<Product?> GetBySlugAsync(string slug)
         {
-            return await _context.Products
+            return await GetQueryableNoTracking()
                 .Include(p => p.Category)
                 .Include(p => p.ProductImages)
                 .ThenInclude(pi => pi.Image)
@@ -62,61 +61,24 @@ namespace DecorStore.API.Repositories
             return await GetFilteredProducts(filter).CountAsync();
         }
 
-        public async Task<bool> ExistsAsync(int id)
-        {
-            return await _context.Products.AnyAsync(p => p.Id == id);
-        }
-
         public async Task<bool> SlugExistsAsync(string slug)
         {
-            return await _context.Products.AnyAsync(p => p.Slug == slug && !p.IsDeleted);
+            return await AnyAsync(p => p.Slug == slug);
         }
 
         public async Task<bool> SlugExistsAsync(string slug, int excludeProductId)
         {
-            return await _context.Products.AnyAsync(p => p.Slug == slug && !p.IsDeleted && p.Id != excludeProductId);
+            return await AnyAsync(p => p.Slug == slug && p.Id != excludeProductId);
         }
 
         public async Task<bool> SkuExistsAsync(string sku)
         {
-            return await _context.Products.AnyAsync(p => p.SKU == sku && !p.IsDeleted);
+            return await AnyAsync(p => p.SKU == sku);
         }
 
         public async Task<bool> SkuExistsAsync(string sku, int excludeProductId)
         {
-            return await _context.Products.AnyAsync(p => p.SKU == sku && !p.IsDeleted && p.Id != excludeProductId);
-        }
-
-        public async Task<Product> CreateAsync(Product product)
-        {
-            await _context.Products.AddAsync(product);
-            return product;
-        }
-
-        public async Task UpdateAsync(Product product)
-        {
-            _context.Entry(product).State = EntityState.Modified;
-            await Task.CompletedTask;
-        }
-
-        public async Task DeleteAsync(int id)
-        {
-            var product = await _context.Products.FindAsync(id);
-            if (product != null)
-            {
-                product.IsDeleted = true;
-                _context.Entry(product).State = EntityState.Modified;
-            }
-        }
-
-        public async Task BulkDeleteAsync(IEnumerable<int> ids)
-        {
-            var products = await _context.Products.Where(p => ids.Contains(p.Id)).ToListAsync();
-            foreach (var product in products)
-            {
-                product.IsDeleted = true;
-            }
-            await Task.CompletedTask;
+            return await AnyAsync(p => p.SKU == sku && p.Id != excludeProductId);
         }
 
         public async Task<IEnumerable<Product>> GetFeaturedProductsAsync(int count = 10)

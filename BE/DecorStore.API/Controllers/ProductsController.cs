@@ -4,6 +4,7 @@ using DecorStore.API.DTOs;
 using DecorStore.API.DTOs.Excel;
 using DecorStore.API.Interfaces.Services;
 using DecorStore.API.Services.Excel;
+using DecorStore.API.Controllers.Base;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using DecorStore.API.Models;
@@ -11,13 +12,13 @@ using DecorStore.API.Models;
 namespace DecorStore.API.Controllers
 {
     [Route("api/[controller]")]
-    [ApiController]
-    public class ProductsController : ControllerBase
+    public class ProductsController : BaseController
     {
         private readonly IProductService _productService;
         private readonly IProductExcelService _productExcelService;
 
-        public ProductsController(IProductService productService, IProductExcelService productExcelService)
+        public ProductsController(IProductService productService, IProductExcelService productExcelService, ILogger<ProductsController> logger) 
+            : base(logger)
         {
             _productService = productService;
             _productExcelService = productExcelService;
@@ -27,62 +28,56 @@ namespace DecorStore.API.Controllers
         [HttpGet]
         public async Task<ActionResult<PagedResult<ProductDTO>>> GetProducts([FromQuery] ProductFilterDTO filter)
         {
-            var pagedProducts = await _productService.GetPagedProductsAsync(filter);
-            return Ok(pagedProducts);
+            var result = await _productService.GetPagedProductsAsync(filter);
+            return HandlePagedResult(result);
         }
 
         // GET: api/Products/all (for backward compatibility)
         [HttpGet("all")]
         public async Task<ActionResult<IEnumerable<ProductDTO>>> GetAllProducts()
         {
-            var products = await _productService.GetAllProductsAsync();
-            return Ok(products);
+            var result = await _productService.GetAllProductsAsync();
+            return HandleResult(result);
         }
 
         // GET: api/Products/5
         [HttpGet("{id}")]
         public async Task<ActionResult<ProductDTO>> GetProduct(int id)
         {
-            var product = await _productService.GetProductByIdAsync(id);
-
-            if (product == null)
-            {
-                return NotFound();
-            }
-
-            return Ok(product);
+            var result = await _productService.GetProductByIdAsync(id);
+            return HandleResult(result);
         }
 
         // GET: api/Products/category/{categoryId}
         [HttpGet("category/{categoryId}")]
         public async Task<ActionResult<IEnumerable<ProductDTO>>> GetProductsByCategory(int categoryId, [FromQuery] int count = 20)
         {
-            var products = await _productService.GetProductsByCategoryAsync(categoryId, count);
-            return Ok(products);
+            var result = await _productService.GetProductsByCategoryAsync(categoryId, count);
+            return HandleResult(result);
         }
 
         // GET: api/Products/featured
         [HttpGet("featured")]
         public async Task<ActionResult<IEnumerable<ProductDTO>>> GetFeaturedProducts([FromQuery] int count = 10)
         {
-            var products = await _productService.GetFeaturedProductsAsync(count);
-            return Ok(products);
+            var result = await _productService.GetFeaturedProductsAsync(count);
+            return HandleResult(result);
         }
 
         // GET: api/Products/{id}/related
         [HttpGet("{id}/related")]
         public async Task<ActionResult<IEnumerable<ProductDTO>>> GetRelatedProducts(int id, [FromQuery] int count = 5)
         {
-            var products = await _productService.GetRelatedProductsAsync(id, count);
-            return Ok(products);
+            var result = await _productService.GetRelatedProductsAsync(id, count);
+            return HandleResult(result);
         }
 
         // GET: api/Products/top-rated
         [HttpGet("top-rated")]
         public async Task<ActionResult<IEnumerable<ProductDTO>>> GetTopRatedProducts([FromQuery] int count = 10)
         {
-            var products = await _productService.GetTopRatedProductsAsync(count);
-            return Ok(products);
+            var result = await _productService.GetTopRatedProductsAsync(count);
+            return HandleResult(result);
         }
 
         // GET: api/Products/low-stock
@@ -90,8 +85,8 @@ namespace DecorStore.API.Controllers
         [Authorize(Roles = "Admin")] // Only admin can view low stock products
         public async Task<ActionResult<IEnumerable<ProductDTO>>> GetLowStockProducts([FromQuery] int threshold = 10)
         {
-            var products = await _productService.GetLowStockProductsAsync(threshold);
-            return Ok(products);
+            var result = await _productService.GetLowStockProductsAsync(threshold);
+            return HandleResult(result);
         }
 
         // POST: api/Products
@@ -99,9 +94,15 @@ namespace DecorStore.API.Controllers
         [Authorize(Roles = "Admin")] // Only admin can create products
         public async Task<ActionResult<ProductDTO>> CreateProduct(CreateProductDTO productDto)
         {
-            var createdProduct = await _productService.CreateAsync(productDto);
-            var productDtoResult = await _productService.GetProductByIdAsync(createdProduct.Id);
-            return CreatedAtAction(nameof(GetProduct), new { id = createdProduct.Id }, productDtoResult);
+            // Validate model state
+            var validationResult = ValidateModelState();
+            if (validationResult.IsFailure)
+            {
+                return HandleResult(validationResult);
+            }
+
+            var result = await _productService.CreateAsync(productDto);
+            return HandleCreateResult(result, nameof(GetProduct), new { id = result.Data?.Id });
         }
 
         // PUT: api/Products/5
@@ -109,15 +110,15 @@ namespace DecorStore.API.Controllers
         [Authorize(Roles = "Admin")] // Only admin can update products
         public async Task<IActionResult> UpdateProduct(int id, UpdateProductDTO productDto)
         {
-            try
+            // Validate model state
+            var validationResult = ValidateModelState();
+            if (validationResult.IsFailure)
             {
-                await _productService.UpdateAsync(id, productDto);
-                return NoContent();
+                return HandleResult(validationResult);
             }
-            catch (DecorStore.API.Exceptions.NotFoundException)
-            {
-                return NotFound();
-            }
+
+            var result = await _productService.UpdateAsync(id, productDto);
+            return HandleResult(result);
         }
 
         // DELETE: api/Products/5
@@ -125,19 +126,8 @@ namespace DecorStore.API.Controllers
         [Authorize(Roles = "Admin")] // Only admin can delete products
         public async Task<IActionResult> DeleteProduct(int id)
         {
-            try
-            {
-                var result = await _productService.DeleteProductAsync(id);
-                return NoContent();
-            }
-            catch (DecorStore.API.Exceptions.NotFoundException ex)
-            {
-                return NotFound(ex.Message);
-            }
-            catch (System.Exception ex)
-            {
-                return StatusCode(500, $"Internal server error: {ex.Message}");
-            }
+            var result = await _productService.DeleteProductAsync(id);
+            return HandleResult(result);
         }
 
         // DELETE: api/Products/bulk
@@ -145,19 +135,15 @@ namespace DecorStore.API.Controllers
         [Authorize(Roles = "Admin")] // Only admin can bulk delete products
         public async Task<IActionResult> BulkDeleteProducts(BulkDeleteDTO bulkDeleteDto)
         {
-            try
+            // Validate model state
+            var validationResult = ValidateModelState();
+            if (validationResult.IsFailure)
             {
-                var result = await _productService.BulkDeleteProductsAsync(bulkDeleteDto);
-                return NoContent();
+                return HandleResult(validationResult);
             }
-            catch (System.ArgumentException ex)
-            {
-                return BadRequest(ex.Message);
-            }
-            catch (System.Exception ex)
-            {
-                return StatusCode(500, $"Internal server error: {ex.Message}");
-            }
+
+            var result = await _productService.BulkDeleteProductsAsync(bulkDeleteDto);
+            return HandleResult(result);
         }
 
         // POST: api/Products/{id}/images
@@ -165,28 +151,12 @@ namespace DecorStore.API.Controllers
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> AddImageToProduct(int id, IFormFile image)
         {
-            try
+            var result = await _productService.AddImageToProductAsync(id, image);
+            if (result.IsSuccess)
             {
-                if (image == null || image.Length == 0)
-                {
-                    return BadRequest("No image file provided");
-                }
-
-                var result = await _productService.AddImageToProductAsync(id, image);
                 return Ok(new { message = "Image added successfully" });
             }
-            catch (DecorStore.API.Exceptions.NotFoundException ex)
-            {
-                return NotFound(ex.Message);
-            }
-            catch (System.ArgumentException ex)
-            {
-                return BadRequest(ex.Message);
-            }
-            catch (System.Exception ex)
-            {
-                return StatusCode(500, $"Internal server error: {ex.Message}");
-            }
+            return HandleResult(result);
         }
 
         // DELETE: api/Products/{productId}/images/{imageId}
@@ -194,19 +164,12 @@ namespace DecorStore.API.Controllers
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> RemoveImageFromProduct(int productId, int imageId)
         {
-            try
+            var result = await _productService.RemoveImageFromProductAsync(productId, imageId);
+            if (result.IsSuccess)
             {
-                var result = await _productService.RemoveImageFromProductAsync(productId, imageId);
                 return Ok(new { message = "Image removed successfully" });
             }
-            catch (DecorStore.API.Exceptions.NotFoundException ex)
-            {
-                return NotFound(ex.Message);
-            }
-            catch (System.Exception ex)
-            {
-                return StatusCode(500, $"Internal server error: {ex.Message}");
-            }
+            return HandleResult(result);
         }
 
         #region Excel Import/Export Endpoints

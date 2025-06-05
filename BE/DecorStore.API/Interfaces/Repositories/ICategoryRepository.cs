@@ -1,32 +1,25 @@
 using DecorStore.API.Models;
 using DecorStore.API.DTOs;
+using DecorStore.API.Interfaces.Repositories.Base;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
 namespace DecorStore.API.Interfaces.Repositories
 {
-    public interface ICategoryRepository
+    public interface ICategoryRepository : IRepository<Category>
     {
-        // Paginated queries
+        // Paginated queries (GetPagedAsync inherited from base)
         Task<PagedResult<Category>> GetPagedAsync(CategoryFilterDTO filter);
-        Task<IEnumerable<Category>> GetAllAsync();
         Task<IEnumerable<Category>> GetRootCategoriesWithChildrenAsync();
 
-        // Single item queries
-        Task<Category> GetByIdAsync(int id);
+        // Single item queries (GetByIdAsync inherited from base)
         Task<Category> GetByIdWithChildrenAsync(int id);
         Task<Category> GetBySlugAsync(string slug);
 
-        // Count and existence checks
-        Task<bool> ExistsAsync(int id);
+        // Count and existence checks (ExistsAsync inherited from base)
         Task<bool> SlugExistsAsync(string slug);
         Task<bool> SlugExistsAsync(string slug, int excludeCategoryId);
         Task<int> GetTotalCountAsync(CategoryFilterDTO filter);
-
-        // CRUD operations
-        Task<Category> CreateAsync(Category category);
-        Task UpdateAsync(Category category);
-        Task DeleteAsync(int id);
 
         // Advanced queries
         Task<IEnumerable<Category>> GetCategoriesWithProductCountAsync();
