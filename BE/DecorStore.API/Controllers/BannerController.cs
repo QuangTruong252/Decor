@@ -3,18 +3,20 @@ using System.Threading.Tasks;
 using DecorStore.API.DTOs;
 using DecorStore.API.Models;
 using DecorStore.API.Services;
+using DecorStore.API.Controllers.Base;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
 
 namespace DecorStore.API.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    public class BannerController : ControllerBase
+    public class BannerController : BaseController
     {
         private readonly IBannerService _bannerService;
         
-        public BannerController(IBannerService bannerService)
+        public BannerController(IBannerService bannerService, ILogger<BannerController> logger) : base(logger)
         {
             _bannerService = bannerService;
         }
@@ -23,66 +25,46 @@ namespace DecorStore.API.Controllers
         [HttpGet]
         public async Task<ActionResult<IEnumerable<BannerDTO>>> GetBanners()
         {
-            var banners = await _bannerService.GetAllBannersAsync();
-            return Ok(banners);
+            var result = await _bannerService.GetAllBannersAsync();
+            return HandleResult(result);
         }
         
         // GET: api/Banner/active
         [HttpGet("active")]
         public async Task<ActionResult<IEnumerable<BannerDTO>>> GetActiveBanners()
         {
-            var banners = await _bannerService.GetActiveBannersAsync();
-            return Ok(banners);
+            var result = await _bannerService.GetActiveBannersAsync();
+            return HandleResult(result);
         }
         
         // GET: api/Banner/5
         [HttpGet("{id}")]
         public async Task<ActionResult<BannerDTO>> GetBanner(int id)
         {
-            var banner = await _bannerService.GetBannerByIdAsync(id);
-            
-            if (banner == null)
-            {
-                return NotFound();
-            }
-            
-            return banner;
+            var result = await _bannerService.GetBannerByIdAsync(id);
+            return HandleResult(result);
         }
         
         // POST: api/Banner
         [HttpPost]
         [Authorize(Roles = "Admin")]
-        public async Task<ActionResult<Banner>> CreateBanner([FromForm] CreateBannerDTO bannerDto)
-        {
-            try
-            {
-                var banner = await _bannerService.CreateBannerAsync(bannerDto);
-                return CreatedAtAction(nameof(GetBanner), new { id = banner.Id }, banner);
-            }
-            catch (System.InvalidOperationException ex)
-            {
-                return BadRequest(ex.Message);
-            }
+        public async Task<ActionResult<BannerDTO>> CreateBanner([FromForm] CreateBannerDTO bannerDto)        {
+            var modelValidation = ValidateModelState();
+            if (modelValidation.IsFailure) return BadRequest(modelValidation.Error);
+
+            var result = await _bannerService.CreateBannerAsync(bannerDto);
+            return HandleCreateResult(result, nameof(GetBanner), new { id = result.Data?.Id });
         }
         
         // PUT: api/Banner/5
         [HttpPut("{id}")]
-        [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> UpdateBanner(int id, [FromForm] UpdateBannerDTO bannerDto)
+        [Authorize(Roles = "Admin")]        public async Task<IActionResult> UpdateBanner(int id, [FromForm] UpdateBannerDTO bannerDto)
         {
-            try
-            {
-                await _bannerService.UpdateBannerAsync(id, bannerDto);
-                return NoContent();
-            }
-            catch (System.Exception ex) when (ex.Message.Contains("not found"))
-            {
-                return NotFound();
-            }
-            catch (System.InvalidOperationException ex)
-            {
-                return BadRequest(ex.Message);
-            }
+            var modelValidation = ValidateModelState();
+            if (modelValidation.IsFailure) return BadRequest(modelValidation.Error);
+
+            var result = await _bannerService.UpdateBannerAsync(id, bannerDto);
+            return Ok(result.Data);
         }
         
         // DELETE: api/Banner/5
@@ -90,15 +72,8 @@ namespace DecorStore.API.Controllers
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> DeleteBanner(int id)
         {
-            try
-            {
-                await _bannerService.DeleteBannerAsync(id);
-                return NoContent();
-            }
-            catch (System.Exception ex) when (ex.Message.Contains("not found"))
-            {
-                return NotFound();
-            }
+            var result = await _bannerService.DeleteBannerAsync(id);
+            return HandleResult(result);
         }
     }
-} 
+}

@@ -54,8 +54,7 @@ namespace DecorStore.API.DTOs
         
         [StringLength(20)]
         [Phone]
-        public string Phone { get; set; }
-    }
+        public string Phone { get; set; }    }
 
     // DTO for updating a customer
     public class UpdateCustomerDTO
@@ -67,6 +66,11 @@ namespace DecorStore.API.DTOs
         [Required]
         [StringLength(100, MinimumLength = 2)]
         public string LastName { get; set; }
+        
+        [Required]
+        [EmailAddress]
+        [StringLength(255)]
+        public string Email { get; set; }
         
         [StringLength(255)]
         public string Address { get; set; }

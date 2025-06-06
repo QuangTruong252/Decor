@@ -1,5 +1,6 @@
 ﻿using DecorStore.API.Interfaces;
 using DecorStore.API.Models;
+using DecorStore.API.Common;
 using Microsoft.AspNetCore.Http;
 
 namespace DecorStore.API.Services
@@ -26,37 +27,52 @@ namespace DecorStore.API.Services
             }
         }
 
-        public async Task<string> UploadImageAsync(IFormFile file, string folderName)
+        public async Task<Result<string>> UploadImageAsync(IFormFile file, string folderName)
         {
             if(file == null || file.Length == 0)
             {
-                throw new ArgumentException("File cannot be null or empty.");
+                return Result<string>.Failure("File cannot be null or empty", "INVALID_FILE");
             }
-            if (!IsValidImage(file))
+
+            var validationResult = IsValidImage(file);
+            if (validationResult.IsFailure)
             {
-                throw new ArgumentException("Invalid file type.");
+                return Result<string>.Failure(validationResult.Error!, validationResult.ErrorCode!);
             }
-            var uploadPath = Path.Combine(_baseImagePath, folderName);
-            if (!Directory.Exists(uploadPath))
+
+            try
             {
-                Directory.CreateDirectory(uploadPath);
+                var uploadPath = Path.Combine(_baseImagePath, folderName);
+                if (!Directory.Exists(uploadPath))
+                {
+                    Directory.CreateDirectory(uploadPath);
+                }
+
+                // Generate a unique file name
+                var fileName = Guid.NewGuid().ToString() + Path.GetExtension(file.FileName);
+                var filePath = Path.Combine(uploadPath, fileName);
+                
+                using (var stream = new FileStream(filePath, FileMode.Create))
+                {
+                    await file.CopyToAsync(stream);
+                }
+
+                var urlFriendlyPath = Path.Combine(folderName, fileName).Replace("\\", "/");
+                return Result<string>.Success(urlFriendlyPath);
             }
-            // generate a unique file name
-            var fileName = Guid.NewGuid().ToString() + Path.GetExtension(file.FileName);
-            var filePath = Path.Combine(uploadPath, fileName);
-            using (var stream = new FileStream(filePath, FileMode.Create))
+            catch (Exception ex)
             {
-                await file.CopyToAsync(stream);
+                return Result<string>.Failure($"Failed to upload image: {ex.Message}", "UPLOAD_ERROR");
             }
-            return Path.Combine(folderName, fileName).Replace("\\", "/"); // Ensure URL-friendly path;
         }
 
-        public async Task<bool> DeleteImageAsync(string imageUrl)
+        public async Task<Result<bool>> DeleteImageAsync(string imageUrl)
         {
             if (string.IsNullOrEmpty(imageUrl))
             {
-                throw new ArgumentException("Image URL cannot be null or empty.");
+                return Result<bool>.Failure("Image URL cannot be null or empty", "INVALID_INPUT");
             }
+
             try
             {
                 var filePath = Path.Combine(_baseImagePath, imageUrl);
@@ -71,196 +87,358 @@ namespace DecorStore.API.Services
                 {
                     _unitOfWork.Images.Delete(image);
                     await _unitOfWork.SaveChangesAsync();
-                    return true;
+                    return Result<bool>.Success(true);
                 }
 
-                return false;
+                return Result<bool>.Success(false);
             }
             catch (Exception ex)
             {
-                // log the exception
-                throw new Exception("Error deleting image", ex);
+                return Result<bool>.Failure($"Error deleting image: {ex.Message}", "DELETE_ERROR");
             }
         }
 
-        public async Task<string> UpdateImageAsync(string oldImageUrl, IFormFile file, string folderName)
+        public async Task<Result<string>> UpdateImageAsync(string oldImageUrl, IFormFile file, string folderName)
         {
-            // delete the old image if it exists
+            // Delete the old image if it exists
             if (!string.IsNullOrEmpty(oldImageUrl))
             {
-                await DeleteImageAsync(oldImageUrl);
+                var deleteResult = await DeleteImageAsync(oldImageUrl);
+                if (deleteResult.IsFailure)
+                {
+                    return Result<string>.Failure($"Failed to delete old image: {deleteResult.Error}", "DELETE_OLD_IMAGE_ERROR");
+                }
             }
 
-            // upload the new image
-            return await UploadImageAsync(file, folderName);
+            // Upload the new image
+            var uploadResult = await UploadImageAsync(file, folderName);
+            if (uploadResult.IsFailure)
+            {
+                return Result<string>.Failure($"Failed to upload new image: {uploadResult.Error}", uploadResult.ErrorCode!);
+            }
+
+            return Result<string>.Success(uploadResult.Data!);
         }
 
-        public bool IsValidImage(IFormFile file)
+        public Result<bool> IsValidImage(IFormFile file)
         {
+            if (file == null)
+            {
+                return Result<bool>.Failure("File cannot be null", "INVALID_FILE");
+            }
+
             if (file.Length > _maxFileSize)
             {
-                return false;
+                return Result<bool>.Failure($"File size {file.Length} bytes exceeds maximum allowed size of {_maxFileSize} bytes", "FILE_TOO_LARGE");
             }
+
             var fileExtension = Path.GetExtension(file.FileName).ToLowerInvariant();
             if(string.IsNullOrEmpty(fileExtension) || !_allowedExtensions.Contains(fileExtension))
             {
-                return false;
+                return Result<bool>.Failure($"File type '{fileExtension}' is not allowed. Allowed types: {string.Join(", ", _allowedExtensions)}", "INVALID_FILE_TYPE");
             }
-            return true;
+
+            return Result<bool>.Success(true);
         }
         
-        public async Task<List<int>> GetOrCreateImagesAsync(List<IFormFile> files, string folderName = "images")
+        public async Task<Result<List<int>>> GetOrCreateImagesAsync(List<IFormFile> files, string folderName = "images")
         {
-            return await _unitOfWork.ExecuteWithExecutionStrategyAsync(async () =>
+            if (files == null || !files.Any())
             {
-                var imageIds = new List<int>();
-                var uploadedFiles = new List<(string fileName, string filePath)>();
-                
-                try
+                return Result<List<int>>.Failure("No files provided", "INVALID_INPUT");
+            }
+
+            if (files.Count > 10)
+            {
+                return Result<List<int>>.Failure("Maximum 10 files can be uploaded at once", "TOO_MANY_FILES");
+            }
+
+            try
+            {
+                return await _unitOfWork.ExecuteWithExecutionStrategyAsync(async () =>
                 {
-                    await _unitOfWork.BeginTransactionAsync();
+                    var imageIds = new List<int>();
+                    var uploadedFiles = new List<(string fileName, string filePath)>();
                     
-                    foreach (var file in files)
+                    try
                     {
-                        if (!IsValidImage(file))
-                        {
-                            throw new ArgumentException($"Invalid file type: {file.FileName}");
-                        }
-
-                        // Upload new image
-                        var imagePath = await UploadImageAsync(file, folderName);
-                        uploadedFiles.Add((file.FileName, imagePath));
-
-                        // Create image record in database
-                        var image = new Image
-                        {
-                            FileName = file.FileName,
-                            FilePath = imagePath,
-                            AltText = Path.GetFileNameWithoutExtension(file.FileName),
-                            CreatedAt = DateTime.UtcNow
-                        };
+                        await _unitOfWork.BeginTransactionAsync();
                         
-                        await _unitOfWork.Images.AddAsync(image);
-                        await _unitOfWork.SaveChangesAsync();
-                        imageIds.Add(image.Id);
+                        foreach (var file in files)
+                        {
+                            var validationResult = IsValidImage(file);
+                            if (validationResult.IsFailure)
+                            {
+                                return Result<List<int>>.Failure($"File '{file.FileName}': {validationResult.Error}", validationResult.ErrorCode!);
+                            }
+
+                            // Upload new image
+                            var uploadResult = await UploadImageAsync(file, folderName);
+                            if (uploadResult.IsFailure)
+                            {
+                                return Result<List<int>>.Failure($"Failed to upload '{file.FileName}': {uploadResult.Error}", uploadResult.ErrorCode!);
+                            }
+
+                            uploadedFiles.Add((file.FileName, uploadResult.Data!));
+
+                            // Create image record in database
+                            var image = new Image
+                            {
+                                FileName = file.FileName,
+                                FilePath = uploadResult.Data!,
+                                AltText = Path.GetFileNameWithoutExtension(file.FileName),
+                                CreatedAt = DateTime.UtcNow
+                            };
+                            
+                            await _unitOfWork.Images.AddAsync(image);
+                            await _unitOfWork.SaveChangesAsync();
+                            imageIds.Add(image.Id);
+                        }
+                        
+                        await _unitOfWork.CommitTransactionAsync();
+                        return Result<List<int>>.Success(imageIds);
                     }
-                    
-                    await _unitOfWork.CommitTransactionAsync();
-                    return imageIds;
-                }
-                catch
-                {
-                    // Rollback transaction
-                    await _unitOfWork.RollbackTransactionAsync();
-                    
-                    // Clean up uploaded files if database operation failed
-                    foreach (var (fileName, filePath) in uploadedFiles)
+                    catch (Exception ex)
                     {
-                        try
+                        // Rollback transaction
+                        await _unitOfWork.RollbackTransactionAsync();
+                        
+                        // Clean up uploaded files if database operation failed
+                        foreach (var (fileName, filePath) in uploadedFiles)
                         {
-                            await DeleteImageAsync(filePath);
+                            try
+                            {
+                                await DeleteImageAsync(filePath);
+                            }
+                            catch
+                            {
+                                // Log the cleanup failure but don't throw
+                            }
                         }
-                        catch
-                        {
-                            // Log the cleanup failure but don't throw
-                        }
+                        
+                        return Result<List<int>>.Failure($"Failed to create images: {ex.Message}", "CREATE_IMAGES_ERROR");
                     }
-                    
-                    throw;
-                }
-            });
+                });
+            }
+            catch (Exception ex)
+            {
+                return Result<List<int>>.Failure($"Execution strategy failed: {ex.Message}", "EXECUTION_STRATEGY_ERROR");
+            }
         }
 
-        public async Task<bool> ImageExistsInSystemAsync(string filePath)
+        public async Task<Result<bool>> ImageExistsInSystemAsync(string filePath)
         {
-            var images = await _unitOfWork.Images.GetAllAsync();
-            return images.Any(i => i.FilePath == filePath && !i.IsDeleted);
+            if (string.IsNullOrEmpty(filePath))
+            {
+                return Result<bool>.Failure("File path cannot be null or empty", "INVALID_INPUT");
+            }
+
+            try
+            {
+                var images = await _unitOfWork.Images.GetAllAsync();
+                var exists = images.Any(i => i.FilePath == filePath && !i.IsDeleted);
+                return Result<bool>.Success(exists);
+            }
+            catch (Exception ex)
+            {
+                return Result<bool>.Failure($"Error checking image existence: {ex.Message}", "CHECK_EXISTENCE_ERROR");
+            }
         }
 
-        public async Task<List<Image>> GetImagesByIdsAsync(List<int> imageIds)
+        public async Task<Result<List<Image>>> GetImagesByIdsAsync(List<int> imageIds)
         {
-            return await _unitOfWork.Images.GetManyByIdsAsync(imageIds);
+            if (imageIds == null || !imageIds.Any())
+            {
+                return Result<List<Image>>.Failure("Image IDs list cannot be null or empty", "INVALID_INPUT");
+            }
+
+            if (imageIds.Any(id => id <= 0))
+            {
+                return Result<List<Image>>.Failure("All image IDs must be positive integers", "INVALID_ID");
+            }
+
+            try
+            {
+                var images = await _unitOfWork.Images.GetManyByIdsAsync(imageIds);
+                return Result<List<Image>>.Success(images);
+            }
+            catch (Exception ex)
+            {
+                return Result<List<Image>>.Failure($"Error retrieving images by IDs: {ex.Message}", "RETRIEVE_IMAGES_ERROR");
+            }
         }
 
-        public async Task<List<Image>> GetAllImagesAsync()
+        public async Task<Result<List<Image>>> GetAllImagesAsync()
         {
-            return await _unitOfWork.Images.GetAllAsync();
+            try
+            {
+                var images = await _unitOfWork.Images.GetAllAsync();
+                return Result<List<Image>>.Success(images);
+            }
+            catch (Exception ex)
+            {
+                return Result<List<Image>>.Failure($"Error retrieving all images: {ex.Message}", "RETRIEVE_ALL_IMAGES_ERROR");
+            }
         }
 
-        public async Task<List<Image>> GetImagesByFilePathsAsync(List<string> filePaths)
+        public async Task<Result<List<Image>>> GetImagesByFilePathsAsync(List<string> filePaths)
         {
             if (filePaths == null || !filePaths.Any())
             {
-                throw new ArgumentException("File paths list cannot be null or empty.");
+                return Result<List<Image>>.Failure("File paths list cannot be null or empty", "INVALID_INPUT");
             }
 
-            // Validate and sanitize file paths to prevent path traversal attacks
-            var sanitizedPaths = new List<string>();
-            foreach (var path in filePaths)
+            try
             {
-                if (string.IsNullOrWhiteSpace(path))
+                // Validate and sanitize file paths to prevent path traversal attacks
+                var sanitizedPaths = new List<string>();
+                foreach (var path in filePaths)
                 {
-                    continue;
+                    if (string.IsNullOrWhiteSpace(path))
+                    {
+                        continue;
+                    }
+
+                    // Remove any path traversal attempts
+                    var sanitizedPath = path.Replace("../", "").Replace("..\\", "");
+                    
+                    // Ensure the path doesn't start with directory separators
+                    sanitizedPath = sanitizedPath.TrimStart('/', '\\');
+                    
+                    if (!string.IsNullOrWhiteSpace(sanitizedPath))
+                    {
+                        sanitizedPaths.Add(sanitizedPath);
+                    }
                 }
 
-                // Remove any path traversal attempts
-                var sanitizedPath = path.Replace("../", "").Replace("..\\", "");
-                
-                // Ensure the path doesn't start with directory separators
-                sanitizedPath = sanitizedPath.TrimStart('/', '\\');
-                
-                if (!string.IsNullOrWhiteSpace(sanitizedPath))
+                if (!sanitizedPaths.Any())
                 {
-                    sanitizedPaths.Add(sanitizedPath);
+                    return Result<List<Image>>.Success(new List<Image>());
                 }
+
+                var images = await _unitOfWork.Images.GetByFilePathsAsync(sanitizedPaths);
+                return Result<List<Image>>.Success(images);
+            }
+            catch (Exception ex)
+            {
+                return Result<List<Image>>.Failure($"Error retrieving images by file paths: {ex.Message}", "RETRIEVE_BY_PATHS_ERROR");
+            }
+        }
+
+        public async Task<Result> AssignImageToProductAsync(int imageId, int productId)
+        {
+            if (imageId <= 0)
+            {
+                return Result.Failure("Image ID must be a positive integer", "INVALID_IMAGE_ID");
             }
 
-            if (!sanitizedPaths.Any())
+            if (productId <= 0)
             {
-                return new List<Image>();
+                return Result.Failure("Product ID must be a positive integer", "INVALID_PRODUCT_ID");
             }
 
-            return await _unitOfWork.Images.GetByFilePathsAsync(sanitizedPaths);
+            try
+            {
+                await _unitOfWork.ExecuteWithExecutionStrategyAsync(async () =>
+                {
+                    await _unitOfWork.Images.AddProductImageAsync(imageId, productId);
+                    await _unitOfWork.SaveChangesAsync();
+                    return Task.CompletedTask;
+                });
+
+                return Result.Success();
+            }
+            catch (Exception ex)
+            {
+                return Result.Failure($"Error assigning image to product: {ex.Message}", "ASSIGN_IMAGE_ERROR");
+            }
         }
 
-        public async Task AssignImageToProductAsync(int imageId, int productId)
+        public async Task<Result> AssignImageToCategoryAsync(int imageId, int categoryId)
         {
-            await _unitOfWork.ExecuteWithExecutionStrategyAsync(async () =>
+            if (imageId <= 0)
             {
-                await _unitOfWork.Images.AddProductImageAsync(imageId, productId);
-                await _unitOfWork.SaveChangesAsync();
-                return Task.CompletedTask;
-            });
+                return Result.Failure("Image ID must be a positive integer", "INVALID_IMAGE_ID");
+            }
+
+            if (categoryId <= 0)
+            {
+                return Result.Failure("Category ID must be a positive integer", "INVALID_CATEGORY_ID");
+            }
+
+            try
+            {
+                await _unitOfWork.ExecuteWithExecutionStrategyAsync(async () =>
+                {
+                    await _unitOfWork.Images.AddCategoryImageAsync(imageId, categoryId);
+                    await _unitOfWork.SaveChangesAsync();
+                    return Task.CompletedTask;
+                });
+
+                return Result.Success();
+            }
+            catch (Exception ex)
+            {
+                return Result.Failure($"Error assigning image to category: {ex.Message}", "ASSIGN_IMAGE_ERROR");
+            }
         }
 
-        public async Task AssignImageToCategoryAsync(int imageId, int categoryId)
+        public async Task<Result> UnassignImageFromProductAsync(int imageId, int productId)
         {
-            await _unitOfWork.ExecuteWithExecutionStrategyAsync(async () =>
+            if (imageId <= 0)
             {
-                await _unitOfWork.Images.AddCategoryImageAsync(imageId, categoryId);
-                await _unitOfWork.SaveChangesAsync();
-                return Task.CompletedTask;
-            });
+                return Result.Failure("Image ID must be a positive integer", "INVALID_IMAGE_ID");
+            }
+
+            if (productId <= 0)
+            {
+                return Result.Failure("Product ID must be a positive integer", "INVALID_PRODUCT_ID");
+            }
+
+            try
+            {
+                await _unitOfWork.ExecuteWithExecutionStrategyAsync(async () =>
+                {
+                    _unitOfWork.Images.RemoveProductImage(imageId, productId);
+                    await _unitOfWork.SaveChangesAsync();
+                    return Task.CompletedTask;
+                });
+
+                return Result.Success();
+            }
+            catch (Exception ex)
+            {
+                return Result.Failure($"Error unassigning image from product: {ex.Message}", "UNASSIGN_IMAGE_ERROR");
+            }
         }
 
-        public async Task UnassignImageFromProductAsync(int imageId, int productId)
+        public async Task<Result> UnassignImageFromCategoryAsync(int imageId, int categoryId)
         {
-            await _unitOfWork.ExecuteWithExecutionStrategyAsync(async () =>
+            if (imageId <= 0)
             {
-                _unitOfWork.Images.RemoveProductImage(imageId, productId);
-                await _unitOfWork.SaveChangesAsync();
-                return Task.CompletedTask;
-            });
-        }
+                return Result.Failure("Image ID must be a positive integer", "INVALID_IMAGE_ID");
+            }
 
-        public async Task UnassignImageFromCategoryAsync(int imageId, int categoryId)
-        {
-            await _unitOfWork.ExecuteWithExecutionStrategyAsync(async () =>
+            if (categoryId <= 0)
             {
-                _unitOfWork.Images.RemoveCategoryImage(imageId, categoryId);
-                await _unitOfWork.SaveChangesAsync();
-                return Task.CompletedTask;
-            });
+                return Result.Failure("Category ID must be a positive integer", "INVALID_CATEGORY_ID");
+            }
+
+            try
+            {
+                await _unitOfWork.ExecuteWithExecutionStrategyAsync(async () =>
+                {
+                    _unitOfWork.Images.RemoveCategoryImage(imageId, categoryId);
+                    await _unitOfWork.SaveChangesAsync();
+                    return Task.CompletedTask;
+                });
+
+                return Result.Success();
+            }
+            catch (Exception ex)
+            {
+                return Result.Failure($"Error unassigning image from category: {ex.Message}", "UNASSIGN_IMAGE_ERROR");
+            }
         }
     }
 }

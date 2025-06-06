@@ -94,13 +94,17 @@ namespace DecorStore.API.Services
 
                 // Handle image assignment using ImageIds via many-to-many relationship
                 if (productDto.ImageIds != null && productDto.ImageIds.Count > 0)
-                {
-                    // Verify that all image IDs exist
-                    var images = await _imageService.GetImagesByIdsAsync(productDto.ImageIds);
+                {                    // Verify that all image IDs exist
+                    var imagesResult = await _imageService.GetImagesByIdsAsync(productDto.ImageIds);
                     
-                    if (images.Count() != productDto.ImageIds.Count)
+                    if (imagesResult.IsFailure)
                     {
-                        var foundIds = images.Select(img => img.Id).ToList();
+                        return Result<ProductDTO>.Failure(imagesResult.Error, imagesResult.ErrorCode);
+                    }
+                    
+                    if (imagesResult.Data.Count != productDto.ImageIds.Count)
+                    {
+                        var foundIds = imagesResult.Data.Select(img => img.Id).ToList();
                         var missingIds = productDto.ImageIds.Except(foundIds).ToList();
                         return Result<ProductDTO>.NotFound($"The following image IDs were not found: {string.Join(", ", missingIds)}");
                     }
@@ -164,10 +168,8 @@ namespace DecorStore.API.Services
                 }
 
                 // Map basic product properties (excluding images)
-                _mapper.Map(productDto, product);
-
-                // Handle image associations: Remove old associations and create new ones
-                await _unitOfWork.ExecuteWithExecutionStrategyAsync(async () =>
+                _mapper.Map(productDto, product);                // Handle image associations: Remove old associations and create new ones
+                await _unitOfWork.ExecuteWithExecutionStrategyAsync<bool>(async () =>
                 {
                     await _unitOfWork.BeginTransactionAsync();
                     
@@ -182,15 +184,19 @@ namespace DecorStore.API.Services
 
                         // Step 2: Associate new images if provided
                         if (productDto.ImageIds != null && productDto.ImageIds.Count > 0)
-                        {
-                            // Verify that all image IDs exist
-                            var newImages = await _imageService.GetImagesByIdsAsync(productDto.ImageIds);
+                        {                            // Verify that all image IDs exist
+                            var newImagesResult = await _imageService.GetImagesByIdsAsync(productDto.ImageIds);
                             
-                            if (newImages.Count() != productDto.ImageIds.Count)
+                            if (newImagesResult.IsFailure)
                             {
-                                var foundIds = newImages.Select(img => img.Id).ToList();
+                                throw new InvalidOperationException($"{newImagesResult.Error} ({newImagesResult.ErrorCode})");
+                            }
+                            
+                            if (newImagesResult.Data.Count != productDto.ImageIds.Count)
+                            {
+                                var foundIds = newImagesResult.Data.Select(img => img.Id).ToList();
                                 var missingIds = productDto.ImageIds.Except(foundIds).ToList();
-                                throw new NotFoundException($"The following image IDs were not found: {string.Join(", ", missingIds)}");
+                                throw new InvalidOperationException($"The following image IDs were not found: {string.Join(", ", missingIds)}");
                             }
                             
                             // Associate new images with this product using junction table
@@ -205,7 +211,7 @@ namespace DecorStore.API.Services
                         await _unitOfWork.SaveChangesAsync();
                         await _unitOfWork.CommitTransactionAsync();
                         
-                        return Task.CompletedTask; // Return type for ExecuteWithExecutionStrategyAsync
+                        return true;
                     }
                     catch
                     {
@@ -377,16 +383,18 @@ namespace DecorStore.API.Services
                 if (product == null)
                 {
                     return Result.NotFound("Product");
+                }                // Upload the image
+                var uploadResult = await _imageService.UploadImageAsync(image, _folderImageName);
+                if (uploadResult.IsFailure)
+                {
+                    return Result.Failure(uploadResult.Error, uploadResult.ErrorCode);
                 }
-
-                // Upload the image
-                var imagePath = await _imageService.UploadImageAsync(image, _folderImageName);
 
                 // Create new Image entity
                 var newImage = new Image
                 {
                     FileName = image.FileName,
-                    FilePath = imagePath,
+                    FilePath = uploadResult.Data,
                     AltText = Path.GetFileNameWithoutExtension(image.FileName) // Default alt text
                 };
 

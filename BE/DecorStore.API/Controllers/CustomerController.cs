@@ -2,22 +2,24 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using DecorStore.API.DTOs;
 using DecorStore.API.DTOs.Excel;
-using DecorStore.API.Models;
 using DecorStore.API.Services;
 using DecorStore.API.Services.Excel;
+using DecorStore.API.Controllers.Base;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using System;
 
 namespace DecorStore.API.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    public class CustomerController : ControllerBase
+    public class CustomerController : BaseController
     {
         private readonly ICustomerService _customerService;
         private readonly ICustomerExcelService _customerExcelService;
 
-        public CustomerController(ICustomerService customerService, ICustomerExcelService customerExcelService)
+        public CustomerController(ICustomerService customerService, ICustomerExcelService customerExcelService, ILogger<CustomerController> logger)
+            : base(logger)
         {
             _customerService = customerService;
             _customerExcelService = customerExcelService;
@@ -28,8 +30,8 @@ namespace DecorStore.API.Controllers
         [Authorize(Roles = "Admin")]
         public async Task<ActionResult<PagedResult<CustomerDTO>>> GetCustomers([FromQuery] CustomerFilterDTO filter)
         {
-            var pagedCustomers = await _customerService.GetPagedCustomersAsync(filter);
-            return Ok(pagedCustomers);
+            var result = await _customerService.GetPagedCustomersAsync(filter);
+            return HandlePagedResult(result);
         }
 
         // GET: api/Customer/all (for backward compatibility)
@@ -37,8 +39,8 @@ namespace DecorStore.API.Controllers
         [Authorize(Roles = "Admin")]
         public async Task<ActionResult<IEnumerable<CustomerDTO>>> GetAllCustomers()
         {
-            var customers = await _customerService.GetAllCustomersAsync();
-            return Ok(customers);
+            var result = await _customerService.GetAllCustomersAsync();
+            return HandleResult(result);
         }
 
         // GET: api/Customer/5
@@ -46,15 +48,8 @@ namespace DecorStore.API.Controllers
         [Authorize(Roles = "Admin")]
         public async Task<ActionResult<CustomerDTO>> GetCustomer(int id)
         {
-            try
-            {
-                var customer = await _customerService.GetCustomerByIdAsync(id);
-                return Ok(customer);
-            }
-            catch (DecorStore.API.Exceptions.NotFoundException ex)
-            {
-                return NotFound(new { message = ex.Message });
-            }
+            var result = await _customerService.GetCustomerByIdAsync(id);
+            return HandleResult(result);
         }
 
         // GET: api/Customer/email/{email}
@@ -62,62 +57,38 @@ namespace DecorStore.API.Controllers
         [Authorize(Roles = "Admin")]
         public async Task<ActionResult<CustomerDTO>> GetCustomerByEmail(string email)
         {
-            try
-            {
-                var customer = await _customerService.GetCustomerByEmailAsync(email);
-                return Ok(customer);
-            }
-            catch (DecorStore.API.Exceptions.NotFoundException ex)
-            {
-                return NotFound(new { message = ex.Message });
-            }
+            var result = await _customerService.GetCustomerByEmailAsync(email);
+            return HandleResult(result);
         }
 
         // POST: api/Customer
         [HttpPost]
         [Authorize(Roles = "Admin")]
-        public async Task<ActionResult<Customer>> CreateCustomer(CreateCustomerDTO customerDto)
+        public async Task<ActionResult<CustomerDTO>> CreateCustomer(CreateCustomerDTO customerDto)
         {
-            try
+            var validationResult = ValidateModelState();
+            if (validationResult.IsFailure)
             {
-                var customer = await _customerService.CreateCustomerAsync(customerDto);
-                return CreatedAtAction(nameof(GetCustomer), new { id = customer.Id }, customer);
+                return HandleResult(validationResult);
             }
-            catch (System.InvalidOperationException ex)
-            {
-                return BadRequest(new { message = ex.Message });
-            }
-            catch (System.Exception ex)
-            {
-                // Log the exception
-                Console.WriteLine($"Error creating customer: {ex.Message}");
-                if (ex.InnerException != null)
-                {
-                    Console.WriteLine($"Inner exception: {ex.InnerException.Message}");
-                }
 
-                return StatusCode(500, new { message = "An error occurred while creating the customer. Please try again." });
-            }
+            var result = await _customerService.CreateCustomerAsync(customerDto);
+            return HandleCreateResult(result, nameof(GetCustomer), new { id = result.Data?.Id });
         }
 
         // PUT: api/Customer/5
         [HttpPut("{id}")]
         [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> UpdateCustomer(int id, UpdateCustomerDTO customerDto)
+        public async Task<ActionResult<CustomerDTO>> UpdateCustomer(int id, UpdateCustomerDTO customerDto)
         {
-            try
+            var validationResult = ValidateModelState();
+            if (validationResult.IsFailure)
             {
-                await _customerService.UpdateCustomerAsync(id, customerDto);
-                return NoContent();
+                return HandleResult(validationResult);
             }
-            catch (DecorStore.API.Exceptions.NotFoundException ex)
-            {
-                return NotFound(new { message = ex.Message });
-            }
-            catch (System.Exception ex)
-            {
-                return StatusCode(500, new { message = $"An error occurred while updating the customer: {ex.Message}" });
-            }
+
+            var result = await _customerService.UpdateCustomerAsync(id, customerDto);
+            return HandleResult(result);
         }
 
         // DELETE: api/Customer/5
@@ -125,19 +96,8 @@ namespace DecorStore.API.Controllers
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> DeleteCustomer(int id)
         {
-            try
-            {
-                await _customerService.DeleteCustomerAsync(id);
-                return NoContent();
-            }
-            catch (DecorStore.API.Exceptions.NotFoundException ex)
-            {
-                return NotFound(new { message = ex.Message });
-            }
-            catch (System.Exception ex)
-            {
-                return StatusCode(500, new { message = $"An error occurred while deleting the customer: {ex.Message}" });
-            }
+            var result = await _customerService.DeleteCustomerAsync(id);
+            return HandleResult(result);
         }
 
         // GET: api/Customer/with-orders
@@ -145,8 +105,8 @@ namespace DecorStore.API.Controllers
         [Authorize(Roles = "Admin")]
         public async Task<ActionResult<IEnumerable<CustomerDTO>>> GetCustomersWithOrders()
         {
-            var customers = await _customerService.GetCustomersWithOrdersAsync();
-            return Ok(customers);
+            var result = await _customerService.GetCustomersWithOrdersAsync();
+            return HandleResult(result);
         }
 
         // GET: api/Customer/top-by-order-count
@@ -154,8 +114,8 @@ namespace DecorStore.API.Controllers
         [Authorize(Roles = "Admin")]
         public async Task<ActionResult<IEnumerable<CustomerDTO>>> GetTopCustomersByOrderCount([FromQuery] int count = 10)
         {
-            var customers = await _customerService.GetTopCustomersByOrderCountAsync(count);
-            return Ok(customers);
+            var result = await _customerService.GetTopCustomersByOrderCountAsync(count);
+            return HandleResult(result);
         }
 
         // GET: api/Customer/top-by-spending
@@ -163,8 +123,8 @@ namespace DecorStore.API.Controllers
         [Authorize(Roles = "Admin")]
         public async Task<ActionResult<IEnumerable<CustomerDTO>>> GetTopCustomersBySpending([FromQuery] int count = 10)
         {
-            var customers = await _customerService.GetTopCustomersBySpendingAsync(count);
-            return Ok(customers);
+            var result = await _customerService.GetTopCustomersBySpendingAsync(count);
+            return HandleResult(result);
         }
 
         // GET: api/Customer/{customerId}/order-count
@@ -172,8 +132,8 @@ namespace DecorStore.API.Controllers
         [Authorize(Roles = "Admin")]
         public async Task<ActionResult<int>> GetOrderCountByCustomer(int customerId)
         {
-            var count = await _customerService.GetOrderCountByCustomerAsync(customerId);
-            return Ok(count);
+            var result = await _customerService.GetOrderCountByCustomerAsync(customerId);
+            return HandleResult(result);
         }
 
         // GET: api/Customer/{customerId}/total-spent
@@ -181,8 +141,8 @@ namespace DecorStore.API.Controllers
         [Authorize(Roles = "Admin")]
         public async Task<ActionResult<decimal>> GetTotalSpentByCustomer(int customerId)
         {
-            var totalSpent = await _customerService.GetTotalSpentByCustomerAsync(customerId);
-            return Ok(totalSpent);
+            var result = await _customerService.GetTotalSpentByCustomerAsync(customerId);
+            return HandleResult(result);
         }
 
         // GET: api/Customer/by-location
@@ -193,8 +153,8 @@ namespace DecorStore.API.Controllers
             [FromQuery] string? state = null,
             [FromQuery] string? country = null)
         {
-            var customers = await _customerService.GetCustomersByLocationAsync(city, state, country);
-            return Ok(customers);
+            var result = await _customerService.GetCustomersByLocationAsync(city, state, country);
+            return HandleResult(result);
         }
 
         #region Excel Import/Export Endpoints

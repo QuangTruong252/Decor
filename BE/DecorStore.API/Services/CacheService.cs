@@ -2,18 +2,10 @@ using Microsoft.Extensions.Caching.Memory;
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using DecorStore.API.Interfaces.Services;
 
 namespace DecorStore.API.Services
 {
-    public interface ICacheService
-    {
-        T GetOrCreate<T>(string key, Func<T> factory, TimeSpan? expiration = null);
-        Task<T> GetOrCreateAsync<T>(string key, Func<Task<T>> factory, TimeSpan? expiration = null);
-        void Remove(string key);
-        void RemoveByPrefix(string prefix);
-        void Clear();
-    }
-
     public class CacheService : ICacheService
     {
         private readonly IMemoryCache _cache;

@@ -6,6 +6,7 @@ using DecorStore.API.Models;
 using DecorStore.API.Exceptions;
 using Microsoft.AspNetCore.Http;
 using DecorStore.API.Interfaces;
+using DecorStore.API.Common;
 using AutoMapper;
 
 namespace DecorStore.API.Services
@@ -24,106 +25,216 @@ namespace DecorStore.API.Services
             _imageService = imageService;
         }
 
-        public async Task<IEnumerable<BannerDTO>> GetAllBannersAsync()
+        public async Task<Result<IEnumerable<BannerDTO>>> GetAllBannersAsync()
         {
-            var banners = await _unitOfWork.Banners.GetAllAsync();
-            return _mapper.Map<IEnumerable<BannerDTO>>(banners);
+            try
+            {
+                var banners = await _unitOfWork.Banners.GetAllAsync();
+                var bannerDtos = _mapper.Map<IEnumerable<BannerDTO>>(banners);
+                return Result<IEnumerable<BannerDTO>>.Success(bannerDtos);
+            }
+            catch (Exception ex)
+            {
+                return Result<IEnumerable<BannerDTO>>.Failure($"Failed to retrieve banners: {ex.Message}", "RETRIEVAL_ERROR");
+            }
         }
 
-        public async Task<IEnumerable<BannerDTO>> GetActiveBannersAsync()
+        public async Task<Result<IEnumerable<BannerDTO>>> GetActiveBannersAsync()
         {
-            var banners = await _unitOfWork.Banners.GetActiveAsync();
-            return _mapper.Map<IEnumerable<BannerDTO>>(banners);
+            try
+            {
+                var banners = await _unitOfWork.Banners.GetActiveAsync();
+                var bannerDtos = _mapper.Map<IEnumerable<BannerDTO>>(banners);
+                return Result<IEnumerable<BannerDTO>>.Success(bannerDtos);
+            }
+            catch (Exception ex)
+            {
+                return Result<IEnumerable<BannerDTO>>.Failure($"Failed to retrieve active banners: {ex.Message}", "RETRIEVAL_ERROR");
+            }
         }
 
-        public async Task<BannerDTO?> GetBannerByIdAsync(int id)
+        public async Task<Result<BannerDTO>> GetBannerByIdAsync(int id)
         {
-            var banner = await _unitOfWork.Banners.GetByIdAsync(id);
-            if (banner == null)
-                return null;
-
-            return _mapper.Map<BannerDTO>(banner);
-        }
-
-        public async Task<Banner> CreateBannerAsync(CreateBannerDTO bannerDto)
-        {
-            if (bannerDto.ImageFile == null)
-                throw new InvalidOperationException("Banner image is required");
-
-            // Map DTO to entity
-            var banner = _mapper.Map<Banner>(bannerDto);
+            if (id <= 0)
+            {
+                return Result<BannerDTO>.Failure("Invalid banner ID", "INVALID_INPUT");
+            }
 
             try
             {
+                var banner = await _unitOfWork.Banners.GetByIdAsync(id);
+                if (banner == null)
+                {
+                    return Result<BannerDTO>.NotFound("Banner");
+                }
+
+                var bannerDto = _mapper.Map<BannerDTO>(banner);
+                return Result<BannerDTO>.Success(bannerDto);
+            }
+            catch (Exception ex)
+            {
+                return Result<BannerDTO>.Failure($"Failed to retrieve banner: {ex.Message}", "RETRIEVAL_ERROR");
+            }
+        }
+
+        public async Task<Result<BannerDTO>> CreateBannerAsync(CreateBannerDTO bannerDto)
+        {
+            // Input validation
+            if (bannerDto == null)
+            {
+                return Result<BannerDTO>.Failure("Banner data is required", "INVALID_INPUT");
+            }
+
+            if (bannerDto.ImageFile == null)
+            {
+                return Result<BannerDTO>.Failure("Banner image is required", "INVALID_INPUT");
+            }
+
+            if (string.IsNullOrWhiteSpace(bannerDto.Title))
+            {
+                return Result<BannerDTO>.Failure("Banner title is required", "INVALID_INPUT");
+            }
+
+            // Business rule validation
+            if (bannerDto.StartDate.HasValue && bannerDto.EndDate.HasValue && bannerDto.StartDate > bannerDto.EndDate)
+            {
+                return Result<BannerDTO>.Failure("Start date cannot be after end date", "INVALID_DATE_RANGE");
+            }
+
+            if (!string.IsNullOrEmpty(bannerDto.LinkUrl) && !Uri.IsWellFormedUriString(bannerDto.LinkUrl, UriKind.RelativeOrAbsolute))
+            {
+                return Result<BannerDTO>.Failure("Invalid URL format", "INVALID_URL");
+            }
+
+            try
+            {
+                // Map DTO to entity
+                var banner = _mapper.Map<Banner>(bannerDto);
+
                 // Upload image using ImageService
-                string imagePath = await _imageService.UploadImageAsync(bannerDto.ImageFile, _folderName);
+                var uploadResult = await _imageService.UploadImageAsync(bannerDto.ImageFile, _folderName);
+                if (uploadResult.IsFailure)
+                {
+                    return Result<BannerDTO>.Failure($"Failed to upload image: {uploadResult.Error}", "IMAGE_UPLOAD_ERROR");
+                }
 
                 // Set the image URL in the banner entity
-                banner.ImageUrl = imagePath;
+                banner.ImageUrl = uploadResult.Data;
 
                 // Save banner to database
                 await _unitOfWork.Banners.CreateAsync(banner);
                 await _unitOfWork.SaveChangesAsync();
-                return banner;
+
+                var createdBannerDto = _mapper.Map<BannerDTO>(banner);
+                return Result<BannerDTO>.Success(createdBannerDto);
             }
             catch (Exception ex)
             {
-                throw new InvalidOperationException($"Failed to create banner: {ex.Message}", ex);
+                return Result<BannerDTO>.Failure($"Failed to create banner: {ex.Message}", "CREATION_ERROR");
             }
         }
 
-        public async Task UpdateBannerAsync(int id, UpdateBannerDTO bannerDto)
+        public async Task<Result<BannerDTO>> UpdateBannerAsync(int id, UpdateBannerDTO bannerDto)
         {
-            var banner = await _unitOfWork.Banners.GetByIdAsync(id);
-            if (banner == null)
-                throw new NotFoundException("Banner not found");
+            // Input validation
+            if (id <= 0)
+            {
+                return Result<BannerDTO>.Failure("Invalid banner ID", "INVALID_INPUT");
+            }
 
-            // Map DTO to entity
-            _mapper.Map(bannerDto, banner);
+            if (bannerDto == null)
+            {
+                return Result<BannerDTO>.Failure("Banner data is required", "INVALID_INPUT");
+            }
+
+            if (string.IsNullOrWhiteSpace(bannerDto.Title))
+            {
+                return Result<BannerDTO>.Failure("Banner title is required", "INVALID_INPUT");
+            }
+
+            // Business rule validation
+            if (bannerDto.StartDate.HasValue && bannerDto.EndDate.HasValue && bannerDto.StartDate > bannerDto.EndDate)
+            {
+                return Result<BannerDTO>.Failure("Start date cannot be after end date", "INVALID_DATE_RANGE");
+            }
+
+            if (!string.IsNullOrEmpty(bannerDto.LinkUrl) && !Uri.IsWellFormedUriString(bannerDto.LinkUrl, UriKind.RelativeOrAbsolute))
+            {
+                return Result<BannerDTO>.Failure("Invalid URL format", "INVALID_URL");
+            }
 
             try
             {
+                var banner = await _unitOfWork.Banners.GetByIdAsync(id);
+                if (banner == null)
+                {
+                    return Result<BannerDTO>.NotFound("Banner");
+                }
+
+                // Map DTO to entity
+                _mapper.Map(bannerDto, banner);
+
                 // Update image if a new one is provided
                 if (bannerDto.ImageFile != null)
                 {
-                    // Use ImageService to update the image
-                    string newImagePath = await _imageService.UpdateImageAsync(banner.ImageUrl, bannerDto.ImageFile, _folderName);
+                    var updateResult = await _imageService.UpdateImageAsync(banner.ImageUrl, bannerDto.ImageFile, _folderName);
+                    if (updateResult.IsFailure)
+                    {
+                        return Result<BannerDTO>.Failure($"Failed to update image: {updateResult.Error}", "IMAGE_UPDATE_ERROR");
+                    }
 
                     // Update the image URL in the banner entity
-                    banner.ImageUrl = newImagePath;
+                    banner.ImageUrl = updateResult.Data;
                 }
 
                 // Save changes to database
                 await _unitOfWork.Banners.UpdateAsync(banner);
                 await _unitOfWork.SaveChangesAsync();
+
+                var updatedBannerDto = _mapper.Map<BannerDTO>(banner);
+                return Result<BannerDTO>.Success(updatedBannerDto);
             }
             catch (Exception ex)
             {
-                throw new InvalidOperationException($"Failed to update banner: {ex.Message}", ex);
+                return Result<BannerDTO>.Failure($"Failed to update banner: {ex.Message}", "UPDATE_ERROR");
             }
         }
 
-        public async Task DeleteBannerAsync(int id)
+        public async Task<Result> DeleteBannerAsync(int id)
         {
-            var banner = await _unitOfWork.Banners.GetByIdAsync(id);
-            if (banner == null)
-                throw new NotFoundException("Banner not found");
+            // Input validation
+            if (id <= 0)
+            {
+                return Result.Failure("Invalid banner ID", "INVALID_INPUT");
+            }
 
             try
             {
+                var banner = await _unitOfWork.Banners.GetByIdAsync(id);
+                if (banner == null)
+                {
+                    return Result.NotFound("Banner");
+                }
+
                 // Delete the image using ImageService
                 if (!string.IsNullOrEmpty(banner.ImageUrl))
                 {
-                    await _imageService.DeleteImageAsync(banner.ImageUrl);
+                    var deleteImageResult = await _imageService.DeleteImageAsync(banner.ImageUrl);
+                    if (deleteImageResult.IsFailure)
+                    {
+                        return Result.Failure($"Failed to delete image: {deleteImageResult.Error}", "IMAGE_DELETE_ERROR");
+                    }
                 }
 
                 // Delete the banner from database
                 await _unitOfWork.Banners.DeleteAsync(id);
                 await _unitOfWork.SaveChangesAsync();
+
+                return Result.Success();
             }
             catch (Exception ex)
             {
-                throw new InvalidOperationException($"Failed to delete banner: {ex.Message}", ex);
+                return Result.Failure($"Failed to delete banner: {ex.Message}", "DELETE_ERROR");
             }
         }
     }

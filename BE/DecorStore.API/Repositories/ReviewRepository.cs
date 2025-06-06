@@ -24,14 +24,20 @@ namespace DecorStore.API.Repositories
                 .Where(r => r.ProductId == productId && !r.IsDeleted)
                 .OrderByDescending(r => r.CreatedAt)
                 .ToListAsync();
-        }
-
-        public async Task<Review> GetByIdAsync(int id)
+        }        public async Task<Review> GetByIdAsync(int id)
         {
             return await _context.Reviews
                 .Include(r => r.User)
                 .Include(r => r.Product)
                 .FirstOrDefaultAsync(r => r.Id == id && !r.IsDeleted);
+        }
+
+        public async Task<Review> GetByCustomerAndProductAsync(int customerId, int productId)
+        {
+            return await _context.Reviews
+                .Include(r => r.User)
+                .Include(r => r.Product)
+                .FirstOrDefaultAsync(r => r.UserId == customerId && r.ProductId == productId && !r.IsDeleted);
         }
 
         public async Task<Review> CreateAsync(Review review)

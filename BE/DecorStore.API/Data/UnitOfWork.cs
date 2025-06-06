@@ -20,6 +20,7 @@ namespace DecorStore.API.Data
         private ICartRepository? _cartRepository;
         private ICustomerRepository? _customerRepository;
         private IDashboardRepository? _dashboardRepository;
+        private IUserRepository? _userRepository;
 
         public UnitOfWork(ApplicationDbContext context)
         {
@@ -33,6 +34,7 @@ namespace DecorStore.API.Data
         public ICartRepository Carts => _cartRepository ??= new CartRepository(_context);
         public ICustomerRepository Customers => _customerRepository ??= new CustomerRepository(_context);
         public IDashboardRepository Dashboard => _dashboardRepository ??= new DashboardRepository(_context);
+        public IUserRepository Users => _userRepository ??= new UserRepository(_context);
 
         public async Task BeginTransactionAsync()
         {

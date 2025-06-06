@@ -1,5 +1,8 @@
+using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
 using System.Threading.Tasks;
+using DecorStore.API.Controllers.Base;
 using DecorStore.API.DTOs;
 using DecorStore.API.DTOs.Excel;
 using DecorStore.API.Models;
@@ -7,30 +10,41 @@ using DecorStore.API.Services;
 using DecorStore.API.Services.Excel;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
+using System.Diagnostics.CodeAnalysis;
 
 namespace DecorStore.API.Controllers
 {
     [Route("api/[controller]")]
-    [ApiController]
     [Authorize]
-    public class OrderController : ControllerBase
+    public class OrderController : BaseController
     {
         private readonly IOrderService _orderService;
         private readonly IOrderExcelService _orderExcelService;
 
-        public OrderController(IOrderService orderService, IOrderExcelService orderExcelService)
+        public OrderController([NotNull] IOrderService orderService, 
+                             [NotNull] IOrderExcelService orderExcelService, 
+                             [NotNull] ILogger<OrderController> logger)
+            : base(logger)
         {
-            _orderService = orderService;
-            _orderExcelService = orderExcelService;
+            _orderService = orderService ?? throw new ArgumentNullException(nameof(orderService));
+            _orderExcelService = orderExcelService ?? throw new ArgumentNullException(nameof(orderExcelService));
         }
 
         // GET: api/Order
         [HttpGet]
         [Authorize(Roles = "Admin")]
-        public async Task<ActionResult<PagedResult<OrderDTO>>> GetOrders([FromQuery] OrderFilterDTO filter)
+        /// <summary>
+        /// Gets a paged list of orders
+        /// </summary>
+        /// <param name="filter">Filter criteria for orders</param>
+        /// <returns>Paged list of orders</returns>
+        [HttpGet]
+        [Authorize(Roles = "Admin")]
+        public async Task<ActionResult<PagedResult<OrderDTO>>> GetOrders([FromQuery] OrderFilterDTO? filter)
         {
-            var pagedOrders = await _orderService.GetPagedOrdersAsync(filter);
-            return Ok(pagedOrders);
+            var result = await _orderService.GetPagedOrdersAsync(filter ?? new OrderFilterDTO());
+            return HandlePagedResult(result);
         }
 
         // GET: api/Order/all (for backward compatibility)
@@ -38,163 +52,113 @@ namespace DecorStore.API.Controllers
         [Authorize(Roles = "Admin")]
         public async Task<ActionResult<IEnumerable<OrderDTO>>> GetAllOrders()
         {
-            var orders = await _orderService.GetAllOrdersAsync();
-            return Ok(orders);
+            var result = await _orderService.GetAllOrdersAsync();
+            return HandleResult(result);
         }
 
         // GET: api/Order/user/5
         [HttpGet("user/{userId}")]
         public async Task<ActionResult<IEnumerable<OrderDTO>>> GetOrdersByUser(int userId)
         {
-            // Kiểm tra quyền: chỉ admin hoặc chính user đó mới được xem order của user
-            var currentUserId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "0");
-            if (currentUserId != userId && !User.IsInRole("Admin"))
+            if (!await CanAccessUserData(userId))
             {
                 return Forbid();
             }
 
-            var orders = await _orderService.GetOrdersByUserIdAsync(userId);
-            return Ok(orders);
+            var result = await _orderService.GetOrdersByUserIdAsync(userId);
+            return HandleResult(result);
         }
 
         // GET: api/Order/5
         [HttpGet("{id}")]
         public async Task<ActionResult<OrderDTO>> GetOrder(int id)
         {
-            var order = await _orderService.GetOrderByIdAsync(id);
-
-            if (order == null)
+            var result = await _orderService.GetOrderByIdAsync(id);
+            
+            if (!result.IsSuccess)
             {
-                return NotFound();
+                return HandleResult(result);
             }
 
-            // Kiểm tra quyền: chỉ admin hoặc chính user đó mới được xem chi tiết order
-            var currentUserId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "0");
-            if (currentUserId != order.UserId && !User.IsInRole("Admin"))
+            if (!await CanAccessUserData(result.Data.UserId))
             {
                 return Forbid();
             }
 
-            return order;
+            return HandleResult(result);
         }
 
         // POST: api/Order
         [HttpPost]
-        public async Task<ActionResult<OrderDTO>> CreateOrder(CreateOrderDTO orderDto)
+        /// <summary>
+        /// Creates a new order
+        /// </summary>
+        /// <param name="orderDto">Order creation data</param>
+        /// <returns>Created order details</returns>
+        [HttpPost]
+        public async Task<ActionResult<OrderDTO>> CreateOrder([FromBody][Required] CreateOrderDTO orderDto)
         {
-            try
+            if (orderDto == null)
             {
-                // Gán UserId từ token vào orderDto
-                var currentUserId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "0");
-                orderDto.UserId = currentUserId;
+                return BadRequest("Order data is required");
+            }
 
-                var createdOrderDto = await _orderService.CreateOrderAsync(orderDto);
-                return CreatedAtAction(nameof(GetOrder), new { id = createdOrderDto.Id }, createdOrderDto);
-            }
-            catch (System.InvalidOperationException ex)
+            orderDto.UserId = int.Parse(GetCurrentUserId() ?? "0");
+
+            var result = await _orderService.CreateOrderAsync(orderDto);
+            
+            if (result.IsSuccess)
             {
-                return BadRequest(ex.Message);
+                return HandleCreateResult(result, nameof(GetOrder), new { id = result.Data.Id });
             }
-            catch (System.Exception ex) when (ex.Message.Contains("not found"))
-            {
-                return NotFound(ex.Message);
-            }
+            
+            return HandleResult(result);
         }
 
         // PUT: api/Order/5
         [HttpPut("{id}")]
         [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> UpdateOrder(int id, UpdateOrderDTO orderDto)
+        public async Task<ActionResult<OrderDTO>> UpdateOrder(int id, UpdateOrderDTO orderDto)
         {
-            try
-            {
-                await _orderService.UpdateOrderAsync(id, orderDto);
-                return NoContent();
-            }
-            catch (System.Exception ex) when (ex.Message.Contains("not found"))
-            {
-                return NotFound(ex.Message);
-            }
-            catch (System.InvalidOperationException ex)
-            {
-                return BadRequest(ex.Message);
-            }
+            var result = await _orderService.UpdateOrderAsync(id, orderDto);
+            return HandleResult(result);
         }
 
         // PUT: api/Order/5/status
         [HttpPut("{id}/status")]
         [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> UpdateOrderStatus(int id, UpdateOrderStatusDTO statusDto)
+        public async Task<ActionResult<OrderDTO>> UpdateOrderStatus(int id, UpdateOrderStatusDTO statusDto)
         {
-            try
-            {
-                await _orderService.UpdateOrderStatusAsync(id, statusDto);
-                return NoContent();
-            }
-            catch (System.Exception ex) when (ex.Message.Contains("not found"))
-            {
-                return NotFound();
-            }
-            catch (System.InvalidOperationException ex)
-            {
-                return BadRequest(ex.Message);
-            }
+            var result = await _orderService.UpdateOrderStatusAsync(id, statusDto);
+            return HandleResult(result);
         }
 
         // DELETE: api/Order/5
         [HttpDelete("{id}")]
-        public async Task<IActionResult> DeleteOrder(int id)
-        {
-            try
+        public async Task<ActionResult<bool>> DeleteOrder(int id)
+        {            // First get the order to check ownership
+            var orderResult = await _orderService.GetOrderByIdAsync(id);
+            if (!orderResult.IsSuccess)
             {
-                // Kiểm tra order thuộc về user hiện tại hoặc là admin
-                var order = await _orderService.GetOrderByIdAsync(id);
-                if (order == null)
-                {
-                    return NotFound();
-                }
+                return BadRequest(orderResult.Error);
+            }
 
-                var currentUserId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "0");
-                if (currentUserId != order.UserId && !User.IsInRole("Admin"))
-                {
-                    return Forbid();
-                }
+            if (!await CanAccessUserData(orderResult.Data!.UserId))
+            {
+                return Forbid();
+            }
 
-                await _orderService.DeleteOrderAsync(id);
-                return NoContent();
-            }
-            catch (System.Exception ex) when (ex.Message.Contains("not found"))
-            {
-                return NotFound();
-            }
-            catch (System.InvalidOperationException ex)
-            {
-                return BadRequest(ex.Message);
-            }
+            var result = await _orderService.DeleteOrderAsync(id);
+            return HandleResult(result);
         }
 
         // DELETE: api/Order/bulk
         [HttpDelete("bulk")]
         [Authorize(Roles = "Admin")] // Only admin can bulk delete orders
-        public async Task<IActionResult> BulkDeleteOrders(BulkDeleteDTO bulkDeleteDto)
+        public async Task<ActionResult<bool>> BulkDeleteOrders(BulkDeleteDTO bulkDeleteDto)
         {
-            try
-            {
-                await _orderService.BulkDeleteOrdersAsync(bulkDeleteDto);
-                return NoContent();
-            }
-            catch (System.ArgumentException ex)
-            {
-                return BadRequest(ex.Message);
-            }
-            catch (System.InvalidOperationException ex)
-            {
-                return BadRequest(ex.Message);
-            }
-            catch (System.Exception ex)
-            {
-                return StatusCode(500, $"Internal server error: {ex.Message}");
-            }
+            var result = await _orderService.BulkDeleteOrdersAsync(bulkDeleteDto);
+            return HandleResult(result);
         }
 
         // GET: api/Order/recent
@@ -202,8 +166,8 @@ namespace DecorStore.API.Controllers
         [Authorize(Roles = "Admin")]
         public async Task<ActionResult<IEnumerable<OrderDTO>>> GetRecentOrders([FromQuery] int count = 10)
         {
-            var orders = await _orderService.GetRecentOrdersAsync(count);
-            return Ok(orders);
+            var result = await _orderService.GetRecentOrdersAsync(count);
+            return HandleResult(result);
         }
 
         // GET: api/Order/status/{status}
@@ -211,8 +175,8 @@ namespace DecorStore.API.Controllers
         [Authorize(Roles = "Admin")]
         public async Task<ActionResult<IEnumerable<OrderDTO>>> GetOrdersByStatus(string status, [FromQuery] int count = 50)
         {
-            var orders = await _orderService.GetOrdersByStatusAsync(status, count);
-            return Ok(orders);
+            var result = await _orderService.GetOrdersByStatusAsync(status, count);
+            return HandleResult(result);
         }
 
         // GET: api/Order/date-range
@@ -220,8 +184,8 @@ namespace DecorStore.API.Controllers
         [Authorize(Roles = "Admin")]
         public async Task<ActionResult<IEnumerable<OrderDTO>>> GetOrdersByDateRange([FromQuery] DateTime startDate, [FromQuery] DateTime endDate)
         {
-            var orders = await _orderService.GetOrdersByDateRangeAsync(startDate, endDate);
-            return Ok(orders);
+            var result = await _orderService.GetOrdersByDateRangeAsync(startDate, endDate);
+            return HandleResult(result);
         }
 
         // GET: api/Order/revenue
@@ -229,8 +193,8 @@ namespace DecorStore.API.Controllers
         [Authorize(Roles = "Admin")]
         public async Task<ActionResult<decimal>> GetTotalRevenue([FromQuery] DateTime? startDate = null, [FromQuery] DateTime? endDate = null)
         {
-            var revenue = await _orderService.GetTotalRevenueAsync(startDate, endDate);
-            return Ok(revenue);
+            var result = await _orderService.GetTotalRevenueAsync(startDate, endDate);
+            return HandleResult(result);
         }
 
         // GET: api/Order/status-counts
@@ -238,8 +202,8 @@ namespace DecorStore.API.Controllers
         [Authorize(Roles = "Admin")]
         public async Task<ActionResult<Dictionary<string, int>>> GetOrderStatusCounts()
         {
-            var statusCounts = await _orderService.GetOrderStatusCountsAsync();
-            return Ok(statusCounts);
+            var result = await _orderService.GetOrderStatusCountsAsync();
+            return HandleResult(result);
         }
 
         #region Excel Import/Export Endpoints
@@ -249,78 +213,71 @@ namespace DecorStore.API.Controllers
         [Authorize(Roles = "Admin")]
         public async Task<ActionResult<ExcelImportResultDTO<OrderExcelDTO>>> ImportOrders(IFormFile file, [FromQuery] bool validateOnly = false)
         {
-            try
+            if (file == null || file.Length == 0)
             {
-                if (file == null || file.Length == 0)
-                {
-                    return BadRequest("No file provided");
-                }
-
-                if (!file.FileName.EndsWith(".xlsx", StringComparison.OrdinalIgnoreCase))
-                {
-                    return BadRequest("Only .xlsx files are supported");
-                }
-
-                using var stream = file.OpenReadStream();
-                var result = await _orderExcelService.ImportOrdersAsync(stream, validateOnly);
-
-                if (result.IsSuccess)
-                {
-                    return Ok(result);
-                }
-                else
-                {
-                    return BadRequest(result);
-                }
+                return BadRequest("No file provided");
             }
-            catch (Exception ex)
+
+            if (!file.FileName.EndsWith(".xlsx", StringComparison.OrdinalIgnoreCase))
             {
-                return StatusCode(500, $"Internal server error: {ex.Message}");
+                return BadRequest("Only .xlsx files are supported");
             }
+
+            using var stream = file.OpenReadStream();
+            var result = await _orderExcelService.ImportOrdersAsync(stream, validateOnly);
+
+            if (result.IsSuccess)
+            {
+                return Ok(result.Data);
+            }
+
+            // Return the validation errors and summary
+            return BadRequest(new
+            {
+                Summary = result.Summary,
+                Errors = result.Errors,
+                TotalRows = result.TotalRows,
+                SuccessfulRows = result.SuccessfulRows,
+                ErrorRows = result.ErrorRows
+            });
         }
 
         // GET: api/Order/export
         [HttpGet("export")]
         [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> ExportOrders([FromQuery] OrderFilterDTO? filter, [FromQuery] string? format = "xlsx")
+        public async Task<ActionResult<byte[]>> ExportOrders([FromQuery] OrderFilterDTO? filter, [FromQuery] string? format = "xlsx")
         {
-            try
+            var exportRequest = new ExcelExportRequestDTO
             {
-                var exportRequest = new ExcelExportRequestDTO
-                {
-                    WorksheetName = "Orders Export",
-                    IncludeFilters = true,
-                    FreezeHeaderRow = true,
-                    AutoFitColumns = true
-                };
+                WorksheetName = "Orders Export",
+                IncludeFilters = true,
+                FreezeHeaderRow = true,
+                AutoFitColumns = true
+            };
 
-                var fileBytes = await _orderExcelService.ExportOrdersAsync(filter, exportRequest);
+            var result = await _orderExcelService.ExportOrdersAsync(filter, exportRequest);
+            if (result.IsSuccess)
+            {
                 var fileName = $"Orders_Export_{DateTime.UtcNow:yyyyMMdd_HHmmss}.xlsx";
+                return File(result.Data, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
+            }
 
-                return File(fileBytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, $"Internal server error: {ex.Message}");
-            }
+            return BadRequest(result.Error);
         }
 
         // GET: api/Order/export-template
         [HttpGet("export-template")]
         [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> GetOrderImportTemplate([FromQuery] bool includeExample = true)
+        public async Task<ActionResult<byte[]>> GetOrderImportTemplate([FromQuery] bool includeExample = true)
         {
-            try
+            var result = await _orderExcelService.CreateOrderTemplateAsync(includeExample);
+            if (result.IsSuccess)
             {
-                var templateBytes = await _orderExcelService.CreateOrderTemplateAsync(includeExample);
                 var fileName = $"Order_Import_Template_{DateTime.UtcNow:yyyyMMdd}.xlsx";
+                return File(result.Data, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
+            }
 
-                return File(templateBytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, $"Internal server error: {ex.Message}");
-            }
+            return BadRequest(result.Error);
         }
 
         // POST: api/Order/validate-import
@@ -328,27 +285,19 @@ namespace DecorStore.API.Controllers
         [Authorize(Roles = "Admin")]
         public async Task<ActionResult<ExcelValidationResultDTO>> ValidateOrderImport(IFormFile file)
         {
-            try
+            if (file == null || file.Length == 0)
             {
-                if (file == null || file.Length == 0)
-                {
-                    return BadRequest("No file provided");
-                }
-
-                if (!file.FileName.EndsWith(".xlsx", StringComparison.OrdinalIgnoreCase))
-                {
-                    return BadRequest("Only .xlsx files are supported");
-                }
-
-                using var stream = file.OpenReadStream();
-                var result = await _orderExcelService.ValidateOrderExcelAsync(stream);
-
-                return Ok(result);
+                return BadRequest("No file provided");
             }
-            catch (Exception ex)
+
+            if (!file.FileName.EndsWith(".xlsx", StringComparison.OrdinalIgnoreCase))
             {
-                return StatusCode(500, $"Internal server error: {ex.Message}");
+                return BadRequest("Only .xlsx files are supported");
             }
+
+            using var stream = file.OpenReadStream();
+            var result = await _orderExcelService.ValidateOrderExcelAsync(stream);
+            return result.IsValid ? Ok(result) : BadRequest(result);
         }
 
         // POST: api/Order/import-statistics
@@ -356,27 +305,29 @@ namespace DecorStore.API.Controllers
         [Authorize(Roles = "Admin")]
         public async Task<ActionResult<OrderImportStatisticsDTO>> GetImportStatistics(IFormFile file)
         {
-            try
+            if (file == null || file.Length == 0)
             {
-                if (file == null || file.Length == 0)
-                {
-                    return BadRequest("No file provided");
-                }
-
-                if (!file.FileName.EndsWith(".xlsx", StringComparison.OrdinalIgnoreCase))
-                {
-                    return BadRequest("Only .xlsx files are supported");
-                }
-
-                using var stream = file.OpenReadStream();
-                var statistics = await _orderExcelService.GetImportStatisticsAsync(stream);
-
-                return Ok(statistics);
+                return BadRequest("No file provided");
             }
-            catch (Exception ex)
+
+            if (!file.FileName.EndsWith(".xlsx", StringComparison.OrdinalIgnoreCase))
             {
-                return StatusCode(500, $"Internal server error: {ex.Message}");
+                return BadRequest("Only .xlsx files are supported");
             }
+
+            using var stream = file.OpenReadStream();
+            var result = await _orderExcelService.GetImportStatisticsAsync(stream);
+            return Ok(result);
+        }
+
+        #endregion
+
+        #region Helper Methods
+
+        private async Task<bool> CanAccessUserData(int userId)
+        {
+            var currentUserId = int.Parse(GetCurrentUserId() ?? "0");
+            return currentUserId == userId || HasRole("Admin");
         }
 
         #endregion

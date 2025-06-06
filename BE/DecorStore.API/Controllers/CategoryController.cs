@@ -5,6 +5,7 @@ using DecorStore.API.DTOs.Excel;
 using DecorStore.API.Models;
 using DecorStore.API.Services;
 using DecorStore.API.Services.Excel;
+using DecorStore.API.Controllers.Base;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -13,12 +14,13 @@ namespace DecorStore.API.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    public class CategoryController : ControllerBase
+    public class CategoryController : BaseController
     {
         private readonly ICategoryService _categoryService;
         private readonly ICategoryExcelService _categoryExcelService;
 
-        public CategoryController(ICategoryService categoryService, ICategoryExcelService categoryExcelService)
+        public CategoryController(ICategoryService categoryService, ICategoryExcelService categoryExcelService, ILogger<CategoryController> logger)
+            : base(logger)
         {
             _categoryService = categoryService;
             _categoryExcelService = categoryExcelService;
@@ -28,79 +30,48 @@ namespace DecorStore.API.Controllers
         [HttpGet]
         public async Task<ActionResult<PagedResult<CategoryDTO>>> GetCategories([FromQuery] CategoryFilterDTO filter)
         {
-            var pagedCategories = await _categoryService.GetPagedCategoriesAsync(filter);
-            return Ok(pagedCategories);
+            var result = await _categoryService.GetPagedCategoriesAsync(filter);
+            return HandlePagedResult(result);
         }
 
         // GET: api/Category/all (for backward compatibility)
         [HttpGet("all")]
         public async Task<ActionResult<IEnumerable<CategoryDTO>>> GetAllCategories()
         {
-            var categories = await _categoryService.GetAllCategoriesAsync();
-            return Ok(categories);
+            var result = await _categoryService.GetAllCategoriesAsync();
+            return HandleResult(result);
         }
 
         // GET: api/Category/hierarchical
         [HttpGet("hierarchical")]
         public async Task<ActionResult<IEnumerable<CategoryDTO>>> GetHierarchicalCategories()
         {
-            var categories = await _categoryService.GetHierarchicalCategoriesAsync();
-            return Ok(categories);
+            var result = await _categoryService.GetHierarchicalCategoriesAsync();
+            return HandleResult(result);
         }
 
         // GET: api/Category/5
         [HttpGet("{id}")]
         public async Task<ActionResult<CategoryDTO>> GetCategory(int id)
         {
-            var category = await _categoryService.GetCategoryByIdAsync(id);
-
-            if (category == null)
-            {
-                return NotFound();
-            }
-
-            return category;
+            var result = await _categoryService.GetCategoryByIdAsync(id);
+            return HandleResult(result);
         }
 
         // GET: api/Category/slug/home-decor
         [HttpGet("slug/{slug}")]
         public async Task<ActionResult<CategoryDTO>> GetCategoryBySlug(string slug)
         {
-            var category = await _categoryService.GetCategoryBySlugAsync(slug);
-
-            if (category == null)
-            {
-                return NotFound();
-            }
-
-            return category;
+            var result = await _categoryService.GetCategoryBySlugAsync(slug);
+            return HandleResult(result);
         }
 
         // POST: api/Category
         [HttpPost]
-        [Authorize(Roles = "Admin")]
-        public async Task<ActionResult<Category>> CreateCategory(CreateCategoryDTO categoryDto)
+        [Authorize(Roles = "Admin")]        public async Task<ActionResult<CategoryDTO>> CreateCategory(CreateCategoryDTO categoryDto)
         {
-            try
-            {
-                var category = await _categoryService.CreateAsync(categoryDto);
-                return CreatedAtAction(nameof(GetCategory), new { id = category.Id }, category);
-            }
-            catch (System.InvalidOperationException ex)
-            {
-                return BadRequest(new { message = ex.Message });
-            }
-            catch (System.Exception ex)
-            {
-                // Log the exception
-                Console.WriteLine($"Error creating category: {ex.Message}");
-                if (ex.InnerException != null)
-                {
-                    Console.WriteLine($"Inner exception: {ex.InnerException.Message}");
-                }
-
-                return StatusCode(500, new { message = "An error occurred while creating the category. Please try again." });
-            }
+            var result = await _categoryService.CreateAsync(categoryDto);
+            return HandleCreateResult(result, nameof(GetCategory), new { id = result.Data?.Id });
         }
 
         // PUT: api/Category/5
@@ -108,30 +79,8 @@ namespace DecorStore.API.Controllers
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> UpdateCategory(int id, UpdateCategoryDTO categoryDto)
         {
-            try
-            {
-                await _categoryService.UpdateAsync(id, categoryDto);
-                return NoContent();
-            }
-            catch (System.Exception ex) when (ex.Message.Contains("not found"))
-            {
-                return NotFound(new { message = ex.Message });
-            }
-            catch (System.InvalidOperationException ex)
-            {
-                return BadRequest(new { message = ex.Message });
-            }
-            catch (System.Exception ex)
-            {
-                // Log the exception
-                Console.WriteLine($"Error updating category: {ex.Message}");
-                if (ex.InnerException != null)
-                {
-                    Console.WriteLine($"Inner exception: {ex.InnerException.Message}");
-                }
-
-                return StatusCode(500, new { message = "An error occurred while updating the category. Please try again." });
-            }
+            var result = await _categoryService.UpdateAsync(id, categoryDto);
+            return HandleResult(result);
         }
 
         // DELETE: api/Category/5
@@ -139,59 +88,48 @@ namespace DecorStore.API.Controllers
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> DeleteCategory(int id)
         {
-            try
-            {
-                await _categoryService.DeleteAsync(id);
-                return NoContent();
-            }
-            catch (System.Exception ex) when (ex.Message.Contains("not found"))
-            {
-                return NotFound();
-            }
-            catch (System.InvalidOperationException ex)
-            {
-                return BadRequest(ex.Message);
-            }
+            var result = await _categoryService.DeleteAsync(id);
+            return HandleResult(result);
         }
 
         // GET: api/Category/with-product-count
         [HttpGet("with-product-count")]
         public async Task<ActionResult<IEnumerable<CategoryDTO>>> GetCategoriesWithProductCount()
         {
-            var categories = await _categoryService.GetCategoriesWithProductCountAsync();
-            return Ok(categories);
+            var result = await _categoryService.GetCategoriesWithProductCountAsync();
+            return HandleResult(result);
         }
 
         // GET: api/Category/{parentId}/subcategories
         [HttpGet("{parentId}/subcategories")]
         public async Task<ActionResult<IEnumerable<CategoryDTO>>> GetSubcategories(int parentId)
         {
-            var subcategories = await _categoryService.GetSubcategoriesAsync(parentId);
-            return Ok(subcategories);
+            var result = await _categoryService.GetSubcategoriesAsync(parentId);
+            return HandleResult(result);
         }
 
         // GET: api/Category/{categoryId}/product-count
         [HttpGet("{categoryId}/product-count")]
         public async Task<ActionResult<int>> GetProductCountByCategory(int categoryId)
         {
-            var count = await _categoryService.GetProductCountByCategoryAsync(categoryId);
-            return Ok(count);
+            var result = await _categoryService.GetProductCountByCategoryAsync(categoryId);
+            return HandleResult(result);
         }
 
         // GET: api/Category/popular
         [HttpGet("popular")]
         public async Task<ActionResult<IEnumerable<CategoryDTO>>> GetPopularCategories([FromQuery] int count = 10)
         {
-            var categories = await _categoryService.GetPopularCategoriesAsync(count);
-            return Ok(categories);
+            var result = await _categoryService.GetPopularCategoriesAsync(count);
+            return HandleResult(result);
         }
 
         // GET: api/Category/root
         [HttpGet("root")]
         public async Task<ActionResult<IEnumerable<CategoryDTO>>> GetRootCategories()
         {
-            var categories = await _categoryService.GetRootCategoriesAsync();
-            return Ok(categories);
+            var result = await _categoryService.GetRootCategoriesAsync();
+            return HandleResult(result);
         }
 
         #region Excel Import/Export Endpoints

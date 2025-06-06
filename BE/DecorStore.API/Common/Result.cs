@@ -4,17 +4,27 @@ namespace DecorStore.API.Common
     /// Generic result pattern for consistent error handling and response management
     /// </summary>
     /// <typeparam name="T">The type of data returned on success</typeparam>
-    public class Result<T>
-    {
-        /// <summary>
-        /// Gets a value indicating whether the operation was successful
-        /// </summary>
-        public bool IsSuccess { get; private set; }
+public class Result<T>
+{
+    /// <summary>
+    /// Gets a value indicating whether the operation was successful
+    /// </summary>
+    public bool IsSuccess { get; private set; }
 
-        /// <summary>
-        /// Gets a value indicating whether the operation failed
-        /// </summary>
-        public bool IsFailure => !IsSuccess;
+    /// <summary>
+    /// Gets a value indicating whether the operation is valid
+    /// </summary>
+    public bool IsValid => IsSuccess;
+
+    /// <summary>
+    /// Gets a value indicating whether the operation failed
+    /// </summary>
+    public bool IsFailure => !IsSuccess;
+
+    /// <summary>
+    /// Gets the error message (alias for Error property)
+    /// </summary>
+    public string? ErrorMessage => Error;
 
         /// <summary>
         /// Gets the data returned by the operation (only available on success)
@@ -145,6 +155,22 @@ namespace DecorStore.API.Common
         {
             return Failure(error);
         }
+
+        /// <summary>
+        /// Operator overloading for ! (not) to check IsSuccess
+        /// </summary>
+        public static bool operator !(Result<T> result)
+        {
+            return !result.IsSuccess;
+        }
+
+        /// <summary>
+        /// Implicit conversion to bool to check IsSuccess
+        /// </summary>
+        public static implicit operator bool(Result<T> result)
+        {
+            return result.IsSuccess;
+        }
     }
 
     /// <summary>
@@ -158,9 +184,19 @@ namespace DecorStore.API.Common
         public bool IsSuccess { get; private set; }
 
         /// <summary>
+        /// Gets a value indicating whether the operation is valid
+        /// </summary>
+        public bool IsValid => IsSuccess;
+
+        /// <summary>
         /// Gets a value indicating whether the operation failed
         /// </summary>
         public bool IsFailure => !IsSuccess;
+
+        /// <summary>
+        /// Gets the error message (alias for Error property)
+        /// </summary>
+        public string? ErrorMessage => Error;
 
         /// <summary>
         /// Gets the error message (only available on failure)
@@ -266,6 +302,22 @@ namespace DecorStore.API.Common
         {
             return new Result(false, message, "FORBIDDEN");
         }
+
+        /// <summary>
+        /// Operator overloading for ! (not) to check IsSuccess
+        /// </summary>
+        public static bool operator !(Result result)
+        {
+            return !result.IsSuccess;
+        }
+
+        /// <summary>
+        /// Implicit conversion to bool to check IsSuccess
+        /// </summary>
+        public static implicit operator bool(Result result)
+        {
+            return result.IsSuccess;
+        }
     }
 
     /// <summary>
@@ -329,6 +381,55 @@ namespace DecorStore.API.Common
             {
                 return Result<U>.Failure($"Mapping failed: {ex.Message}", "MAPPING_ERROR");
             }
+        }
+
+        /// <summary>
+        /// Adds LINQ extensions for Result<IEnumerable<T>>
+        /// </summary>
+        public static int Count<T>(this Result<IEnumerable<T>> result)
+        {
+            return result.IsSuccess ? result.Data?.Count() ?? 0 : 0;
+        }
+
+        public static Result<IEnumerable<U>> Select<T, U>(this Result<IEnumerable<T>> result, Func<T, U> selector)
+        {
+            if (result.IsFailure)
+            {
+                return Result<IEnumerable<U>>.Failure(result.Error!, result.ErrorCode!, result.ErrorDetails!);
+            }
+
+            try
+            {
+                var mappedData = result.Data!.Select(selector);
+                return Result<IEnumerable<U>>.Success(mappedData);
+            }
+            catch (Exception ex)
+            {
+                return Result<IEnumerable<U>>.Failure($"Mapping failed: {ex.Message}", "MAPPING_ERROR");
+            }
+        }
+
+        public static Result<List<U>> Select<T, U>(this Result<List<T>> result, Func<T, U> selector)
+        {
+            if (result.IsFailure)
+            {
+                return Result<List<U>>.Failure(result.Error!, result.ErrorCode!, result.ErrorDetails!);
+            }
+
+            try
+            {
+                var mappedData = result.Data!.Select(selector).ToList();
+                return Result<List<U>>.Success(mappedData);
+            }
+            catch (Exception ex)
+            {
+                return Result<List<U>>.Failure($"Mapping failed: {ex.Message}", "MAPPING_ERROR");
+            }
+        }
+
+        public static int Count<T>(this Result<List<T>> result)
+        {
+            return result.IsSuccess ? result.Data?.Count ?? 0 : 0;
         }
     }
 }

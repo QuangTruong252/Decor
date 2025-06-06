@@ -48,7 +48,11 @@ namespace DecorStore.API.Extensions
             services.AddScoped<ICartRepository, CartRepository>();
             services.AddScoped<ICustomerRepository, CustomerRepository>();
             services.AddScoped<IDashboardRepository, DashboardRepository>();
+            services.AddScoped<IUserRepository, UserRepository>();
             services.AddScoped<DecorStore.API.Interfaces.Repositories.IImageRepository, DecorStore.API.Repositories.ImageRepository>();
+            
+            // Register Unit of Work
+            services.AddScoped<IUnitOfWork, DecorStore.API.Data.UnitOfWork>();
         }
 
         private static void AddBusinessServices(IServiceCollection services)
@@ -90,7 +94,7 @@ namespace DecorStore.API.Extensions
             });
 
             // Add custom cache service
-            services.AddScoped<ICacheService, CacheService>();
+            services.AddScoped<DecorStore.API.Interfaces.Services.ICacheService, CacheService>();
         }
 
         private static void AddValidationServices(IServiceCollection services)

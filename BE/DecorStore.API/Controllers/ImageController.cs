@@ -2,18 +2,20 @@ using Microsoft.AspNetCore.Mvc;
 using DecorStore.API.Interfaces;
 using DecorStore.API.DTOs;
 using DecorStore.API.Models;
+using DecorStore.API.Controllers.Base;
 using AutoMapper;
 
 namespace DecorStore.API.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    public class ImageController : ControllerBase
+    public class ImageController : BaseController
     {
         private readonly IImageService _imageService;
         private readonly IMapper _mapper;
 
-        public ImageController(IImageService imageService, IMapper mapper)
+        public ImageController(IImageService imageService, IMapper mapper, ILogger<ImageController> logger) 
+            : base(logger)
         {
             _imageService = imageService;
             _mapper = mapper;
@@ -27,44 +29,42 @@ namespace DecorStore.API.Controllers
         [HttpPost("upload")]
         public async Task<ActionResult<ImageUploadResponseDTO>> UploadImages([FromForm] ImageUploadDTO uploadDto)
         {
-            try
+            var validationResult = ValidateModelState();
+            if (validationResult.IsFailure)
             {
-                if (uploadDto.Files == null || !uploadDto.Files.Any())
-                {
-                    return BadRequest("No files provided");
-                }
-
-                // Validate file count (max 10 files at once)
-                if (uploadDto.Files.Count > 10)
-                {
-                    return BadRequest("Maximum 10 files can be uploaded at once");
-                }
-
-                // Get or create images and return their IDs
-                var imageIds = await _imageService.GetOrCreateImagesAsync(uploadDto.Files, uploadDto.folderName);
-                
-                // Get the full image details
-                var images = await _imageService.GetImagesByIdsAsync(imageIds);
-                
-                // Map to response DTOs
-                var imageResponseDtos = _mapper.Map<List<ImageResponseDTO>>(images);
-
-                var response = new ImageUploadResponseDTO
-                {
-                    Images = imageResponseDtos
-                };
-
-                return Ok(response);
+                return BadRequest(validationResult.Error);
             }
-            catch (ArgumentException ex)
+
+            if (uploadDto.Files == null || !uploadDto.Files.Any())
             {
-                return BadRequest(ex.Message);
+                return BadRequest("No files provided");
             }
-            catch (Exception ex)
+
+            // Get or create images and return their IDs
+            var imageIdsResult = await _imageService.GetOrCreateImagesAsync(uploadDto.Files, uploadDto.folderName ?? "images");
+            if (imageIdsResult.IsFailure)
             {
-                return StatusCode(500, $"An error occurred while uploading images: {ex.Message}");
+                return BadRequest(imageIdsResult.Error);
             }
-        }        
+            
+            // Get the full image details
+            var imagesResult = await _imageService.GetImagesByIdsAsync(imageIdsResult.Data!);
+            if (imagesResult.IsFailure)
+            {
+                return BadRequest(imagesResult.Error);
+            }
+            
+            // Map to response DTOs
+            var imageResponseDtos = _mapper.Map<List<ImageResponseDTO>>(imagesResult.Data);
+
+            var response = new ImageUploadResponseDTO
+            {
+                Images = imageResponseDtos
+            };
+
+            return CreatedAtAction(nameof(GetImagesByIds), new { ids = string.Join(",", imageIdsResult.Data!) }, response);
+        }
+
         /// <summary>
         /// Get all images in the system
         /// </summary>
@@ -72,22 +72,20 @@ namespace DecorStore.API.Controllers
         [HttpGet("system")]
         public async Task<ActionResult<ImageUploadResponseDTO>> GetSystemImages()
         {
-            try
-        {
-                var allImages = await _imageService.GetAllImagesAsync();
-                var imageResponseDtos = _mapper.Map<List<ImageResponseDTO>>(allImages);
-                
-                var response = new ImageUploadResponseDTO
-                {
-                    Images = imageResponseDtos
-                };
-
-                return Ok(response);
-            }
-            catch (Exception ex)
+            var allImagesResult = await _imageService.GetAllImagesAsync();
+            if (allImagesResult.IsFailure)
             {
-                return StatusCode(500, $"An error occurred while retrieving images: {ex.Message}");
+                return BadRequest(allImagesResult.Error);
             }
+
+            var imageResponseDtos = _mapper.Map<List<ImageResponseDTO>>(allImagesResult.Data);
+            
+            var response = new ImageUploadResponseDTO
+            {
+                Images = imageResponseDtos
+            };
+
+            return Ok(response);
         }
 
         /// <summary>
@@ -98,15 +96,11 @@ namespace DecorStore.API.Controllers
         [HttpGet("exists/{fileName}")]
         public async Task<ActionResult<bool>> CheckImageExists(string fileName)
         {
-            try
-            {
-                var exists = await _imageService.ImageExistsInSystemAsync(fileName);
-                return Ok(exists);
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, $"An error occurred while checking image existence: {ex.Message}");
-            }
+            var existsResult = await _imageService.ImageExistsInSystemAsync(fileName);
+            if (existsResult.IsFailure)
+                return BadRequest(existsResult.Error);
+                
+            return existsResult.Data;
         }
 
         /// <summary>
@@ -117,58 +111,50 @@ namespace DecorStore.API.Controllers
         [HttpGet("{ids}")]
         public async Task<ActionResult<ImageUploadResponseDTO>> GetImagesByIds(string ids)
         {
-            try
+            // Parse comma-separated IDs
+            var imageIds = ids.Split(',')
+                .Where(id => int.TryParse(id, out _))
+                .Select(int.Parse)
+                .ToList();
+
+            if (!imageIds.Any())
             {
-                // Parse comma-separated IDs
-                var imageIds = ids.Split(',')
-                    .Where(id => int.TryParse(id, out _))
-                    .Select(int.Parse)
-                    .ToList();
-
-                if (!imageIds.Any())
-                {
-                    return BadRequest("No valid image IDs provided");
-                }
-
-                var images = await _imageService.GetImagesByIdsAsync(imageIds);
-                var imageResponseDtos = _mapper.Map<List<ImageResponseDTO>>(images);
-
-                var response = new ImageUploadResponseDTO
-                {
-                    Images = imageResponseDtos
-                };
-
-                return Ok(response);
+                return BadRequest("No valid image IDs provided");
             }
-            catch (Exception ex)
+
+            var imagesResult = await _imageService.GetImagesByIdsAsync(imageIds);
+            if (imagesResult.IsFailure)
             {
-                return StatusCode(500, $"An error occurred while retrieving images: {ex.Message}");
+                return BadRequest(imagesResult.Error);
             }
+
+            var imageResponseDtos = _mapper.Map<List<ImageResponseDTO>>(imagesResult.Data);
+
+            var response = new ImageUploadResponseDTO
+            {
+                Images = imageResponseDtos
+            };
+
+            return Ok(response);
         }
+
         [HttpGet("get-by-filepaths")]
         public async Task<ActionResult<ImageUploadResponseDTO>> GetImagesByFilePaths([FromQuery] List<string> filePaths)
         {
-            try
+            var imagesResult = await _imageService.GetImagesByFilePathsAsync(filePaths);
+            if (imagesResult.IsFailure)
             {
-                if (filePaths == null || !filePaths.Any())
-                {
-                    return BadRequest("No file paths provided");
-                }
-
-                var images = await _imageService.GetImagesByFilePathsAsync(filePaths);
-                var imageResponseDtos = _mapper.Map<List<ImageResponseDTO>>(images);
-
-                var response = new ImageUploadResponseDTO
-                {
-                    Images = imageResponseDtos
-                };
-
-                return Ok(response);
+                return BadRequest(imagesResult.Error);
             }
-            catch (Exception ex)
+
+            var imageResponseDtos = _mapper.Map<List<ImageResponseDTO>>(imagesResult.Data);
+
+            var response = new ImageUploadResponseDTO
             {
-                return StatusCode(500, $"An error occurred while retrieving images: {ex.Message}");
-            }
+                Images = imageResponseDtos
+            };
+
+            return Ok(response);
         }
     }
 }

@@ -1,460 +1,207 @@
-using DecorStore.API.DTOs.FileManagement;
-using DecorStore.API.Interfaces.Services;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
+using DecorStore.API.Controllers.Base;
+using DecorStore.API.Interfaces.Services;
+using DecorStore.API.DTOs.FileManagement;
 
 namespace DecorStore.API.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    [Authorize(Roles = "Admin")]// Require authentication for all endpoints
-    public class FileManagerController : ControllerBase
+    [Authorize(Roles = "Admin")]
+    public class FileManagerController : BaseController
     {
         private readonly IFileManagerService _fileManagerService;
-        private readonly ILogger<FileManagerController> _logger;
 
         public FileManagerController(
             IFileManagerService fileManagerService,
-            ILogger<FileManagerController> logger)
+            ILogger<FileManagerController> logger) : base(logger)
         {
             _fileManagerService = fileManagerService;
-            _logger = logger;
         }
 
-        /// <summary>
-        /// Browse files and folders with pagination, search, and filtering
-        /// </summary>
-        [HttpGet("browse")]
-        public async Task<ActionResult<FileBrowseResponseDTO>> BrowseFiles([FromQuery] FileBrowseRequestDTO request)
+        [HttpPost("browse")]
+        public async Task<ActionResult<FileBrowseResponseDTO>> BrowseFiles([FromBody] FileBrowseRequestDTO request)
         {
-            try
-            {
-                if (!await _fileManagerService.ValidatePathAsync(request.Path))
-                {
-                    return BadRequest("Invalid path");
-                }
+            var modelValidation = ValidateModelState();
+            if (modelValidation.IsFailure)
+                return BadRequest(modelValidation.Error);
 
-                var result = await _fileManagerService.BrowseFilesAsync(request);
-                return Ok(result);
-            }
-            catch (DirectoryNotFoundException ex)
-            {
-                _logger.LogWarning("Directory not found: {Path}", request.Path);
-                return NotFound(ex.Message);
-            }
-            catch (UnauthorizedAccessException ex)
-            {
-                _logger.LogWarning("Unauthorized access attempt: {Path}", request.Path);
-                return Forbid(ex.Message);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error browsing files in path: {Path}", request.Path);
-                return StatusCode(500, "Internal server error");
-            }
+            var result = await _fileManagerService.BrowseFilesAsync(request);
+            if (result.IsFailure)
+                return BadRequest(result.Error);
+
+            return Ok(result.Data);
         }
 
-        /// <summary>
-        /// Get folder structure tree
-        /// </summary>
-        [HttpGet("folders")]
+        [HttpGet("folder-structure")]
         public async Task<ActionResult<FolderStructureDTO>> GetFolderStructure([FromQuery] string? rootPath = null)
         {
-            try
-            {
-                if (!string.IsNullOrEmpty(rootPath) && !await _fileManagerService.ValidatePathAsync(rootPath))
-                {
-                    return BadRequest("Invalid path");
-                }
-
-                var result = await _fileManagerService.GetFolderStructureAsync(rootPath);
-                return Ok(result);
-            }
-            catch (DirectoryNotFoundException ex)
-            {
-                _logger.LogWarning("Directory not found: {Path}", rootPath);
-                return NotFound(ex.Message);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error getting folder structure for path: {Path}", rootPath);
-                return StatusCode(500, "Internal server error");
-            }
+            var result = await _fileManagerService.GetFolderStructureAsync(rootPath);
+            return HandleResult(result);
         }
 
-        /// <summary>
-        /// Get detailed information about a specific file or folder
-        /// </summary>
-        [HttpGet("info")]
+        [HttpGet("file-info")]
         public async Task<ActionResult<FileItemDTO>> GetFileInfo([FromQuery] string filePath)
         {
-            try
-            {
-                if (!await _fileManagerService.ValidatePathAsync(filePath))
-                {
-                    return BadRequest("Invalid path");
-                }
+            if (string.IsNullOrWhiteSpace(filePath))
+                return BadRequest("File path is required");
 
-                var result = await _fileManagerService.GetFileInfoAsync(filePath);
-                if (result == null)
-                {
-                    return NotFound("File or folder not found");
-                }
-
-                return Ok(result);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error getting file info for: {Path}", filePath);
-                return StatusCode(500, "Internal server error");
-            }
+            var result = await _fileManagerService.GetFileInfoAsync(filePath);
+            var actionResult = HandleResult(result);
+            return actionResult.Result ?? actionResult;
         }
 
-        /// <summary>
-        /// Upload multiple files to a specified folder
-        /// </summary>
-        [HttpPost("upload")]
-        public async Task<ActionResult<FileUploadResponseDTO>> UploadFiles(
-            [FromForm] FileUploadRequestDTO request,
-            [FromForm] IFormFileCollection files)
+        [HttpGet("download")]
+        public async Task<ActionResult<(Stream FileStream, string ContentType, string FileName)>> DownloadFile([FromQuery] string filePath)
         {
-            try
-            {
-                if (!files.Any())
-                {
-                    return BadRequest("No files provided");
-                }
+            if (string.IsNullOrWhiteSpace(filePath))
+                return BadRequest("File path is required");
 
-                if (!await _fileManagerService.ValidatePathAsync(request.FolderPath))
-                {
-                    return BadRequest("Invalid folder path");
-                }
+            var result = await _fileManagerService.DownloadFileAsync(filePath);
 
-                var result = await _fileManagerService.UploadFilesAsync(files, request);
-                
-                if (result.ErrorCount > 0 && result.SuccessCount == 0)
-                {
-                    return BadRequest(result);
-                }
+            if (!result.IsSuccess)
+                return HandleResult(result);
 
-                return Ok(result);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error uploading files to: {Path}", request.FolderPath);
-                return StatusCode(500, "Internal server error");
-            }
+            var (fileStream, contentType, fileName) = result.Data;
+            return File(fileStream, contentType, fileName);
         }
 
-        /// <summary>
-        /// Create a new folder
-        /// </summary>
+        [HttpPost("upload")]
+        public async Task<ActionResult<FileUploadResponseDTO>> UploadFiles([FromForm] IFormFileCollection files, [FromForm] FileUploadRequestDTO request)
+        {
+            if (files == null || !files.Any())
+                return BadRequest("No files provided");
+
+            var modelValidation = ValidateModelState();
+            if (modelValidation.IsFailure)
+                return BadRequest(modelValidation.Error);
+
+            var result = await _fileManagerService.UploadFilesAsync(files, request);
+            var actionResult = HandleCreateResult(result, "Files uploaded successfully");
+            return actionResult.Result ?? actionResult;
+        }
+
         [HttpPost("create-folder")]
         public async Task<ActionResult<FileItemDTO>> CreateFolder([FromBody] CreateFolderRequestDTO request)
         {
-            try
-            {
-                if (string.IsNullOrEmpty(request.FolderName))
-                {
-                    return BadRequest("Folder name is required");
-                }
+            var modelValidation = ValidateModelState();
+            if (modelValidation.IsFailure)
+                return BadRequest(modelValidation.Error);
 
-                if (!await _fileManagerService.ValidatePathAsync(request.ParentPath))
-                {
-                    return BadRequest("Invalid parent path");
-                }
-
-                var result = await _fileManagerService.CreateFolderAsync(request);
-                return CreatedAtAction(nameof(GetFileInfo), new { filePath = result.RelativePath }, result);
-            }
-            catch (InvalidOperationException ex)
-            {
-                return Conflict(ex.Message);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error creating folder: {FolderName} in {ParentPath}", 
-                    request.FolderName, request.ParentPath);
-                return StatusCode(500, "Internal server error");
-            }
+            var result = await _fileManagerService.CreateFolderAsync(request);
+            return HandleCreateResult(result, "Folder created successfully");
         }
 
-        /// <summary>
-        /// Delete multiple files or folders
-        /// </summary>
         [HttpDelete("delete")]
         public async Task<ActionResult<DeleteFileResponseDTO>> DeleteFiles([FromBody] DeleteFileRequestDTO request)
         {
-            try
-            {
-                if (!request.FilePaths.Any())
-                {
-                    return BadRequest("No file paths provided");
-                }
+            var modelValidation = ValidateModelState();
+            if (modelValidation.IsFailure)
+                return BadRequest(modelValidation.Error);
 
-                // Validate all paths
-                foreach (var path in request.FilePaths)
-                {
-                    if (!await _fileManagerService.ValidatePathAsync(path))
-                    {
-                        return BadRequest($"Invalid path: {path}");
-                    }
-                }
+            var result = await _fileManagerService.DeleteFilesAsync(request);
+            if (result.IsFailure)
+                return BadRequest(result.Error);
 
-                var result = await _fileManagerService.DeleteFilesAsync(request);
-                return Ok(result);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error deleting files: {Paths}", string.Join(", ", request.FilePaths));
-                return StatusCode(500, "Internal server error");
-            }
+            return Ok(result.Data);
         }
 
-        /// <summary>
-        /// Move files or folders to a different location
-        /// </summary>
         [HttpPost("move")]
         public async Task<ActionResult<FileOperationResponseDTO>> MoveFiles([FromBody] MoveFileRequestDTO request)
         {
-            try
-            {
-                if (!request.SourcePaths.Any())
-                {
-                    return BadRequest("No source paths provided");
-                }
+            var modelValidation = ValidateModelState();
+            if (modelValidation.IsFailure)
+                return BadRequest(modelValidation.Error);
 
-                if (!await _fileManagerService.ValidatePathAsync(request.DestinationPath))
-                {
-                    return BadRequest("Invalid destination path");
-                }
+            var result = await _fileManagerService.MoveFilesAsync(request);
+            if (result.IsFailure)
+                return BadRequest(result.Error);
 
-                // Validate all source paths
-                foreach (var path in request.SourcePaths)
-                {
-                    if (!await _fileManagerService.ValidatePathAsync(path))
-                    {
-                        return BadRequest($"Invalid source path: {path}");
-                    }
-                }
-
-                var result = await _fileManagerService.MoveFilesAsync(request);
-                return Ok(result);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error moving files from {Sources} to {Destination}", 
-                    string.Join(", ", request.SourcePaths), request.DestinationPath);
-                return StatusCode(500, "Internal server error");
-            }
+            return Ok(result.Data);
         }
 
-        /// <summary>
-        /// Copy files or folders to a different location
-        /// </summary>
         [HttpPost("copy")]
         public async Task<ActionResult<FileOperationResponseDTO>> CopyFiles([FromBody] CopyFileRequestDTO request)
         {
-            try
-            {
-                if (!request.SourcePaths.Any())
-                {
-                    return BadRequest("No source paths provided");
-                }
+            var modelValidation = ValidateModelState();
+            if (modelValidation.IsFailure)
+                return BadRequest(modelValidation.Error);
 
-                if (!await _fileManagerService.ValidatePathAsync(request.DestinationPath))
-                {
-                    return BadRequest("Invalid destination path");
-                }
+            var result = await _fileManagerService.CopyFilesAsync(request);
+            if (result.IsFailure)
+                return BadRequest(result.Error);
 
-                // Validate all source paths
-                foreach (var path in request.SourcePaths)
-                {
-                    if (!await _fileManagerService.ValidatePathAsync(path))
-                    {
-                        return BadRequest($"Invalid source path: {path}");
-                    }
-                }
-
-                var result = await _fileManagerService.CopyFilesAsync(request);
-                return Ok(result);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error copying files from {Sources} to {Destination}", 
-                    string.Join(", ", request.SourcePaths), request.DestinationPath);
-                return StatusCode(500, "Internal server error");
-            }
+            return Ok(result.Data);
         }
 
-        /// <summary>
-        /// Generate thumbnail for an image
-        /// </summary>
+        [HttpGet("validate-path")]
+        public async Task<ActionResult<bool>> ValidatePath([FromQuery] string path)
+        {
+            if (string.IsNullOrWhiteSpace(path))
+                return BadRequest("Path is required");
+
+            var result = await _fileManagerService.ValidatePathAsync(path);
+            if (result.IsFailure)
+                return BadRequest(result.Error);
+
+            return Ok(result.Data);
+        }
+
+        [HttpGet("image-metadata")]
+        public async Task<ActionResult<ImageMetadataDTO>> ExtractImageMetadata([FromQuery] string filePath)
+        {
+            if (string.IsNullOrWhiteSpace(filePath))
+                return BadRequest("File path is required");
+
+            var result = await _fileManagerService.ExtractImageMetadataAsync(filePath);
+            if (result.IsFailure)
+                return BadRequest(result.Error);
+
+            return Ok(result.Data);
+        }
+
         [HttpPost("generate-thumbnail")]
-        public async Task<ActionResult<string>> GenerateThumbnail([FromBody] string imagePath)
+        public async Task<IActionResult> GenerateThumbnail([FromQuery] string imagePath)
         {
-            try
-            {
-                if (!await _fileManagerService.ValidatePathAsync(imagePath))
-                {
-                    return BadRequest("Invalid image path");
-                }
+            if (string.IsNullOrWhiteSpace(imagePath))
+                return BadRequest("Image path is required");
 
-                var thumbnailUrl = await _fileManagerService.GenerateThumbnailAsync(imagePath);
-                if (string.IsNullOrEmpty(thumbnailUrl))
-                {
-                    return BadRequest("Unable to generate thumbnail for this file");
-                }
+            var result = await _fileManagerService.GenerateThumbnailAsync(imagePath);
+            if (result.IsFailure)
+                return BadRequest(result.Error);
 
-                return Ok(new { thumbnailUrl });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error generating thumbnail for: {Path}", imagePath);
-                return StatusCode(500, "Internal server error");
-            }
+            return Ok(result.Data);
         }
 
-        /// <summary>
-        /// Get image metadata
-        /// </summary>
-        [HttpGet("metadata")]
-        public async Task<ActionResult<ImageMetadataDTO>> GetImageMetadata([FromQuery] string imagePath)
-        {
-            try
-            {
-                if (!await _fileManagerService.ValidatePathAsync(imagePath))
-                {
-                    return BadRequest("Invalid image path");
-                }
-
-                var metadata = await _fileManagerService.ExtractImageMetadataAsync(imagePath);
-                if (metadata == null)
-                {
-                    return BadRequest("Unable to extract metadata from this file");
-                }
-
-                return Ok(metadata);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error extracting metadata for: {Path}", imagePath);
-                return StatusCode(500, "Internal server error");
-            }
-        }
-
-        /// <summary>
-        /// Cleanup orphaned files (files in database but not on disk)
-        /// </summary>
         [HttpPost("cleanup-orphaned")]
         public async Task<ActionResult<int>> CleanupOrphanedFiles()
         {
-            try
-            {
-                var count = await _fileManagerService.CleanupOrphanedFilesAsync();
-                return Ok(new { cleanedCount = count, message = $"Cleaned up {count} orphaned file records" });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error cleaning up orphaned files");
-                return StatusCode(500, "Internal server error");
-            }
+            var result = await _fileManagerService.CleanupOrphanedFilesAsync();
+            if (result.IsFailure)
+                return BadRequest(result.Error);
+
+            return Ok(result.Data);
         }
 
-        /// <summary>
-        /// Sync database with file system (add missing files to database)
-        /// </summary>
         [HttpPost("sync-database")]
-        public async Task<ActionResult<int>> SyncDatabase()
+        public async Task<ActionResult<int>> SyncDatabaseWithFileSystem()
         {
-            try
-            {
-                var count = await _fileManagerService.SyncDatabaseWithFileSystemAsync();
-                return Ok(new { syncedCount = count, message = $"Synced {count} files to database" });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error syncing database with file system");
-                return StatusCode(500, "Internal server error");
-            }
+            var result = await _fileManagerService.SyncDatabaseWithFileSystemAsync();
+            if (result.IsFailure)
+                return BadRequest(result.Error);
+
+            return Ok(result.Data);
         }
 
-        /// <summary>
-        /// Get list of missing files (files in database but not on disk)
-        /// </summary>
         [HttpGet("missing-files")]
         public async Task<ActionResult<List<string>>> GetMissingFiles()
         {
-            try
-            {
-                var missingFiles = await _fileManagerService.GetMissingFilesAsync();
-                return Ok(new { missingFiles, count = missingFiles.Count });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error getting missing files list");
-                return StatusCode(500, "Internal server error");
-            }
-        }
+            var result = await _fileManagerService.GetMissingFilesAsync();
+            if (result.IsFailure)
+                return BadRequest(result.Error);
 
-        /// <summary>
-        /// Health check endpoint
-        /// </summary>
-        [HttpGet("health")]
-        public async Task<ActionResult> HealthCheck()
-        {
-            try
-            {
-                // Basic validation that the uploads directory exists
-                var folderStructure = await _fileManagerService.GetFolderStructureAsync();
-                return Ok(new { status = "healthy", uploadsPath = folderStructure.Path });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "File manager health check failed");
-                return StatusCode(500, new { status = "unhealthy", error = ex.Message });
-            }
-        }
-
-        /// <summary>
-        /// Download a file
-        /// </summary>
-        [HttpGet("download")]
-        public async Task<IActionResult> DownloadFile([FromQuery] string filePath)
-        {
-            try
-            {
-                if (string.IsNullOrEmpty(filePath))
-                {
-                    return BadRequest("File path is required.");
-                }
-
-                if (!await _fileManagerService.ValidatePathAsync(filePath))
-                {
-                    return BadRequest("Invalid file path.");
-                }
-
-                var (fileStream, contentType, fileName) = await _fileManagerService.DownloadFileAsync(filePath);
-
-                // Return the file stream for download
-                // The FileStreamResult will handle disposing the stream
-                return File(fileStream, contentType, fileName);
-            }
-            catch (FileNotFoundException ex)
-            {
-                _logger.LogWarning(ex, "File not found for download: {Path}", filePath);
-                return NotFound(ex.Message);
-            }
-            catch (ArgumentException ex)
-            {
-                _logger.LogWarning(ex, "Invalid argument for download: {Path}", filePath);
-                return BadRequest(ex.Message);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error downloading file: {Path}", filePath);
-                return StatusCode(500, "Internal server error while downloading file.");
-            }
+            return Ok(result.Data);
         }
     }
 }

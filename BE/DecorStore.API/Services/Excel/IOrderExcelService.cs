@@ -1,5 +1,6 @@
 using DecorStore.API.DTOs.Excel;
 using DecorStore.API.DTOs;
+using DecorStore.API.Common;
 
 namespace DecorStore.API.Services.Excel
 {
@@ -21,15 +22,15 @@ namespace DecorStore.API.Services.Excel
         /// </summary>
         /// <param name="filter">Filter criteria for orders to export</param>
         /// <param name="exportRequest">Export configuration</param>
-        /// <returns>Excel file as byte array</returns>
-        Task<byte[]> ExportOrdersAsync(OrderFilterDTO? filter = null, ExcelExportRequestDTO? exportRequest = null);
+        /// <returns>Excel file as byte array wrapped in Result</returns>
+        Task<Result<byte[]>> ExportOrdersAsync(OrderFilterDTO? filter = null, ExcelExportRequestDTO? exportRequest = null);
 
         /// <summary>
         /// Creates Excel template for order import
         /// </summary>
         /// <param name="includeExampleRow">Whether to include example data</param>
-        /// <returns>Excel template as byte array</returns>
-        Task<byte[]> CreateOrderTemplateAsync(bool includeExampleRow = true);
+        /// <returns>Excel template as byte array wrapped in Result</returns>
+        Task<Result<byte[]>> CreateOrderTemplateAsync(bool includeExampleRow = true);
 
         /// <summary>
         /// Validates order Excel file without importing

@@ -1,18 +1,22 @@
 using System.Threading.Tasks;
+using System.Linq;
 using DecorStore.API.DTOs;
 using DecorStore.API.Services;
+using DecorStore.API.Controllers.Base;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
 
 namespace DecorStore.API.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    public class AuthController : ControllerBase
+    public class AuthController : BaseController
     {
         private readonly IAuthService _authService;
 
-        public AuthController(IAuthService authService)
+        public AuthController(IAuthService authService, ILogger<AuthController> logger) 
+            : base(logger)
         {
             _authService = authService;
         }
@@ -21,38 +25,28 @@ namespace DecorStore.API.Controllers
         [HttpPost("register")]
         public async Task<ActionResult<AuthResponseDTO>> Register(RegisterDTO registerDto)
         {
-            if (!ModelState.IsValid)
+            var validationResult = ValidateModelState();
+            if (validationResult.IsFailure)
             {
-                return BadRequest(ModelState);
+                return HandleResult(validationResult);
             }
 
-            var result = await _authService.RegisterAsync(registerDto);
-
-            if (result == null)
-            {
-                return BadRequest("Email is already in use");
-            }
-
-            return Ok(result);
+            var registerResult = await _authService.RegisterAsync(registerDto);
+            return HandleCreateResult(registerResult, nameof(GetCurrentUser), null);
         }
 
         // POST: api/Auth/login
         [HttpPost("login")]
         public async Task<ActionResult<AuthResponseDTO>> Login(LoginDTO loginDto)
         {
-            if (!ModelState.IsValid)
+            var validationResult = ValidateModelState();
+            if (validationResult.IsFailure)
             {
-                return BadRequest(ModelState);
+                return HandleResult(validationResult);
             }
 
-            var result = await _authService.LoginAsync(loginDto);
-
-            if (result == null)
-            {
-                return Unauthorized("Invalid credentials");
-            }
-
-            return Ok(result);
+            var loginResult = await _authService.LoginAsync(loginDto);
+            return HandleResult(loginResult);
         }
 
         // GET: api/Auth/user
@@ -61,16 +55,14 @@ namespace DecorStore.API.Controllers
         public async Task<ActionResult<UserDTO>> GetCurrentUser()
         {
             // Get user ID from claims
-            var userId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value);
-
-            var user = await _authService.GetUserByIdAsync(userId);
-
-            if (user == null)
+            var userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userIdClaim) || !int.TryParse(userIdClaim, out var userId))
             {
-                return NotFound();
+                return BadRequest("Invalid user authentication");
             }
 
-            return Ok(user);
+            var userResult = await _authService.GetUserByIdAsync(userId);
+            return HandleResult(userResult);
         }
 
         // GET: api/Auth/check-claims
@@ -91,21 +83,68 @@ namespace DecorStore.API.Controllers
 
         // POST: api/Auth/make-admin
         [HttpPost("make-admin")]
-        public async Task<ActionResult<UserDTO>> MakeAdmin(string email)
+        [Authorize(Roles = "Admin")]
+        public async Task<ActionResult<UserDTO>> MakeAdmin([FromBody] MakeAdminRequest request)
         {
-            if (string.IsNullOrEmpty(email))
+            var validationResult = ValidateModelState();
+            if (validationResult.IsFailure)
+            {
+                return HandleResult(validationResult);
+            }
+
+            if (string.IsNullOrWhiteSpace(request?.Email))
             {
                 return BadRequest("Email is required");
             }
 
-            var user = await _authService.MakeAdminAsync(email);
+            var makeAdminResult = await _authService.MakeAdminAsync(request.Email);
+            return HandleResult(makeAdminResult);
+        }
 
-            if (user == null)
+        // POST: api/Auth/change-password
+        [HttpPost("change-password")]
+        [Authorize]
+        public async Task<ActionResult> ChangePassword(ChangePasswordDTO changePasswordDto)
+        {
+            var validationResult = ValidateModelState();
+            if (validationResult.IsFailure)
             {
-                return NotFound("User not found");
+                return HandleResult(validationResult);
             }
 
-            return Ok(user);
+            // Get user ID from claims
+            var userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userIdClaim) || !int.TryParse(userIdClaim, out var userId))
+            {
+                return BadRequest("Invalid user authentication");
+            }
+
+            var changePasswordResult = await _authService.ChangePasswordAsync(userId, changePasswordDto);
+            return HandleResult(changePasswordResult);
         }
+
+        // POST: api/Auth/refresh-token
+        [HttpPost("refresh-token")]
+        public async Task<ActionResult<AuthResponseDTO>> RefreshToken([FromBody] RefreshTokenRequest request)
+        {
+            if (string.IsNullOrWhiteSpace(request?.Token))
+            {
+                return BadRequest("Token is required");
+            }
+
+            var refreshResult = await _authService.RefreshTokenAsync(request.Token);
+            return HandleResult(refreshResult);
+        }
+    }
+
+    // Helper classes for request bodies
+    public class MakeAdminRequest
+    {
+        public string Email { get; set; } = string.Empty;
+    }
+
+    public class RefreshTokenRequest
+    {
+        public string Token { get; set; } = string.Empty;
     }
 }

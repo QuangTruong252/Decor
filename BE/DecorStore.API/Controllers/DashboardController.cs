@@ -3,19 +3,21 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using DecorStore.API.DTOs;
 using DecorStore.API.Services;
+using DecorStore.API.Controllers.Base;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
 
 namespace DecorStore.API.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
     [Authorize(Roles = "Admin")]
-    public class DashboardController : ControllerBase
+    public class DashboardController : BaseController
     {
         private readonly IDashboardService _dashboardService;
 
-        public DashboardController(IDashboardService dashboardService)
+        public DashboardController(IDashboardService dashboardService, ILogger<DashboardController> logger) : base(logger)
         {
             _dashboardService = dashboardService;
         }
@@ -27,15 +29,8 @@ namespace DecorStore.API.Controllers
         [HttpGet("summary")]
         public async Task<ActionResult<DashboardSummaryDTO>> GetDashboardSummary()
         {
-            try
-            {
-                var summary = await _dashboardService.GetDashboardSummaryAsync();
-                return Ok(summary);
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, new { message = "Error retrieving dashboard summary", error = ex.Message });
-            }
+            var result = await _dashboardService.GetDashboardSummaryAsync();
+            return HandleResult(result);
         }
 
         /// <summary>
@@ -51,27 +46,8 @@ namespace DecorStore.API.Controllers
             [FromQuery] DateTime? startDate = null,
             [FromQuery] DateTime? endDate = null)
         {
-            try
-            {
-                // Validate period
-                if (period != "daily" && period != "weekly" && period != "monthly")
-                {
-                    return BadRequest(new { message = "Invalid period. Valid values are 'daily', 'weekly', or 'monthly'." });
-                }
-
-                // Validate date range
-                if (startDate.HasValue && endDate.HasValue && startDate > endDate)
-                {
-                    return BadRequest(new { message = "Start date cannot be after end date." });
-                }
-
-                var salesTrend = await _dashboardService.GetSalesTrendAsync(period, startDate, endDate);
-                return Ok(salesTrend);
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, new { message = "Error retrieving sales trend data", error = ex.Message });
-            }
+            var result = await _dashboardService.GetSalesTrendAsync(period, startDate, endDate);
+            return HandleResult(result);
         }
 
         /// <summary>
@@ -82,21 +58,8 @@ namespace DecorStore.API.Controllers
         [HttpGet("popular-products")]
         public async Task<ActionResult<List<PopularProductDTO>>> GetPopularProducts([FromQuery] int limit = 5)
         {
-            try
-            {
-                // Validate limit
-                if (limit <= 0 || limit > 50)
-                {
-                    return BadRequest(new { message = "Limit must be between 1 and 50." });
-                }
-
-                var popularProducts = await _dashboardService.GetPopularProductsAsync(limit);
-                return Ok(popularProducts);
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, new { message = "Error retrieving popular products", error = ex.Message });
-            }
+            var result = await _dashboardService.GetPopularProductsAsync(limit);
+            return HandleResult(result);
         }
 
         /// <summary>
@@ -106,15 +69,8 @@ namespace DecorStore.API.Controllers
         [HttpGet("sales-by-category")]
         public async Task<ActionResult<List<CategorySalesDTO>>> GetSalesByCategory()
         {
-            try
-            {
-                var salesByCategory = await _dashboardService.GetSalesByCategoryAsync();
-                return Ok(salesByCategory);
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, new { message = "Error retrieving sales by category", error = ex.Message });
-            }
+            var result = await _dashboardService.GetSalesByCategoryAsync();
+            return HandleResult(result);
         }
 
         /// <summary>
@@ -124,15 +80,8 @@ namespace DecorStore.API.Controllers
         [HttpGet("order-status-distribution")]
         public async Task<ActionResult<OrderStatusDistributionDTO>> GetOrderStatusDistribution()
         {
-            try
-            {
-                var statusDistribution = await _dashboardService.GetOrderStatusDistributionAsync();
-                return Ok(statusDistribution);
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, new { message = "Error retrieving order status distribution", error = ex.Message });
-            }
+            var result = await _dashboardService.GetOrderStatusDistributionAsync();
+            return HandleResult(result);
         }
     }
 }

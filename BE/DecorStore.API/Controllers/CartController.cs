@@ -1,5 +1,6 @@
 using DecorStore.API.DTOs;
 using DecorStore.API.Services;
+using DecorStore.API.Controllers.Base;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System;
@@ -9,13 +10,14 @@ namespace DecorStore.API.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    public class CartController : ControllerBase
+    public class CartController : BaseController
     {
         private readonly ICartService _cartService;
         private readonly IHttpContextAccessor _httpContextAccessor;
         private const string SESSION_ID_COOKIE = "DecorStore_CartId";
 
-        public CartController(ICartService cartService, IHttpContextAccessor httpContextAccessor)
+        public CartController(ICartService cartService, IHttpContextAccessor httpContextAccessor, ILogger<CartController> logger)
+            : base(logger)
         {
             _cartService = cartService;
             _httpContextAccessor = httpContextAccessor;
@@ -25,112 +27,55 @@ namespace DecorStore.API.Controllers
         [HttpGet]
         public async Task<ActionResult<CartDTO>> GetCart()
         {
-            try
-            {
-                var (userId, sessionId) = GetUserIdentifiers();
-                var cart = await _cartService.GetCartAsync(userId, sessionId);
-                return Ok(cart);
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, new { message = ex.Message });
-            }
+            var (userId, sessionId) = GetUserIdentifiers();
+            var result = await _cartService.GetCartAsync(userId, sessionId);
+            return HandleResult(result);
         }
 
         // POST: api/Cart
         [HttpPost]
         public async Task<ActionResult<CartDTO>> AddToCart(AddToCartDTO addToCartDto)
         {
-            try
+            if (!ValidateModelState())
             {
-                var (userId, sessionId) = GetUserIdentifiers();
-                var cart = await _cartService.AddToCartAsync(userId, sessionId, addToCartDto);
-                return Ok(cart);
+                return BadRequest(ModelState);
             }
-            catch (DecorStore.API.Exceptions.NotFoundException ex)
-            {
-                return NotFound(new { message = ex.Message });
-            }
-            catch (InvalidOperationException ex)
-            {
-                return BadRequest(new { message = ex.Message });
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, new { message = ex.Message });
-            }
+
+            var (userId, sessionId) = GetUserIdentifiers();
+            var result = await _cartService.AddToCartAsync(userId, sessionId, addToCartDto);
+            return HandleResult(result);
         }
 
         // PUT: api/Cart/items/{id}
         [HttpPut("items/{id}")]
         public async Task<ActionResult<CartDTO>> UpdateCartItem(int id, UpdateCartItemDTO updateCartItemDto)
         {
-            try
+            if (!ValidateModelState())
             {
-                var (userId, sessionId) = GetUserIdentifiers();
-                var cart = await _cartService.UpdateCartItemAsync(userId, sessionId, id, updateCartItemDto);
-                return Ok(cart);
+                return BadRequest(ModelState);
             }
-            catch (DecorStore.API.Exceptions.NotFoundException ex)
-            {
-                return NotFound(new { message = ex.Message });
-            }
-            catch (DecorStore.API.Exceptions.UnauthorizedException ex)
-            {
-                return Forbid(ex.Message);
-            }
-            catch (InvalidOperationException ex)
-            {
-                return BadRequest(new { message = ex.Message });
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, new { message = ex.Message });
-            }
+
+            var (userId, sessionId) = GetUserIdentifiers();
+            var result = await _cartService.UpdateCartItemAsync(userId, sessionId, id, updateCartItemDto);
+            return HandleResult(result);
         }
 
         // DELETE: api/Cart/items/{id}
         [HttpDelete("items/{id}")]
         public async Task<ActionResult<CartDTO>> RemoveCartItem(int id)
         {
-            try
-            {
-                var (userId, sessionId) = GetUserIdentifiers();
-                var cart = await _cartService.RemoveCartItemAsync(userId, sessionId, id);
-                return Ok(cart);
-            }
-            catch (DecorStore.API.Exceptions.NotFoundException ex)
-            {
-                return NotFound(new { message = ex.Message });
-            }
-            catch (DecorStore.API.Exceptions.UnauthorizedException ex)
-            {
-                return Forbid(ex.Message);
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, new { message = ex.Message });
-            }
+            var (userId, sessionId) = GetUserIdentifiers();
+            var result = await _cartService.RemoveCartItemAsync(userId, sessionId, id);
+            return HandleResult(result);
         }
 
         // DELETE: api/Cart
         [HttpDelete]
         public async Task<ActionResult<CartDTO>> ClearCart()
         {
-            try
-            {
-                var (userId, sessionId) = GetUserIdentifiers();
-                var cart = await _cartService.ClearCartAsync(userId, sessionId);
-                return Ok(cart);
-            }
-            catch (DecorStore.API.Exceptions.NotFoundException ex)
-            {
-                return NotFound(new { message = ex.Message });
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, new { message = ex.Message });
-            }
+            var (userId, sessionId) = GetUserIdentifiers();
+            var result = await _cartService.ClearCartAsync(userId, sessionId);
+            return HandleResult(result);
         }
 
         // POST: api/Cart/merge
@@ -138,40 +83,34 @@ namespace DecorStore.API.Controllers
         [Authorize]
         public async Task<ActionResult> MergeCarts()
         {
-            try
+            var (userId, sessionId) = GetUserIdentifiers();
+            
+            if (!userId.HasValue || string.IsNullOrEmpty(sessionId))
             {
-                var (userId, sessionId) = GetUserIdentifiers();
-                
-                if (!userId.HasValue || string.IsNullOrEmpty(sessionId))
-                {
-                    return BadRequest(new { message = "User ID and session ID are required for merging carts" });
-                }
+                return BadRequest(new { message = "User ID and session ID are required for merging carts" });
+            }
 
-                await _cartService.MergeCartsAsync(userId.Value, sessionId);
-                
+            var result = await _cartService.MergeCartsAsync(userId.Value, sessionId);
+            
+            if (result.IsSuccess)
+            {
                 // Clear session ID cookie after merging
                 Response.Cookies.Delete(SESSION_ID_COOKIE);
-                
                 return NoContent();
             }
-            catch (Exception ex)
-            {
-                return StatusCode(500, new { message = ex.Message });
-            }
+            
+            return HandleResult(result);
         }
 
         // Helper method to get user ID and session ID
         private (int? userId, string? sessionId) GetUserIdentifiers()
         {
-            // Get user ID if authenticated
+            // Get user ID if authenticated using BaseController method
+            var userIdString = GetCurrentUserId();
             int? userId = null;
-            if (User.Identity?.IsAuthenticated == true)
+            if (!string.IsNullOrEmpty(userIdString) && int.TryParse(userIdString, out int id))
             {
-                var userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier);
-                if (userIdClaim != null && int.TryParse(userIdClaim.Value, out int id))
-                {
-                    userId = id;
-                }
+                userId = id;
             }
 
             // Get or create session ID for anonymous users

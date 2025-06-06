@@ -3,6 +3,7 @@ using DecorStore.API.Interfaces.Repositories;
 using DecorStore.API.Interfaces.Services;
 using DecorStore.API.Interfaces;
 using DecorStore.API.Models;
+using DecorStore.API.Common;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.Text.RegularExpressions;
@@ -42,387 +43,534 @@ namespace DecorStore.API.Services
                 Directory.CreateDirectory(_thumbnailsPath);
         }
 
-        public async Task<FileBrowseResponseDTO> BrowseFilesAsync(FileBrowseRequestDTO request)
+        public async Task<Result<FileBrowseResponseDTO>> BrowseFilesAsync(FileBrowseRequestDTO request)
         {
-            var safePath = await GetSafePathAsync(request.Path);
-            var fullPath = Path.Combine(_uploadsPath, safePath);
-
-            if (!Directory.Exists(fullPath))
+            // Input validation
+            if (request == null)
             {
-                throw new DirectoryNotFoundException($"Directory not found: {request.Path}");
+                return Result<FileBrowseResponseDTO>.Failure("Request cannot be null", "INVALID_INPUT");
             }
 
-            var allItems = new List<FileItemDTO>();
-
-            // Get directories
-            var directories = Directory.GetDirectories(fullPath)
-                .Where(d => !Path.GetFileName(d).StartsWith(".")) // Skip hidden folders
-                .Select(d => CreateFolderItem(d, safePath));
-            allItems.AddRange(directories);
-
-            // Get files
-            var files = Directory.GetFiles(fullPath)
-                .Where(f => !Path.GetFileName(f).StartsWith(".")) // Skip hidden files
-                .Select(f => CreateFileItem(f, safePath));
-            allItems.AddRange(files);
-
-            // Apply filters
-            allItems = await ApplyFiltersAsync(allItems, request);
-
-            // Apply sorting
-            allItems = ApplySorting(allItems, request.SortBy, request.SortOrder);
-
-            // Apply pagination
-            var totalItems = allItems.Count;
-            var paginatedItems = allItems
-                .Skip((request.PageNumber - 1) * request.PageSize)
-                .Take(request.PageSize)
-                .ToList();
-
-            return new FileBrowseResponseDTO
+            if (request.PageNumber <= 0)
             {
-                CurrentPath = safePath,
-                ParentPath = GetParentPath(safePath),
-                Items = paginatedItems,
-                TotalItems = totalItems,
-                TotalFiles = allItems.Count(i => i.Type != "folder"),
-                TotalFolders = allItems.Count(i => i.Type == "folder"),
-                TotalSize = allItems.Where(i => i.Type != "folder").Sum(i => i.Size),
-                FormattedTotalSize = await FormatFileSizeAsync(allItems.Where(i => i.Type != "folder").Sum(i => i.Size)),
-                Page = request.PageNumber,
-                PageSize = request.PageSize,
-                TotalPages = (int)Math.Ceiling((double)totalItems / request.PageSize),
-                HasNextPage = request.PageNumber * request.PageSize < totalItems,
-                HasPreviousPage = request.PageNumber > 1
-            };
-        }
-
-        public async Task<FolderStructureDTO> GetFolderStructureAsync(string? rootPath = null)
-        {
-            var safePath = await GetSafePathAsync(rootPath ?? "");
-            var fullPath = Path.Combine(_uploadsPath, safePath);
-
-            if (!Directory.Exists(fullPath))
-            {
-                throw new DirectoryNotFoundException($"Directory not found: {rootPath}");
+                return Result<FileBrowseResponseDTO>.Failure("Page number must be greater than 0", "INVALID_PAGE_NUMBER");
             }
 
-            return await BuildFolderStructureAsync(fullPath, safePath);
-        }
-
-        public async Task<FileItemDTO?> GetFileInfoAsync(string filePath)
-        {
-            var safePath = await GetSafePathAsync(filePath);
-            var fullPath = Path.Combine(_uploadsPath, safePath);
-
-            if (!File.Exists(fullPath) && !Directory.Exists(fullPath))
+            if (request.PageSize <= 0 || request.PageSize > 100)
             {
-                return null;
+                return Result<FileBrowseResponseDTO>.Failure("Page size must be between 1 and 100", "INVALID_PAGE_SIZE");
             }
 
-            if (Directory.Exists(fullPath))
+            try
             {
-                return CreateFolderItem(fullPath, Path.GetDirectoryName(safePath) ?? "");
-            }
+                var safePath = await GetSafePathAsync(request.Path);
+                var fullPath = Path.Combine(_uploadsPath, safePath);
 
-            return CreateFileItem(fullPath, Path.GetDirectoryName(safePath) ?? "");
-        }
-
-        public async Task<FileUploadResponseDTO> UploadFilesAsync(IFormFileCollection files, FileUploadRequestDTO request)
-        {
-            var response = new FileUploadResponseDTO();
-            var safeFolderPath = await GetSafePathAsync(request.FolderPath);
-            var uploadPath = Path.Combine(_uploadsPath, safeFolderPath);
-
-            if (!Directory.Exists(uploadPath))
-            {
-                Directory.CreateDirectory(uploadPath);
-            }
-
-            foreach (var file in files)
-            {
-                try
+                if (!Directory.Exists(fullPath))
                 {
-                    if (!_imageService.IsValidImage(file))
-                    {
-                        response.Errors.Add($"Invalid file type: {file.FileName}");
-                        response.ErrorCount++;
-                        continue;
-                    }
-
-                    var safeFileName = await GetSafeFileNameAsync(file.FileName);
-                    var fileName = request.OverwriteExisting ? safeFileName : 
-                        await GetUniqueFileNameAsync(uploadPath, safeFileName);
-                    
-                    var filePath = Path.Combine(uploadPath, fileName);
-                    var relativePath = Path.Combine(safeFolderPath, fileName).Replace("\\", "/");
-
-                    using (var stream = new FileStream(filePath, FileMode.Create))
-                    {
-                        await file.CopyToAsync(stream);
-                    }
-
-                    // Create database record
-                    var image = new DecorStore.API.Models.Image
-                    {
-                        FileName = fileName,
-                        FilePath = relativePath,
-                        AltText = Path.GetFileNameWithoutExtension(fileName),
-                        CreatedAt = DateTime.UtcNow
-                    };
-
-                    await _imageRepository.CreateAsync(image);
-
-                    var fileItem = CreateFileItem(filePath, safeFolderPath);
-                    
-                    // Generate thumbnail if requested
-                    if (request.CreateThumbnails && IsImageFile(fileName))
-                    {
-                        fileItem.ThumbnailUrl = await GenerateThumbnailAsync(filePath);
-                    }
-
-                    response.UploadedFiles.Add(fileItem);
-                    response.SuccessCount++;
-                    response.TotalSize += file.Length;
+                    return Result<FileBrowseResponseDTO>.Failure($"Directory not found: {request.Path}", "DIRECTORY_NOT_FOUND");
                 }
-                catch (Exception ex)
+
+                var allItems = new List<FileItemDTO>();
+
+                // Get directories
+                var directoryTasks = Directory.GetDirectories(fullPath)
+                    .Where(d => !Path.GetFileName(d).StartsWith(".")) // Skip hidden folders
+                    .Select(d => CreateFolderItem(d, safePath))
+                    .ToList();
+                var directories = await Task.WhenAll(directoryTasks);
+                allItems.AddRange(directories);
+
+                // Get files
+                var fileTasks = Directory.GetFiles(fullPath)
+                    .Where(f => !Path.GetFileName(f).StartsWith(".")) // Skip hidden files
+                    .Select(f => CreateFileItem(f, safePath))
+                    .ToList();
+                var files = await Task.WhenAll(fileTasks);
+                allItems.AddRange(files);
+
+                // Apply filters
+                allItems = await ApplyFiltersAsync(allItems, request);
+
+                // Apply sorting
+                allItems = ApplySorting(allItems, request.SortBy, request.SortOrder);
+
+                // Apply pagination
+                var totalItems = allItems.Count;
+                var paginatedItems = allItems
+                    .Skip((request.PageNumber - 1) * request.PageSize)
+                    .Take(request.PageSize)
+                    .ToList();
+
+                var response = new FileBrowseResponseDTO
                 {
-                    response.Errors.Add($"Error uploading {file.FileName}: {ex.Message}");
-                    response.ErrorCount++;
+                    CurrentPath = safePath,
+                    ParentPath = GetParentPath(safePath),
+                    Items = paginatedItems,
+                    TotalItems = totalItems,
+                    TotalFiles = allItems.Count(i => i.Type != "folder"),
+                    TotalFolders = allItems.Count(i => i.Type == "folder"),
+                    TotalSize = allItems.Where(i => i.Type != "folder").Sum(i => i.Size),
+                    FormattedTotalSize = (await FormatFileSizeAsync(allItems.Where(i => i.Type != "folder").Sum(i => i.Size))).Data,
+                    Page = request.PageNumber,
+                    PageSize = request.PageSize,
+                    TotalPages = (int)Math.Ceiling((double)totalItems / request.PageSize),
+                    HasNextPage = request.PageNumber * request.PageSize < totalItems,
+                    HasPreviousPage = request.PageNumber > 1
+                };
+
+                return Result<FileBrowseResponseDTO>.Success(response);
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return Result<FileBrowseResponseDTO>.Failure("Access denied to the specified path", "ACCESS_DENIED");
+            }
+            catch (Exception ex)
+            {
+                return Result<FileBrowseResponseDTO>.Failure($"Failed to browse files: {ex.Message}", "BROWSE_ERROR");
+            }
+        }
+
+        public async Task<Result<FolderStructureDTO>> GetFolderStructureAsync(string? rootPath = null)
+        {
+            try
+            {
+                var safePath = await GetSafePathAsync(rootPath ?? "");
+                var fullPath = Path.Combine(_uploadsPath, safePath);
+
+                if (!Directory.Exists(fullPath))
+                {
+                    return Result<FolderStructureDTO>.Failure($"Directory not found: {rootPath}", "DIRECTORY_NOT_FOUND");
                 }
-            }
 
-            response.FormattedTotalSize = await FormatFileSizeAsync(response.TotalSize);
-            return response;
+                var structure = await BuildFolderStructureAsync(fullPath, safePath);
+                return Result<FolderStructureDTO>.Success(structure);
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return Result<FolderStructureDTO>.Failure("Access denied to the specified path", "ACCESS_DENIED");
+            }
+            catch (Exception ex)
+            {
+                return Result<FolderStructureDTO>.Failure($"Failed to get folder structure: {ex.Message}", "FOLDER_STRUCTURE_ERROR");
+            }
         }
 
-        public async Task<FileItemDTO> CreateFolderAsync(CreateFolderRequestDTO request)
+        public async Task<Result<FileItemDTO>> GetFileInfoAsync(string filePath)
         {
-            var safeParentPath = await GetSafePathAsync(request.ParentPath);
-            var safeFolderName = await GetSafeFileNameAsync(request.FolderName);
-            
-            var parentPath = Path.Combine(_uploadsPath, safeParentPath);
-            var folderPath = Path.Combine(parentPath, safeFolderName);
-
-            if (Directory.Exists(folderPath))
+            // Input validation
+            if (string.IsNullOrWhiteSpace(filePath))
             {
-                throw new InvalidOperationException($"Folder '{safeFolderName}' already exists");
+                return Result<FileItemDTO>.Failure("File path is required", "INVALID_INPUT");
             }
 
-            Directory.CreateDirectory(folderPath);
-            return CreateFolderItem(folderPath, safeParentPath);
-        }
-
-        public async Task<DeleteFileResponseDTO> DeleteFilesAsync(DeleteFileRequestDTO request)
-        {
-            var response = new DeleteFileResponseDTO();
-
-            foreach (var filePath in request.FilePaths)
+            try
             {
-                try
+                var safePath = await GetSafePathAsync(filePath);
+                var fullPath = Path.Combine(_uploadsPath, safePath);
+
+                if (!File.Exists(fullPath) && !Directory.Exists(fullPath))
                 {
-                    var safePath = await GetSafePathAsync(filePath);
-                    var fullPath = Path.Combine(_uploadsPath, safePath);
+                    return Result<FileItemDTO>.Failure($"File or directory not found: {filePath}", "FILE_NOT_FOUND");
+                }
 
-                    if (File.Exists(fullPath))
+                FileItemDTO fileItem;
+                if (Directory.Exists(fullPath))
+                {
+                    fileItem = await CreateFolderItem(fullPath, Path.GetDirectoryName(safePath) ?? "");
+                }
+                else
+                {
+                    fileItem = await CreateFileItem(fullPath, Path.GetDirectoryName(safePath) ?? "");
+                }
+
+                return Result<FileItemDTO>.Success(fileItem);
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return Result<FileItemDTO>.Failure("Access denied to the specified path", "ACCESS_DENIED");
+            }
+            catch (Exception ex)
+            {
+                return Result<FileItemDTO>.Failure($"Failed to get file info: {ex.Message}", "FILE_INFO_ERROR");
+            }
+        }
+
+        public async Task<Result<FileUploadResponseDTO>> UploadFilesAsync(IFormFileCollection files, FileUploadRequestDTO request)
+        {
+            try
+            {
+                var response = new FileUploadResponseDTO();
+                var safeFolderPath = await GetSafePathAsync(request.FolderPath);
+                var uploadPath = Path.Combine(_uploadsPath, safeFolderPath);
+
+                if (!Directory.Exists(uploadPath))
+                {
+                    Directory.CreateDirectory(uploadPath);
+                }
+
+                foreach (var file in files)
+                {
+                    try
                     {
-                        File.Delete(fullPath);
-                        await _imageRepository.DeleteByFilePathAsync(safePath.Replace("\\", "/"));
-                        
-                        // Delete thumbnail if exists
-                        var thumbnailPath = GetThumbnailPath(fullPath);
-                        if (File.Exists(thumbnailPath))
+                        if (!_imageService.IsValidImage(file))
                         {
-                            File.Delete(thumbnailPath);
-                        }
-                    }
-                    else if (Directory.Exists(fullPath))
-                    {
-                        Directory.Delete(fullPath, true);
-                          // Delete related database records
-                        var folderImages = await _imageRepository.GetByFolderAsync(safePath.Replace("\\", "/"));
-                        foreach (var image in folderImages)
-                        {
-                            await _imageRepository.DeleteAsync(image);
-                        }
-                    }
-
-                    response.DeletedFiles.Add(filePath);
-                    response.SuccessCount++;
-                }
-                catch (Exception ex)
-                {
-                    response.Errors.Add($"Error deleting {filePath}: {ex.Message}");
-                    response.ErrorCount++;
-                }
-            }
-
-            return response;
-        }
-
-        public async Task<FileOperationResponseDTO> MoveFilesAsync(MoveFileRequestDTO request)
-        {
-            var response = new FileOperationResponseDTO { Operation = "Move" };
-            var safeDestPath = await GetSafePathAsync(request.DestinationPath);
-            var destPath = Path.Combine(_uploadsPath, safeDestPath);
-
-            if (!Directory.Exists(destPath))
-            {
-                Directory.CreateDirectory(destPath);
-            }
-
-            foreach (var sourcePath in request.SourcePaths)
-            {
-                try
-                {
-                    var safeSrcPath = await GetSafePathAsync(sourcePath);
-                    var srcPath = Path.Combine(_uploadsPath, safeSrcPath);
-                    var fileName = Path.GetFileName(srcPath);
-                    var newPath = Path.Combine(destPath, fileName);
-
-                    if (File.Exists(srcPath))
-                    {
-                        if (!request.OverwriteExisting && File.Exists(newPath))
-                        {
-                            response.Errors.Add($"File already exists: {fileName}");
+                            response.Errors.Add($"Invalid file type: {file.FileName}");
                             response.ErrorCount++;
                             continue;
                         }
 
-                        File.Move(srcPath, newPath, request.OverwriteExisting);
-                        
-                        // Update database record
-                        var image = await _imageRepository.GetByFilePathAsync(safeSrcPath.Replace("\\", "/"));
-                        if (image != null)
+                        var safeFileNameResult = await GetSafeFileNameAsync(file.FileName);
+                        if (!safeFileNameResult.IsSuccess)
                         {
-                            image.FilePath = Path.Combine(safeDestPath, fileName).Replace("\\", "/");
-                            await _imageRepository.UpdateAsync(image);
-                        }
-                    }
-                    else if (Directory.Exists(srcPath))
-                    {
-                        Directory.Move(srcPath, newPath);
-                    }
-
-                    response.ProcessedFiles.Add(sourcePath);
-                    response.SuccessCount++;
-                }
-                catch (Exception ex)
-                {
-                    response.Errors.Add($"Error moving {sourcePath}: {ex.Message}");
-                    response.ErrorCount++;
-                }
-            }
-
-            return response;
-        }
-
-        public async Task<FileOperationResponseDTO> CopyFilesAsync(CopyFileRequestDTO request)
-        {
-            var response = new FileOperationResponseDTO { Operation = "Copy" };
-            var safeDestPath = await GetSafePathAsync(request.DestinationPath);
-            var destPath = Path.Combine(_uploadsPath, safeDestPath);
-
-            if (!Directory.Exists(destPath))
-            {
-                Directory.CreateDirectory(destPath);
-            }
-
-            foreach (var sourcePath in request.SourcePaths)
-            {
-                try
-                {
-                    var safeSrcPath = await GetSafePathAsync(sourcePath);
-                    var srcPath = Path.Combine(_uploadsPath, safeSrcPath);
-                    var fileName = Path.GetFileName(srcPath);
-                    var newPath = Path.Combine(destPath, fileName);
-
-                    if (File.Exists(srcPath))
-                    {
-                        if (!request.OverwriteExisting && File.Exists(newPath))
-                        {
-                            newPath = await GetUniqueFileNameAsync(destPath, fileName);
+                            response.Errors.Add($"Error processing file name: {file.FileName}");
+                            response.ErrorCount++;
+                            continue;
                         }
 
-                        File.Copy(srcPath, newPath, request.OverwriteExisting);
+                        var safeFileName = safeFileNameResult.Data;
+                        var fileName = request.OverwriteExisting ? safeFileName : 
+                            await GetUniqueFileNameAsync(uploadPath, safeFileName);
                         
-                        // Create new database record
-                        var originalImage = await _imageRepository.GetByFilePathAsync(safeSrcPath.Replace("\\", "/"));
-                        if (originalImage != null)
+                        var filePath = Path.Combine(uploadPath, fileName);
+                        var relativePath = Path.Combine(safeFolderPath, fileName).Replace("\\", "/");
+
+                        using (var stream = new FileStream(filePath, FileMode.Create))
                         {
-                            var newImage = new DecorStore.API.Models.Image
+                            await file.CopyToAsync(stream);
+                        }
+
+                        // Create database record
+                        var image = new DecorStore.API.Models.Image
+                        {
+                            FileName = fileName,
+                            FilePath = relativePath,
+                            AltText = Path.GetFileNameWithoutExtension(fileName),
+                            CreatedAt = DateTime.UtcNow
+                        };
+
+                        await _imageRepository.CreateAsync(image);
+
+                        var fileItem = await CreateFileItem(filePath, safeFolderPath);
+                        
+                        // Generate thumbnail if requested
+                        if (request.CreateThumbnails && IsImageFile(fileName))
+                        {
+                            var thumbnailResult = await GenerateThumbnailAsync(filePath);
+                            if (thumbnailResult.IsSuccess)
                             {
-                                FileName = Path.GetFileName(newPath),
-                                FilePath = Path.Combine(safeDestPath, Path.GetFileName(newPath)).Replace("\\", "/"),
-                                AltText = originalImage.AltText,
-                                CreatedAt = DateTime.UtcNow
-                            };
-                            await _imageRepository.CreateAsync(newImage);
+                                fileItem.ThumbnailUrl = thumbnailResult.Data;
+                            }
                         }
+
+                        response.UploadedFiles.Add(fileItem);
+                        response.SuccessCount++;
+                        response.TotalSize += file.Length;
                     }
-
-                    response.ProcessedFiles.Add(sourcePath);
-                    response.SuccessCount++;
+                    catch (Exception ex)
+                    {
+                        response.Errors.Add($"Error uploading {file.FileName}: {ex.Message}");
+                        response.ErrorCount++;
+                    }
                 }
-                catch (Exception ex)
+
+                var formattedSizeResult = await FormatFileSizeAsync(response.TotalSize);
+                response.FormattedTotalSize = formattedSizeResult.IsSuccess ? formattedSizeResult.Data : "Unknown";
+                return Result<FileUploadResponseDTO>.Success(response);
+            }
+            catch (Exception ex)
+            {
+                return Result<FileUploadResponseDTO>.Failure($"Failed to upload files: {ex.Message}", "UPLOAD_ERROR");
+            }
+        }
+
+        public async Task<Result<FileItemDTO>> CreateFolderAsync(CreateFolderRequestDTO request)
+        {
+            try
+            {
+                var safeParentPath = await GetSafePathAsync(request.ParentPath);
+                var safeFolderNameResult = await GetSafeFileNameAsync(request.FolderName);
+                
+                if (!safeFolderNameResult.IsSuccess)
                 {
-                    response.Errors.Add($"Error copying {sourcePath}: {ex.Message}");
-                    response.ErrorCount++;
+                    return Result<FileItemDTO>.Failure($"Invalid folder name: {safeFolderNameResult.ErrorMessage}", "INVALID_FOLDER_NAME");
                 }
-            }
+                
+                var safeFolderName = safeFolderNameResult.Data;
+                var parentPath = Path.Combine(_uploadsPath, safeParentPath);
+                var folderPath = Path.Combine(parentPath, safeFolderName);
 
-            return response;
+                if (Directory.Exists(folderPath))
+                {
+                    return Result<FileItemDTO>.Failure($"Folder '{safeFolderName}' already exists", "FOLDER_EXISTS");
+                }
+
+                Directory.CreateDirectory(folderPath);
+                var folderItem = await CreateFolderItem(folderPath, safeParentPath);
+                return Result<FileItemDTO>.Success(folderItem);
+            }
+            catch (Exception ex)
+            {
+                return Result<FileItemDTO>.Failure($"Failed to create folder: {ex.Message}", "CREATE_FOLDER_ERROR");
+            }
         }
 
-        public async Task<bool> ValidatePathAsync(string path)
+        public async Task<Result<DeleteFileResponseDTO>> DeleteFilesAsync(DeleteFileRequestDTO request)
         {
-            if (string.IsNullOrEmpty(path))
-                return true;
-            // Remove any leading or trailing slashes
-            path = path.Trim('/');
-            // Check for invalid characters
-            if (path.IndexOfAny(Path.GetInvalidPathChars()) != -1)
-                return false;
-            // Check for path traversal attempts
-            var normalizedPath = Path.GetFullPath(Path.Combine(_uploadsPath, path));
-            // Check if the normalized path is within the uploads directory
-            return normalizedPath.StartsWith(_uploadsPath);
+            try
+            {
+                var response = new DeleteFileResponseDTO();
+
+                foreach (var filePath in request.FilePaths)
+                {
+                    try
+                    {
+                        var safePath = await GetSafePathAsync(filePath);
+                        var fullPath = Path.Combine(_uploadsPath, safePath);
+
+                        if (File.Exists(fullPath))
+                        {
+                            File.Delete(fullPath);
+                            await _imageRepository.DeleteByFilePathAsync(safePath.Replace("\\", "/"));
+                            
+                            // Delete thumbnail if exists
+                            var thumbnailPath = GetThumbnailPath(fullPath);
+                            if (File.Exists(thumbnailPath))
+                            {
+                                File.Delete(thumbnailPath);
+                            }
+                        }
+                        else if (Directory.Exists(fullPath))
+                        {
+                            Directory.Delete(fullPath, true);
+                              // Delete related database records
+                            var folderImages = await _imageRepository.GetByFolderAsync(safePath.Replace("\\", "/"));
+                            foreach (var image in folderImages)
+                            {
+                                await _imageRepository.DeleteAsync(image);
+                            }
+                        }
+
+                        response.DeletedFiles.Add(filePath);
+                        response.SuccessCount++;
+                    }
+                    catch (Exception ex)
+                    {
+                        response.Errors.Add($"Error deleting {filePath}: {ex.Message}");
+                        response.ErrorCount++;
+                    }
+                }
+
+                return Result<DeleteFileResponseDTO>.Success(response);
+            }
+            catch (Exception ex)
+            {
+                return Result<DeleteFileResponseDTO>.Failure($"Failed to delete files: {ex.Message}", "DELETE_ERROR");
+            }
         }
 
-        public async Task<(Stream FileStream, string ContentType, string FileName)> DownloadFileAsync(string filePath)
+        public async Task<Result<FileOperationResponseDTO>> MoveFilesAsync(MoveFileRequestDTO request)
         {
-            if (string.IsNullOrEmpty(filePath))
+            try
             {
-                throw new ArgumentException("File path cannot be null or empty.", nameof(filePath));
+                var response = new FileOperationResponseDTO { Operation = "Move" };
+                var safeDestPath = await GetSafePathAsync(request.DestinationPath);
+                var destPath = Path.Combine(_uploadsPath, safeDestPath);
+
+                if (!Directory.Exists(destPath))
+                {
+                    Directory.CreateDirectory(destPath);
+                }
+
+                foreach (var sourcePath in request.SourcePaths)
+                {
+                    try
+                    {
+                        var safeSrcPath = await GetSafePathAsync(sourcePath);
+                        var srcPath = Path.Combine(_uploadsPath, safeSrcPath);
+                        var fileName = Path.GetFileName(srcPath);
+                        var newPath = Path.Combine(destPath, fileName);
+
+                        if (File.Exists(srcPath))
+                        {
+                            if (!request.OverwriteExisting && File.Exists(newPath))
+                            {
+                                response.Errors.Add($"File already exists: {fileName}");
+                                response.ErrorCount++;
+                                continue;
+                            }
+
+                            File.Move(srcPath, newPath, request.OverwriteExisting);
+                            
+                            // Update database record
+                            var image = await _imageRepository.GetByFilePathAsync(safeSrcPath.Replace("\\", "/"));
+                            if (image != null)
+                            {
+                                image.FilePath = Path.Combine(safeDestPath, fileName).Replace("\\", "/");
+                                await _imageRepository.UpdateAsync(image);
+                            }
+                        }
+                        else if (Directory.Exists(srcPath))
+                        {
+                            Directory.Move(srcPath, newPath);
+                        }
+
+                        response.ProcessedFiles.Add(sourcePath);
+                        response.SuccessCount++;
+                    }
+                    catch (Exception ex)
+                    {
+                        response.Errors.Add($"Error moving {sourcePath}: {ex.Message}");
+                        response.ErrorCount++;
+                    }
+                }
+
+                return Result<FileOperationResponseDTO>.Success(response);
+            }
+            catch (Exception ex)
+            {
+                return Result<FileOperationResponseDTO>.Failure($"Failed to move files: {ex.Message}", "MOVE_ERROR");
+            }
+        }
+
+        public async Task<Result<FileOperationResponseDTO>> CopyFilesAsync(CopyFileRequestDTO request)
+        {
+            try
+            {
+                var response = new FileOperationResponseDTO { Operation = "Copy" };
+                var safeDestPath = await GetSafePathAsync(request.DestinationPath);
+                var destPath = Path.Combine(_uploadsPath, safeDestPath);
+
+                if (!Directory.Exists(destPath))
+                {
+                    Directory.CreateDirectory(destPath);
+                }
+
+                foreach (var sourcePath in request.SourcePaths)
+                {
+                    try
+                    {
+                        var safeSrcPath = await GetSafePathAsync(sourcePath);
+                        var srcPath = Path.Combine(_uploadsPath, safeSrcPath);
+                        var fileName = Path.GetFileName(srcPath);
+                        var newPath = Path.Combine(destPath, fileName);
+
+                        if (File.Exists(srcPath))
+                        {
+                            if (!request.OverwriteExisting && File.Exists(newPath))
+                            {
+                                newPath = await GetUniqueFileNameAsync(destPath, fileName);
+                            }
+
+                            File.Copy(srcPath, newPath, request.OverwriteExisting);
+                            
+                            // Create new database record
+                            var originalImage = await _imageRepository.GetByFilePathAsync(safeSrcPath.Replace("\\", "/"));
+                            if (originalImage != null)
+                            {
+                                var newImage = new DecorStore.API.Models.Image
+                                {
+                                    FileName = Path.GetFileName(newPath),
+                                    FilePath = Path.Combine(safeDestPath, Path.GetFileName(newPath)).Replace("\\", "/"),
+                                    AltText = originalImage.AltText,
+                                    CreatedAt = DateTime.UtcNow
+                                };
+                                await _imageRepository.CreateAsync(newImage);
+                            }
+                        }
+
+                        response.ProcessedFiles.Add(sourcePath);
+                        response.SuccessCount++;
+                    }
+                    catch (Exception ex)
+                    {
+                        response.Errors.Add($"Error copying {sourcePath}: {ex.Message}");
+                        response.ErrorCount++;
+                    }
+                }
+
+                return Result<FileOperationResponseDTO>.Success(response);
+            }
+            catch (Exception ex)
+            {
+                return Result<FileOperationResponseDTO>.Failure($"Failed to copy files: {ex.Message}", "COPY_ERROR");
+            }
+        }
+
+        public async Task<Result<bool>> ValidatePathAsync(string path)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(path))
+                    return Result<bool>.Success(true);
+                
+                // Remove any leading or trailing slashes
+                path = path.Trim('/');
+                
+                // Check for invalid characters
+                if (path.IndexOfAny(Path.GetInvalidPathChars()) != -1)
+                    return Result<bool>.Success(false);
+                
+                // Check for path traversal attempts
+                var normalizedPath = Path.GetFullPath(Path.Combine(_uploadsPath, path));
+                
+                // Check if the normalized path is within the uploads directory
+                var isValid = normalizedPath.StartsWith(_uploadsPath);
+                return Result<bool>.Success(isValid);
+            }
+            catch (Exception ex)
+            {
+                return Result<bool>.Failure($"Failed to validate path: {ex.Message}", "PATH_VALIDATION_ERROR");
+            }
+        }
+
+        public async Task<Result<(Stream FileStream, string ContentType, string FileName)>> DownloadFileAsync(string filePath)
+        {
+            // Input validation
+            if (string.IsNullOrWhiteSpace(filePath))
+            {
+                return Result<(Stream, string, string)>.Failure("File path cannot be null or empty", "INVALID_INPUT");
             }
 
-            // Remove any leading or trailing slashes
-            filePath = filePath.Trim('/');
-
-            // Validate the file path
-            if (!await ValidatePathAsync(filePath))
+            try
             {
-                throw new ArgumentException("Invalid file path.", nameof(filePath));
+                // Remove any leading or trailing slashes
+                filePath = filePath.Trim('/');
+
+                // Validate the file path
+                var pathValidation = await ValidatePathAsync(filePath);
+                if (!pathValidation.IsSuccess || !pathValidation.Data)
+                {
+                    return Result<(Stream, string, string)>.Failure("Invalid file path", "INVALID_PATH");
+                }
+
+                var physicalPath = Path.Combine(_uploadsPath, filePath);
+
+                if (!File.Exists(physicalPath))
+                {
+                    return Result<(Stream, string, string)>.Failure("File not found", "FILE_NOT_FOUND");
+                }
+
+                var memory = new MemoryStream();
+                using (var stream = new FileStream(physicalPath, FileMode.Open, FileAccess.Read))
+                {
+                    await stream.CopyToAsync(memory);
+                }
+                memory.Position = 0;
+
+                var contentType = GetContentType(physicalPath);
+                var fileName = Path.GetFileName(physicalPath);
+
+                return Result<(Stream, string, string)>.Success((memory, contentType, fileName));
             }
-
-            var physicalPath = Path.Combine(_uploadsPath, filePath);
-
-            if (!File.Exists(physicalPath))
+            catch (UnauthorizedAccessException)
             {
-                throw new FileNotFoundException("File not found.", physicalPath);
+                return Result<(Stream, string, string)>.Failure("Access denied to the specified file", "ACCESS_DENIED");
             }
-
-            var memory = new MemoryStream();
-            using (var stream = new FileStream(physicalPath, FileMode.Open, FileAccess.Read))
+            catch (Exception ex)
             {
-                await stream.CopyToAsync(memory);
+                return Result<(Stream, string, string)>.Failure($"Failed to download file: {ex.Message}", "DOWNLOAD_ERROR");
             }
-            memory.Position = 0;
-
-            var contentType = GetContentType(physicalPath);
-            var fileName = Path.GetFileName(physicalPath);
-
-            return (memory, contentType, fileName);
         }
 
         private string GetContentType(string path)
@@ -452,46 +600,75 @@ namespace DecorStore.API.Services
             };
         }
 
-        // This is the corrected GetSafeFileNameAsync method
-        public async Task<string> GetSafeFileNameAsync(string fileName)
-        {
-            if (string.IsNullOrEmpty(fileName))
-                return await Task.FromResult("unnamed_file");
-
-            // Remove invalid characters
-            var invalidChars = Path.GetInvalidFileNameChars();
-            var safeName = string.Join("_", fileName.Split(invalidChars, StringSplitOptions.RemoveEmptyEntries));
-            
-            // Remove multiple consecutive dots and spaces
-            safeName = Regex.Replace(safeName, @"\.{2,}", ".");
-            safeName = Regex.Replace(safeName, @"\s+", " ");
-            
-            return await Task.FromResult(safeName.Trim());
-        }
-        
-        // This is the corrected FormatFileSizeAsync method
-        public async Task<string> FormatFileSizeAsync(long bytes)
-        {
-            string[] sizes = { "B", "KB", "MB", "GB", "TB" };
-            double len = bytes;
-            int order = 0;
-            while (len >= 1024 && order < sizes.Length - 1)
-            {
-                order++;
-                len = len / 1024;
-            }
-            return $"{len:0.##} {sizes[order]}";
-        }
-
-        public async Task<ImageMetadataDTO?> ExtractImageMetadataAsync(string filePath)
+        public async Task<Result<string>> GetSafeFileNameAsync(string fileName)
         {
             try
             {
-                if (!IsImageFile(filePath) || !File.Exists(filePath))
-                    return null;
+                if (string.IsNullOrEmpty(fileName))
+                    return Result<string>.Success("unnamed_file");
+
+                // Remove invalid characters
+                var invalidChars = Path.GetInvalidFileNameChars();
+                var safeName = string.Join("_", fileName.Split(invalidChars, StringSplitOptions.RemoveEmptyEntries));
+                
+                // Remove multiple consecutive dots and spaces
+                safeName = Regex.Replace(safeName, @"\.{2,}", ".");
+                safeName = Regex.Replace(safeName, @"\s+", " ");
+                
+                var result = safeName.Trim();
+                return Result<string>.Success(string.IsNullOrEmpty(result) ? "unnamed_file" : result);
+            }
+            catch (Exception ex)
+            {
+                return Result<string>.Failure($"Failed to create safe file name: {ex.Message}", "SAFE_NAME_ERROR");
+            }
+        }
+        
+        public async Task<Result<string>> FormatFileSizeAsync(long bytes)
+        {
+            try
+            {
+                if (bytes < 0)
+                    return Result<string>.Failure("File size cannot be negative", "INVALID_SIZE");
+
+                string[] sizes = { "B", "KB", "MB", "GB", "TB" };
+                double len = bytes;
+                int order = 0;
+                while (len >= 1024 && order < sizes.Length - 1)
+                {
+                    order++;
+                    len = len / 1024;
+                }
+                return Result<string>.Success($"{len:0.##} {sizes[order]}");
+            }
+            catch (Exception ex)
+            {
+                return Result<string>.Failure($"Failed to format file size: {ex.Message}", "FORMAT_SIZE_ERROR");
+            }
+        }
+
+        public async Task<Result<ImageMetadataDTO>> ExtractImageMetadataAsync(string filePath)
+        {
+            // Input validation
+            if (string.IsNullOrWhiteSpace(filePath))
+            {
+                return Result<ImageMetadataDTO>.Failure("File path is required", "INVALID_INPUT");
+            }
+
+            try
+            {
+                if (!IsImageFile(filePath))
+                {
+                    return Result<ImageMetadataDTO>.Failure("File is not a valid image", "INVALID_IMAGE_TYPE");
+                }
+
+                if (!File.Exists(filePath))
+                {
+                    return Result<ImageMetadataDTO>.Failure("File not found", "FILE_NOT_FOUND");
+                }
 
                 using var image = System.Drawing.Image.FromFile(filePath);
-                return new ImageMetadataDTO
+                var metadata = new ImageMetadataDTO
                 {
                     Width = image.Width,
                     Height = image.Height,
@@ -499,19 +676,34 @@ namespace DecorStore.API.Services
                     AspectRatio = Math.Round((double)image.Width / image.Height, 2),
                     ColorSpace = image.PixelFormat.ToString()
                 };
+
+                return Result<ImageMetadataDTO>.Success(metadata);
             }
-            catch
+            catch (Exception ex)
             {
-                return null;
+                return Result<ImageMetadataDTO>.Failure($"Failed to extract image metadata: {ex.Message}", "METADATA_EXTRACTION_ERROR");
             }
         }
 
-        public async Task<string> GenerateThumbnailAsync(string imagePath)
+        public async Task<Result<string>> GenerateThumbnailAsync(string imagePath)
         {
+            // Input validation
+            if (string.IsNullOrWhiteSpace(imagePath))
+            {
+                return Result<string>.Failure("Image path is required", "INVALID_INPUT");
+            }
+
             try
             {
-                if (!IsImageFile(imagePath) || !File.Exists(imagePath))
-                    return string.Empty;
+                if (!IsImageFile(imagePath))
+                {
+                    return Result<string>.Failure("File is not a valid image", "INVALID_IMAGE_TYPE");
+                }
+
+                if (!File.Exists(imagePath))
+                {
+                    return Result<string>.Failure("Image file not found", "FILE_NOT_FOUND");
+                }
 
                 var fileName = Path.GetFileNameWithoutExtension(imagePath);
                 var extension = Path.GetExtension(imagePath);
@@ -519,7 +711,7 @@ namespace DecorStore.API.Services
                 var thumbnailPath = Path.Combine(_thumbnailsPath, thumbnailFileName);
 
                 if (File.Exists(thumbnailPath))
-                    return $"/.thumbnails/{thumbnailFileName}";
+                    return Result<string>.Success($"/.thumbnails/{thumbnailFileName}");
 
                 using var originalImage = System.Drawing.Image.FromFile(imagePath);
                 var thumbnailSize = CalculateThumbnailSize(originalImage.Width, originalImage.Height, 150, 150);
@@ -532,74 +724,98 @@ namespace DecorStore.API.Services
                 
                 thumbnail.Save(thumbnailPath, ImageFormat.Jpeg);
                 
-                return $"/.thumbnails/{thumbnailFileName}";
+                return Result<string>.Success($"/.thumbnails/{thumbnailFileName}");
             }
-            catch
+            catch (Exception ex)
             {
-                return string.Empty;
+                return Result<string>.Failure($"Failed to generate thumbnail: {ex.Message}", "THUMBNAIL_GENERATION_ERROR");
             }
         }
 
-        public async Task<int> CleanupOrphanedFilesAsync()
+        public async Task<Result<int>> CleanupOrphanedFilesAsync()
         {
-            var count = 0;
-            var dbImages = await _imageRepository.GetAllAsync();
-              foreach (var image in dbImages)
+            try
             {
-                var fullPath = Path.Combine(_uploadsPath, image.FilePath);
-                if (!File.Exists(fullPath))
-                {
-                    await _imageRepository.DeleteAsync(image);
-                    count++;
-                }
-            }
-            
-            return count;
-        }
-
-        public async Task<int> SyncDatabaseWithFileSystemAsync()
-        {
-            var count = 0;
-            var imageFiles = Directory.GetFiles(_uploadsPath, "*.*", SearchOption.AllDirectories)
-                .Where(f => IsImageFile(f))
-                .ToList();            foreach (var filePath in imageFiles)
-            {
-                var relativePath = Path.GetRelativePath(_uploadsPath, filePath).Replace("\\", "/");
-                var existingImage = await _imageRepository.GetByFilePathAsync(relativePath);
+                var count = 0;
+                var dbImages = await _imageRepository.GetAllAsync();
                 
-                if (existingImage == null)
+                foreach (var image in dbImages)
                 {
-                    var image = new DecorStore.API.Models.Image
+                    var fullPath = Path.Combine(_uploadsPath, image.FilePath);
+                    if (!File.Exists(fullPath))
                     {
-                        FileName = Path.GetFileName(filePath),
-                        FilePath = relativePath,
-                        AltText = Path.GetFileNameWithoutExtension(filePath),
-                        CreatedAt = File.GetCreationTimeUtc(filePath)
-                    };
-                    
-                    await _imageRepository.CreateAsync(image);
-                    count++;
+                        await _imageRepository.DeleteAsync(image);
+                        count++;
+                    }
                 }
+                
+                return Result<int>.Success(count);
             }
-            
-            return count;
+            catch (Exception ex)
+            {
+                return Result<int>.Failure($"Failed to cleanup orphaned files: {ex.Message}", "CLEANUP_ERROR");
+            }
         }
 
-        public async Task<List<string>> GetMissingFilesAsync()
+        public async Task<Result<int>> SyncDatabaseWithFileSystemAsync()
         {
-            var missingFiles = new List<string>();
-            var dbImages = await _imageRepository.GetAllAsync();
-            
-            foreach (var image in dbImages)
+            try
             {
-                var fullPath = Path.Combine(_uploadsPath, image.FilePath);
-                if (!File.Exists(fullPath))
+                var count = 0;
+                var imageFiles = Directory.GetFiles(_uploadsPath, "*.*", SearchOption.AllDirectories)
+                    .Where(f => IsImageFile(f))
+                    .ToList();
+                
+                foreach (var filePath in imageFiles)
                 {
-                    missingFiles.Add(image.FilePath);
+                    var relativePath = Path.GetRelativePath(_uploadsPath, filePath).Replace("\\", "/");
+                    var existingImage = await _imageRepository.GetByFilePathAsync(relativePath);
+                    
+                    if (existingImage == null)
+                    {
+                        var image = new DecorStore.API.Models.Image
+                        {
+                            FileName = Path.GetFileName(filePath),
+                            FilePath = relativePath,
+                            AltText = Path.GetFileNameWithoutExtension(filePath),
+                            CreatedAt = File.GetCreationTimeUtc(filePath)
+                        };
+                        
+                        await _imageRepository.CreateAsync(image);
+                        count++;
+                    }
                 }
+                
+                return Result<int>.Success(count);
             }
-            
-            return missingFiles;
+            catch (Exception ex)
+            {
+                return Result<int>.Failure($"Failed to sync database with file system: {ex.Message}", "SYNC_ERROR");
+            }
+        }
+
+        public async Task<Result<List<string>>> GetMissingFilesAsync()
+        {
+            try
+            {
+                var missingFiles = new List<string>();
+                var dbImages = await _imageRepository.GetAllAsync();
+                
+                foreach (var image in dbImages)
+                {
+                    var fullPath = Path.Combine(_uploadsPath, image.FilePath);
+                    if (!File.Exists(fullPath))
+                    {
+                        missingFiles.Add(image.FilePath);
+                    }
+                }
+                
+                return Result<List<string>>.Success(missingFiles);
+            }
+            catch (Exception ex)
+            {
+                return Result<List<string>>.Failure($"Failed to get missing files: {ex.Message}", "MISSING_FILES_ERROR");
+            }
         }
 
         // Private helper methods
@@ -615,14 +831,12 @@ namespace DecorStore.API.Services
                 throw new UnauthorizedAccessException("Invalid path");
                 
             return normalizedPath;
-        }
-
-        private FileItemDTO CreateFileItem(string fullPath, string relativeFolderPath)
+        }        private async Task<FileItemDTO> CreateFileItem(string fullPath, string relativeFolderPath)
         {
             var fileInfo = new FileInfo(fullPath);
             var fileName = fileInfo.Name;
             var relativePath = Path.Combine(relativeFolderPath, fileName).Replace("\\", "/");
-            
+              var formatSizeResult = await FormatFileSizeAsync(fileInfo.Length);
             return new FileItemDTO
             {
                 Name = fileName,
@@ -630,7 +844,7 @@ namespace DecorStore.API.Services
                 RelativePath = relativePath,
                 Type = IsImageFile(fileName) ? "image" : "file",
                 Size = fileInfo.Length,
-                FormattedSize = FormatFileSizeAsync(fileInfo.Length).Result,
+                FormattedSize = formatSizeResult.IsSuccess ? formatSizeResult.Data : "Unknown",
                 CreatedAt = fileInfo.CreationTimeUtc,
                 ModifiedAt = fileInfo.LastWriteTimeUtc,
                 Extension = fileInfo.Extension.ToLowerInvariant(),
@@ -639,7 +853,7 @@ namespace DecorStore.API.Services
             };
         }
 
-        private FileItemDTO CreateFolderItem(string fullPath, string relativeFolderPath)
+        private async Task<FileItemDTO> CreateFolderItem(string fullPath, string relativeFolderPath)
         {
             var dirInfo = new DirectoryInfo(fullPath);
             var folderName = dirInfo.Name;
@@ -649,6 +863,8 @@ namespace DecorStore.API.Services
             var folderCount = dirInfo.GetDirectories().Length;
             var totalSize = dirInfo.GetFiles("*", SearchOption.AllDirectories).Sum(f => f.Length);
             
+            var formatSizeResult = await FormatFileSizeAsync(totalSize);
+            
             return new FileItemDTO
             {
                 Name = folderName,
@@ -656,7 +872,7 @@ namespace DecorStore.API.Services
                 RelativePath = relativePath,
                 Type = "folder",
                 Size = totalSize,
-                FormattedSize = FormatFileSizeAsync(totalSize).Result,
+                FormattedSize = formatSizeResult.IsSuccess ? formatSizeResult.Data : "Unknown",
                 CreatedAt = dirInfo.CreationTimeUtc,
                 ModifiedAt = dirInfo.LastWriteTimeUtc,
                 Extension = "",
@@ -690,7 +906,7 @@ namespace DecorStore.API.Services
                 FolderCount = folderCount,
                 TotalItems = fileCount + folderCount,
                 TotalSize = totalSize,
-                FormattedSize = await FormatFileSizeAsync(totalSize),
+                FormattedSize = (await FormatFileSizeAsync(totalSize)).Data,
                 Subfolders = subfolders,
                 HasChildren = subfolders.Any()
             };

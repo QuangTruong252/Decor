@@ -2,30 +2,31 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using DecorStore.API.DTOs;
 using DecorStore.API.Models;
+using DecorStore.API.Common;
 
 namespace DecorStore.API.Services
 {
     public interface ICategoryService
     {
         // Pagination methods
-        Task<PagedResult<CategoryDTO>> GetPagedCategoriesAsync(CategoryFilterDTO filter);
-        Task<IEnumerable<CategoryDTO>> GetAllCategoriesAsync();
-        Task<IEnumerable<CategoryDTO>> GetHierarchicalCategoriesAsync();
+        Task<Result<PagedResult<CategoryDTO>>> GetPagedCategoriesAsync(CategoryFilterDTO filter);
+        Task<Result<IEnumerable<CategoryDTO>>> GetAllCategoriesAsync();
+        Task<Result<IEnumerable<CategoryDTO>>> GetHierarchicalCategoriesAsync();
 
         // Single item queries
-        Task<CategoryDTO> GetCategoryByIdAsync(int id);
-        Task<CategoryDTO> GetCategoryBySlugAsync(string slug);
+        Task<Result<CategoryDTO>> GetCategoryByIdAsync(int id);
+        Task<Result<CategoryDTO>> GetCategoryBySlugAsync(string slug);
 
         // CRUD operations
-        Task<Category> CreateAsync(CreateCategoryDTO categoryDto);
-        Task UpdateAsync(int id, UpdateCategoryDTO categoryDto);
-        Task DeleteAsync(int id);
+        Task<Result<CategoryDTO>> CreateAsync(CreateCategoryDTO categoryDto);
+        Task<Result> UpdateAsync(int id, UpdateCategoryDTO categoryDto);
+        Task<Result> DeleteAsync(int id);
 
         // Advanced queries
-        Task<IEnumerable<CategoryDTO>> GetCategoriesWithProductCountAsync();
-        Task<IEnumerable<CategoryDTO>> GetSubcategoriesAsync(int parentId);
-        Task<int> GetProductCountByCategoryAsync(int categoryId);
-        Task<IEnumerable<CategoryDTO>> GetPopularCategoriesAsync(int count = 10);
-        Task<IEnumerable<CategoryDTO>> GetRootCategoriesAsync();
+        Task<Result<IEnumerable<CategoryDTO>>> GetCategoriesWithProductCountAsync();
+        Task<Result<IEnumerable<CategoryDTO>>> GetSubcategoriesAsync(int parentId);
+        Task<Result<int>> GetProductCountByCategoryAsync(int categoryId);
+        Task<Result<IEnumerable<CategoryDTO>>> GetPopularCategoriesAsync(int count = 10);
+        Task<Result<IEnumerable<CategoryDTO>>> GetRootCategoriesAsync();
     }
 }

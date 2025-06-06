@@ -3,6 +3,7 @@ using DecorStore.API.DTOs.Excel;
 using DecorStore.API.DTOs;
 using DecorStore.API.Interfaces;
 using DecorStore.API.Models;
+using DecorStore.API.Common;
 using Microsoft.EntityFrameworkCore;
 
 namespace DecorStore.API.Services.Excel
@@ -68,51 +69,67 @@ namespace DecorStore.API.Services.Excel
         /// <summary>
         /// Exports orders to Excel file
         /// </summary>
-        public async Task<byte[]> ExportOrdersAsync(OrderFilterDTO? filter = null, ExcelExportRequestDTO? exportRequest = null)
+        public async Task<Result<byte[]>> ExportOrdersAsync(OrderFilterDTO? filter = null, ExcelExportRequestDTO? exportRequest = null)
         {
-            filter ??= new OrderFilterDTO { PageNumber = 1, PageSize = int.MaxValue };
-            exportRequest ??= new ExcelExportRequestDTO { WorksheetName = "Orders" };
-
-            // Get orders from database
-            var orders = await _unitOfWork.Orders.GetAllAsync();
-
-            // Map to Excel DTOs
-            var orderExcelDtos = await MapToExcelDtosAsync(orders);
-
-            // Calculate metrics
-            foreach (var order in orderExcelDtos)
+            try
             {
-                order.CalculateMetrics();
+                filter ??= new OrderFilterDTO { PageNumber = 1, PageSize = int.MaxValue };
+                exportRequest ??= new ExcelExportRequestDTO { WorksheetName = "Orders" };
+
+                // Get orders from database
+                var orders = await _unitOfWork.Orders.GetAllAsync();
+
+                // Map to Excel DTOs
+                var orderExcelDtos = await MapToExcelDtosAsync(orders);
+
+                // Calculate metrics
+                foreach (var order in orderExcelDtos)
+                {
+                    order.CalculateMetrics();
+                }
+
+                // Get column mappings
+                var columnMappings = OrderExcelDTO.GetColumnMappings();
+
+                // Filter columns based on export request
+                if (exportRequest.ColumnsToInclude?.Any() == true)
+                {
+                    columnMappings = columnMappings
+                        .Where(kvp => exportRequest.ColumnsToInclude.Contains(kvp.Key))
+                        .ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
+                }
+
+                if (exportRequest.ColumnsToExclude?.Any() == true)
+                {
+                    columnMappings = columnMappings
+                        .Where(kvp => !exportRequest.ColumnsToExclude.Contains(kvp.Key))
+                        .ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
+                }
+
+                var bytes = await _excelService.CreateExcelAsync(orderExcelDtos, columnMappings, exportRequest.WorksheetName);
+                return Result<byte[]>.Success(bytes);
             }
-
-            // Get column mappings
-            var columnMappings = OrderExcelDTO.GetColumnMappings();
-
-            // Filter columns based on export request
-            if (exportRequest.ColumnsToInclude?.Any() == true)
+            catch (Exception ex)
             {
-                columnMappings = columnMappings
-                    .Where(kvp => exportRequest.ColumnsToInclude.Contains(kvp.Key))
-                    .ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
+                return Result<byte[]>.Failure($"Failed to export orders: {ex.Message}");
             }
-
-            if (exportRequest.ColumnsToExclude?.Any() == true)
-            {
-                columnMappings = columnMappings
-                    .Where(kvp => !exportRequest.ColumnsToExclude.Contains(kvp.Key))
-                    .ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
-            }
-
-            return await _excelService.CreateExcelAsync(orderExcelDtos, columnMappings, exportRequest.WorksheetName);
         }
 
         /// <summary>
         /// Creates Excel template for order import
         /// </summary>
-        public async Task<byte[]> CreateOrderTemplateAsync(bool includeExampleRow = true)
+        public async Task<Result<byte[]>> CreateOrderTemplateAsync(bool includeExampleRow = true)
         {
-            var columnMappings = OrderExcelDTO.GetImportColumnMappings();
-            return await _excelService.CreateTemplateAsync(columnMappings, "Order Import Template", includeExampleRow);
+            try
+            {
+                var columnMappings = OrderExcelDTO.GetImportColumnMappings();
+                var bytes = await _excelService.CreateTemplateAsync(columnMappings, "Order Import Template", includeExampleRow);
+                return Result<byte[]>.Success(bytes);
+            }
+            catch (Exception ex)
+            {
+                return Result<byte[]>.Failure($"Failed to create order template: {ex.Message}");
+            }
         }
 
         /// <summary>

@@ -23,6 +23,8 @@ namespace DecorStore.API.Models
         public bool IsDeleted { get; set; } = false;
         
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+        public DateTime? UpdatedAt { get; set; }
         
         // Navigation properties
         [ForeignKey("UserId")]
@@ -31,4 +33,4 @@ namespace DecorStore.API.Models
         [ForeignKey("ProductId")]
         public virtual Product Product { get; set; }
     }
-} 
+}

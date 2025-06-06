@@ -2,16 +2,17 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using DecorStore.API.DTOs;
 using DecorStore.API.Models;
+using DecorStore.API.Common;
 
 namespace DecorStore.API.Services
 {
     public interface IReviewService
     {
-        Task<IEnumerable<ReviewDTO>> GetReviewsByProductIdAsync(int productId);
-        Task<ReviewDTO> GetReviewByIdAsync(int id);
-        Task<Review> CreateReviewAsync(CreateReviewDTO reviewDto);
-        Task UpdateReviewAsync(int id, UpdateReviewDTO reviewDto);
-        Task DeleteReviewAsync(int id);
-        Task<float> GetAverageRatingForProductAsync(int productId);
+        Task<Result<IEnumerable<ReviewDTO>>> GetReviewsByProductIdAsync(int productId);
+        Task<Result<ReviewDTO>> GetReviewByIdAsync(int id);
+        Task<Result<ReviewDTO>> CreateReviewAsync(CreateReviewDTO reviewDto);
+        Task<Result> UpdateReviewAsync(int id, UpdateReviewDTO reviewDto);
+        Task<Result> DeleteReviewAsync(int id);
+        Task<Result<float>> GetAverageRatingForProductAsync(int productId);
     }
-} 
+}
