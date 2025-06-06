@@ -16,6 +16,7 @@ namespace DecorStore.API.Interfaces
         ICustomerRepository Customers { get; }
         IDashboardRepository Dashboard { get; }
         IUserRepository Users { get; }
+        IOrderItemRepository OrderItems { get; }
 
         // Transaction management
         Task BeginTransactionAsync();

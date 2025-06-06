@@ -19,6 +19,25 @@ namespace DecorStore.API.DTOs
         
         [Compare("Password", ErrorMessage = "The password and confirmation password do not match.")]
         public required string ConfirmPassword { get; set; }
+
+        [Required]
+        [StringLength(50, MinimumLength = 2)]
+        public required string FirstName { get; set; }
+
+        [Required]
+        [StringLength(50, MinimumLength = 2)]
+        public required string LastName { get; set; }
+
+        [Phone]
+        public string? Phone { get; set; }
+
+        public DateTime? DateOfBirth { get; set; }
+
+        [Required]
+        public bool AcceptTerms { get; set; }
+
+        [Required]
+        public bool AcceptPrivacyPolicy { get; set; }
     }
     
     // DTO for user login
@@ -29,6 +48,8 @@ namespace DecorStore.API.DTOs
         
         [Required]
         public required string Password { get; set; }
+
+        public bool RememberMe { get; set; }
     }
     
     // DTO for returning user data (without sensitive information)

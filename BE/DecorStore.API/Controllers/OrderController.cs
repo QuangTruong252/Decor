@@ -60,7 +60,7 @@ namespace DecorStore.API.Controllers
         [HttpGet("user/{userId}")]
         public async Task<ActionResult<IEnumerable<OrderDTO>>> GetOrdersByUser(int userId)
         {
-            if (!await CanAccessUserData(userId))
+            if (!CanAccessUserData(userId))
             {
                 return Forbid();
             }
@@ -80,7 +80,7 @@ namespace DecorStore.API.Controllers
                 return HandleResult(result);
             }
 
-            if (!await CanAccessUserData(result.Data.UserId))
+            if (result.Data == null || !CanAccessUserData(result.Data.UserId))
             {
                 return Forbid();
             }
@@ -107,7 +107,7 @@ namespace DecorStore.API.Controllers
 
             var result = await _orderService.CreateOrderAsync(orderDto);
             
-            if (result.IsSuccess)
+            if (result.IsSuccess && result.Data != null)
             {
                 return HandleCreateResult(result, nameof(GetOrder), new { id = result.Data.Id });
             }
@@ -143,7 +143,7 @@ namespace DecorStore.API.Controllers
                 return BadRequest(orderResult.Error);
             }
 
-            if (!await CanAccessUserData(orderResult.Data!.UserId))
+            if (orderResult.Data == null || !CanAccessUserData(orderResult.Data.UserId))
             {
                 return Forbid();
             }
@@ -259,7 +259,7 @@ namespace DecorStore.API.Controllers
             if (result.IsSuccess)
             {
                 var fileName = $"Orders_Export_{DateTime.UtcNow:yyyyMMdd_HHmmss}.xlsx";
-                return File(result.Data, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
+                return File(result.Data ?? Array.Empty<byte>(), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
             }
 
             return BadRequest(result.Error);
@@ -274,7 +274,7 @@ namespace DecorStore.API.Controllers
             if (result.IsSuccess)
             {
                 var fileName = $"Order_Import_Template_{DateTime.UtcNow:yyyyMMdd}.xlsx";
-                return File(result.Data, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
+                return File(result.Data ?? Array.Empty<byte>(), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
             }
 
             return BadRequest(result.Error);
@@ -324,7 +324,7 @@ namespace DecorStore.API.Controllers
 
         #region Helper Methods
 
-        private async Task<bool> CanAccessUserData(int userId)
+        private bool CanAccessUserData(int userId)
         {
             var currentUserId = int.Parse(GetCurrentUserId() ?? "0");
             return currentUserId == userId || HasRole("Admin");

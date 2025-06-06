@@ -116,7 +116,7 @@ namespace DecorStore.API.Services
                 var validationResult = await ValidateCreateCategoryDto(categoryDto);
                 if (validationResult.IsFailure)
                 {
-                    return Result<CategoryDTO>.Failure(validationResult.ErrorCode!, validationResult.Error!, validationResult.ErrorDetails);
+                    return Result<CategoryDTO>.Failure(validationResult.ErrorCode ?? "VALIDATION_ERROR", validationResult.Error ?? "Validation failed", validationResult.ErrorDetails);
                 }
 
                 // Check if slug exists
@@ -151,7 +151,7 @@ namespace DecorStore.API.Services
                         // Rollback category creation if image assignment fails
                         await _unitOfWork.Categories.DeleteAsync(category.Id);
                         await _unitOfWork.SaveChangesAsync();
-                        return Result<CategoryDTO>.Failure(imageResult.ErrorCode!, imageResult.Error!);
+                        return Result<CategoryDTO>.Failure(imageResult.ErrorCode ?? "IMAGE_ERROR", imageResult.Error ?? "Failed to assign images to category");
                     }
                 }
 
@@ -176,7 +176,7 @@ namespace DecorStore.API.Services
                 var validationResult = await ValidateUpdateCategoryDto(categoryDto);
                 if (validationResult.IsFailure)
                 {
-                    return Result.Failure(validationResult.ErrorCode!, validationResult.Error!, validationResult.ErrorDetails);
+                    return Result.Failure(validationResult.ErrorCode ?? "VALIDATION_ERROR", validationResult.Error ?? "Validation failed", validationResult.ErrorDetails);
                 }
 
                 var category = await _unitOfWork.Categories.GetByIdAsync(id);
@@ -232,7 +232,7 @@ namespace DecorStore.API.Services
                             var imageResult = await AssignImagesToCategory(categoryDto.ImageIds, category.Id);
                             if (imageResult.IsFailure)
                             {
-                                throw new InvalidOperationException(imageResult.Error);
+                                throw new InvalidOperationException(imageResult.Error ?? "Failed to assign images to category");
                             }
                         }
 
@@ -452,7 +452,7 @@ namespace DecorStore.API.Services
                 
                 if (imagesResult.IsFailure)
                 {
-                    return Result.Failure(imagesResult.Error, imagesResult.ErrorCode);
+                    return Result.Failure(imagesResult.Error ?? "Failed to retrieve images", imagesResult.ErrorCode ?? "IMAGE_RETRIEVAL_ERROR");
                 }
 
                 if (imagesResult.Data.Count != imageIds.Count)

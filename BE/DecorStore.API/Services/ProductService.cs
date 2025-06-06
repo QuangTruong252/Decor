@@ -99,7 +99,9 @@ namespace DecorStore.API.Services
                     
                     if (imagesResult.IsFailure)
                     {
-                        return Result<ProductDTO>.Failure(imagesResult.Error, imagesResult.ErrorCode);
+                        return Result<ProductDTO>.Failure(
+                            imagesResult.Error ?? "Unknown error occurred while processing images",
+                            imagesResult.ErrorCode ?? "UNKNOWN_ERROR");
                     }
                     
                     if (imagesResult.Data.Count != productDto.ImageIds.Count)
@@ -387,7 +389,9 @@ namespace DecorStore.API.Services
                 var uploadResult = await _imageService.UploadImageAsync(image, _folderImageName);
                 if (uploadResult.IsFailure)
                 {
-                    return Result.Failure(uploadResult.Error, uploadResult.ErrorCode);
+                    return Result.Failure(
+                        uploadResult.Error ?? "Unknown error occurred while uploading image",
+                        uploadResult.ErrorCode ?? "UNKNOWN_ERROR");
                 }
 
                 // Create new Image entity

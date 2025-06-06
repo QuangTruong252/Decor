@@ -18,6 +18,13 @@ namespace DecorStore.API.DTOs
     // DTO for returning product data
     public class ProductDTO
     {
+        public ProductDTO()
+        {
+            // Initialize collections to prevent null reference warnings
+            Images = Array.Empty<string>();
+            ImageDetails = new List<ImageDTO>();
+        }
+
         public int Id { get; set; }
         public string Name { get; set; } = string.Empty;
         public string Slug { get; set; } = string.Empty;
@@ -38,8 +45,8 @@ namespace DecorStore.API.DTOs
         public string[] Images { get; set; }
 
         // Detailed image information
-        public List<ImageDTO> ImageDetails { get; set; } = new List<ImageDTO>();
-    }    // DTO for creating a new product
+        public List<ImageDTO> ImageDetails { get; set; }
+    }
     public class CreateProductDTO
     {
         [Required]
@@ -72,6 +79,16 @@ namespace DecorStore.API.DTOs
 
         public bool IsActive { get; set; } = true;
 
+        public bool IsDigital { get; set; }
+
+        public decimal? Weight { get; set; }
+
+        public string? Dimensions { get; set; }
+
+        public string[]? Tags { get; set; }
+
+        public string[]? Images { get; set; }
+
         // Use ImageIds to associate existing images with product
         public List<int> ImageIds { get; set; } = new List<int>();
     }
@@ -79,6 +96,8 @@ namespace DecorStore.API.DTOs
     // DTO for updating a product
     public class UpdateProductDTO
     {
+        public int Id { get; set; }
+
         [Required]
         [StringLength(255, MinimumLength = 3)]
         public string Name { get; set; } = string.Empty;
@@ -104,6 +123,16 @@ namespace DecorStore.API.DTOs
         public bool IsFeatured { get; set; }
 
         public bool IsActive { get; set; }
+
+        public bool IsDigital { get; set; }
+
+        public decimal? Weight { get; set; }
+
+        public string? Dimensions { get; set; }
+
+        public string[]? Tags { get; set; }
+
+        public string[]? Images { get; set; }
 
         // Use ImageIds to associate existing images with product  
         public List<int> ImageIds { get; set; } = new List<int>();

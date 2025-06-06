@@ -17,12 +17,25 @@ builder.Services.AddAuthenticationServices(builder.Configuration);
 builder.Services.AddCorsServices(builder.Configuration);
 builder.Services.AddApplicationServices(builder.Configuration);
 builder.Services.AddFileStorageServices(builder.Configuration);
+builder.Services.AddLoggingServices(builder.Configuration);
+builder.Services.AddHealthCheckServices(builder.Configuration);
+builder.Services.AddSecurityServices(builder.Configuration);
+builder.Services.AddValidationServices(builder.Configuration);
 builder.Services.AddSwaggerServices();
 
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
 app.UseSwaggerMiddleware();
+
+// Use validation middleware (early in pipeline)
+app.UseValidationMiddleware();
+
+// Use security middleware
+app.UseSecurityMiddleware();
+
+// Use logging middleware
+app.UseLoggingMiddleware();
 
 // Use CORS - determine policy based on environment
 var corsPolicy = app.Environment.IsDevelopment() ? "AllowAll" : "Production";
@@ -36,5 +49,8 @@ app.UseAuthorization();
 app.UseFileStorageMiddleware();
 
 app.MapControllers();
+
+// Map health check endpoints
+app.UseHealthCheckEndpoints();
 
 app.Run();

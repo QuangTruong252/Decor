@@ -7,12 +7,12 @@ namespace DecorStore.API.DTOs
         public int Id { get; set; }
         public int UserId { get; set; }
         [Required]
-        public string UserName { get; set; }
+        public required string UserName { get; set; }
         public int ProductId { get; set; }
         public int CustomerId { get; set; }
         public int Rating { get; set; }
         [Required]
-        public string Comment { get; set; }
+        public required string Comment { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime? UpdatedAt { get; set; }
     }
@@ -33,7 +33,7 @@ namespace DecorStore.API.DTOs
         
         [Required]
         [StringLength(500)]
-        public string Comment { get; set; }
+        public required string Comment { get; set; }
     }
     
     public class UpdateReviewDTO
@@ -43,6 +43,6 @@ namespace DecorStore.API.DTOs
         public int Rating { get; set; }
         
         [StringLength(500)]
-        public string Comment { get; set; }
+        public required string Comment { get; set; }
     }
 }

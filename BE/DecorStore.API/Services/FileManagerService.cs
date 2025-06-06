@@ -497,30 +497,30 @@ namespace DecorStore.API.Services
             }
         }
 
-        public async Task<Result<bool>> ValidatePathAsync(string path)
+        public Task<Result<bool>> ValidatePathAsync(string path)
         {
             try
             {
                 if (string.IsNullOrEmpty(path))
-                    return Result<bool>.Success(true);
+                    return Task.FromResult(Result<bool>.Success(true));
                 
                 // Remove any leading or trailing slashes
                 path = path.Trim('/');
                 
                 // Check for invalid characters
                 if (path.IndexOfAny(Path.GetInvalidPathChars()) != -1)
-                    return Result<bool>.Success(false);
+                    return Task.FromResult(Result<bool>.Success(false));
                 
                 // Check for path traversal attempts
                 var normalizedPath = Path.GetFullPath(Path.Combine(_uploadsPath, path));
                 
                 // Check if the normalized path is within the uploads directory
                 var isValid = normalizedPath.StartsWith(_uploadsPath);
-                return Result<bool>.Success(isValid);
+                return Task.FromResult(Result<bool>.Success(isValid));
             }
             catch (Exception ex)
             {
-                return Result<bool>.Failure($"Failed to validate path: {ex.Message}", "PATH_VALIDATION_ERROR");
+                return Task.FromResult(Result<bool>.Failure($"Failed to validate path: {ex.Message}", "PATH_VALIDATION_ERROR"));
             }
         }
 
@@ -600,12 +600,12 @@ namespace DecorStore.API.Services
             };
         }
 
-        public async Task<Result<string>> GetSafeFileNameAsync(string fileName)
+        public Task<Result<string>> GetSafeFileNameAsync(string fileName)
         {
             try
             {
                 if (string.IsNullOrEmpty(fileName))
-                    return Result<string>.Success("unnamed_file");
+                    return Task.FromResult(Result<string>.Success("unnamed_file"));
 
                 // Remove invalid characters
                 var invalidChars = Path.GetInvalidFileNameChars();
@@ -616,20 +616,20 @@ namespace DecorStore.API.Services
                 safeName = Regex.Replace(safeName, @"\s+", " ");
                 
                 var result = safeName.Trim();
-                return Result<string>.Success(string.IsNullOrEmpty(result) ? "unnamed_file" : result);
+                return Task.FromResult(Result<string>.Success(string.IsNullOrEmpty(result) ? "unnamed_file" : result));
             }
             catch (Exception ex)
             {
-                return Result<string>.Failure($"Failed to create safe file name: {ex.Message}", "SAFE_NAME_ERROR");
+                return Task.FromResult(Result<string>.Failure($"Failed to create safe file name: {ex.Message}", "SAFE_NAME_ERROR"));
             }
         }
         
-        public async Task<Result<string>> FormatFileSizeAsync(long bytes)
+        public Task<Result<string>> FormatFileSizeAsync(long bytes)
         {
             try
             {
                 if (bytes < 0)
-                    return Result<string>.Failure("File size cannot be negative", "INVALID_SIZE");
+                    return Task.FromResult(Result<string>.Failure("File size cannot be negative", "INVALID_SIZE"));
 
                 string[] sizes = { "B", "KB", "MB", "GB", "TB" };
                 double len = bytes;
@@ -639,32 +639,32 @@ namespace DecorStore.API.Services
                     order++;
                     len = len / 1024;
                 }
-                return Result<string>.Success($"{len:0.##} {sizes[order]}");
+                return Task.FromResult(Result<string>.Success($"{len:0.##} {sizes[order]}"));
             }
             catch (Exception ex)
             {
-                return Result<string>.Failure($"Failed to format file size: {ex.Message}", "FORMAT_SIZE_ERROR");
+                return Task.FromResult(Result<string>.Failure($"Failed to format file size: {ex.Message}", "FORMAT_SIZE_ERROR"));
             }
         }
 
-        public async Task<Result<ImageMetadataDTO>> ExtractImageMetadataAsync(string filePath)
+        public Task<Result<ImageMetadataDTO>> ExtractImageMetadataAsync(string filePath)
         {
             // Input validation
             if (string.IsNullOrWhiteSpace(filePath))
             {
-                return Result<ImageMetadataDTO>.Failure("File path is required", "INVALID_INPUT");
+                return Task.FromResult(Result<ImageMetadataDTO>.Failure("File path is required", "INVALID_INPUT"));
             }
 
             try
             {
                 if (!IsImageFile(filePath))
                 {
-                    return Result<ImageMetadataDTO>.Failure("File is not a valid image", "INVALID_IMAGE_TYPE");
+                    return Task.FromResult(Result<ImageMetadataDTO>.Failure("File is not a valid image", "INVALID_IMAGE_TYPE"));
                 }
 
                 if (!File.Exists(filePath))
                 {
-                    return Result<ImageMetadataDTO>.Failure("File not found", "FILE_NOT_FOUND");
+                    return Task.FromResult(Result<ImageMetadataDTO>.Failure("File not found", "FILE_NOT_FOUND"));
                 }
 
                 using var image = System.Drawing.Image.FromFile(filePath);
@@ -677,32 +677,32 @@ namespace DecorStore.API.Services
                     ColorSpace = image.PixelFormat.ToString()
                 };
 
-                return Result<ImageMetadataDTO>.Success(metadata);
+                return Task.FromResult(Result<ImageMetadataDTO>.Success(metadata));
             }
             catch (Exception ex)
             {
-                return Result<ImageMetadataDTO>.Failure($"Failed to extract image metadata: {ex.Message}", "METADATA_EXTRACTION_ERROR");
+                return Task.FromResult(Result<ImageMetadataDTO>.Failure($"Failed to extract image metadata: {ex.Message}", "METADATA_EXTRACTION_ERROR"));
             }
         }
 
-        public async Task<Result<string>> GenerateThumbnailAsync(string imagePath)
+        public Task<Result<string>> GenerateThumbnailAsync(string imagePath)
         {
             // Input validation
             if (string.IsNullOrWhiteSpace(imagePath))
             {
-                return Result<string>.Failure("Image path is required", "INVALID_INPUT");
+                return Task.FromResult(Result<string>.Failure("Image path is required", "INVALID_INPUT"));
             }
 
             try
             {
                 if (!IsImageFile(imagePath))
                 {
-                    return Result<string>.Failure("File is not a valid image", "INVALID_IMAGE_TYPE");
+                    return Task.FromResult(Result<string>.Failure("File is not a valid image", "INVALID_IMAGE_TYPE"));
                 }
 
                 if (!File.Exists(imagePath))
                 {
-                    return Result<string>.Failure("Image file not found", "FILE_NOT_FOUND");
+                    return Task.FromResult(Result<string>.Failure("Image file not found", "FILE_NOT_FOUND"));
                 }
 
                 var fileName = Path.GetFileNameWithoutExtension(imagePath);
@@ -711,7 +711,7 @@ namespace DecorStore.API.Services
                 var thumbnailPath = Path.Combine(_thumbnailsPath, thumbnailFileName);
 
                 if (File.Exists(thumbnailPath))
-                    return Result<string>.Success($"/.thumbnails/{thumbnailFileName}");
+                    return Task.FromResult(Result<string>.Success($"/.thumbnails/{thumbnailFileName}"));
 
                 using var originalImage = System.Drawing.Image.FromFile(imagePath);
                 var thumbnailSize = CalculateThumbnailSize(originalImage.Width, originalImage.Height, 150, 150);
@@ -724,11 +724,11 @@ namespace DecorStore.API.Services
                 
                 thumbnail.Save(thumbnailPath, ImageFormat.Jpeg);
                 
-                return Result<string>.Success($"/.thumbnails/{thumbnailFileName}");
+                return Task.FromResult(Result<string>.Success($"/.thumbnails/{thumbnailFileName}"));
             }
             catch (Exception ex)
             {
-                return Result<string>.Failure($"Failed to generate thumbnail: {ex.Message}", "THUMBNAIL_GENERATION_ERROR");
+                return Task.FromResult(Result<string>.Failure($"Failed to generate thumbnail: {ex.Message}", "THUMBNAIL_GENERATION_ERROR"));
             }
         }
 
@@ -816,13 +816,12 @@ namespace DecorStore.API.Services
             {
                 return Result<List<string>>.Failure($"Failed to get missing files: {ex.Message}", "MISSING_FILES_ERROR");
             }
-        }
-
+        }        
         // Private helper methods
-        private async Task<string> GetSafePathAsync(string path)
+        private Task<string> GetSafePathAsync(string path)
         {
             if (string.IsNullOrEmpty(path))
-                return "";
+                return Task.FromResult("");
 
             var normalizedPath = path.Replace("/", "\\").Trim('\\');
             var fullPath = Path.GetFullPath(Path.Combine(_uploadsPath, normalizedPath));
@@ -830,13 +829,15 @@ namespace DecorStore.API.Services
             if (!fullPath.StartsWith(_uploadsPath))
                 throw new UnauthorizedAccessException("Invalid path");
                 
-            return normalizedPath;
-        }        private async Task<FileItemDTO> CreateFileItem(string fullPath, string relativeFolderPath)
+            return Task.FromResult(normalizedPath);
+        }
+        
+        private async Task<FileItemDTO> CreateFileItem(string fullPath, string relativeFolderPath)
         {
             var fileInfo = new FileInfo(fullPath);
             var fileName = fileInfo.Name;
             var relativePath = Path.Combine(relativeFolderPath, fileName).Replace("\\", "/");
-              var formatSizeResult = await FormatFileSizeAsync(fileInfo.Length);
+            var formatSizeResult = await FormatFileSizeAsync(fileInfo.Length);
             return new FileItemDTO
             {
                 Name = fileName,
@@ -912,7 +913,7 @@ namespace DecorStore.API.Services
             };
         }
 
-        private async Task<List<FileItemDTO>> ApplyFiltersAsync(List<FileItemDTO> items, FileBrowseRequestDTO request)
+        private Task<List<FileItemDTO>> ApplyFiltersAsync(List<FileItemDTO> items, FileBrowseRequestDTO request)
         {
             var filtered = items.AsEnumerable();
 
@@ -956,7 +957,7 @@ namespace DecorStore.API.Services
                 filtered = filtered.Where(i => i.CreatedAt <= request.ToDate.Value);
             }
 
-            return filtered.ToList();
+            return Task.FromResult(filtered.ToList());
         }
 
         private List<FileItemDTO> ApplySorting(List<FileItemDTO> items, string sortBy, string sortOrder)
@@ -1005,7 +1006,7 @@ namespace DecorStore.API.Services
             return File.Exists(thumbnailPath) ? $"/.thumbnails/{thumbnailFileName}" : "";
         }
 
-        private async Task<string> GetUniqueFileNameAsync(string directory, string fileName)
+        private Task<string> GetUniqueFileNameAsync(string directory, string fileName)
         {
             var nameWithoutExt = Path.GetFileNameWithoutExtension(fileName);
             var extension = Path.GetExtension(fileName);
@@ -1018,7 +1019,7 @@ namespace DecorStore.API.Services
                 counter++;
             }
 
-            return newFileName;
+            return Task.FromResult(newFileName);
         }
 
         private (int Width, int Height) CalculateThumbnailSize(int originalWidth, int originalHeight, int maxWidth, int maxHeight)

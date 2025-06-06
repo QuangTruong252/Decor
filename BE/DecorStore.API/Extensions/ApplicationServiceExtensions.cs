@@ -1,4 +1,5 @@
 using DecorStore.API.Configuration;
+using DecorStore.API.DTOs;
 using DecorStore.API.Interfaces;
 using DecorStore.API.Interfaces.Repositories;
 using DecorStore.API.Interfaces.Services;
@@ -50,6 +51,7 @@ namespace DecorStore.API.Extensions
             services.AddScoped<IDashboardRepository, DashboardRepository>();
             services.AddScoped<IUserRepository, UserRepository>();
             services.AddScoped<DecorStore.API.Interfaces.Repositories.IImageRepository, DecorStore.API.Repositories.ImageRepository>();
+            services.AddScoped<DecorStore.API.Interfaces.Repositories.IOrderItemRepository, DecorStore.API.Repositories.OrderItemRepository>();
             
             // Register Unit of Work
             services.AddScoped<IUnitOfWork, DecorStore.API.Data.UnitOfWork>();
@@ -68,6 +70,9 @@ namespace DecorStore.API.Extensions
             services.AddScoped<ICustomerService, CustomerService>();
             services.AddScoped<IDashboardService, DashboardService>();
             services.AddScoped<DecorStore.API.Interfaces.Services.IFileManagerService, DecorStore.API.Services.FileManagerService>();
+            
+            // Add correlation ID service
+            services.AddScoped<ICorrelationIdService, CorrelationIdService>();
         }
 
         private static void AddExcelServices(IServiceCollection services)
@@ -105,8 +110,13 @@ namespace DecorStore.API.Extensions
             services.AddScoped<IValidator<DecorStore.API.DTOs.Excel.CustomerExcelDTO>, DecorStore.API.Validators.Excel.CustomerExcelValidator>();
             services.AddScoped<IValidator<DecorStore.API.DTOs.Excel.OrderExcelDTO>, DecorStore.API.Validators.Excel.OrderExcelValidator>();
 
+            // Add core DTO validators
+            services.AddScoped<IValidator<CreateProductDTO>, DecorStore.API.Validators.ProductValidators.CreateProductValidator>();
+            services.AddScoped<IValidator<UpdateProductDTO>, DecorStore.API.Validators.ProductValidators.UpdateProductValidator>();
+
             // Add general FluentValidation
             services.AddValidatorsFromAssembly(typeof(Program).Assembly);
+
         }
 
         public static IServiceCollection AddFileStorageServices(this IServiceCollection services, IConfiguration configuration)
