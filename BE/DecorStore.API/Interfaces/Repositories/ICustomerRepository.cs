@@ -19,6 +19,9 @@ namespace DecorStore.API.Interfaces.Repositories
         Task<bool> ExistsAsync(int id);
         Task<bool> EmailExistsAsync(string email);
         Task<bool> EmailExistsAsync(string email, int excludeCustomerId);
+        Task<bool> ExistsByEmailAsync(string email);
+        Task<bool> ExistsByEmailAsync(string email, int excludeCustomerId);
+        Task<bool> ExistsByPhoneAsync(string phone, int excludeCustomerId);
         Task<int> GetTotalCountAsync(CustomerFilterDTO filter);
 
         // CRUD operations

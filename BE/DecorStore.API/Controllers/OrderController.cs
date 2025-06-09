@@ -101,18 +101,10 @@ namespace DecorStore.API.Controllers
             if (orderDto == null)
             {
                 return BadRequest("Order data is required");
-            }
-
-            orderDto.UserId = int.Parse(GetCurrentUserId() ?? "0");
+            }            orderDto.UserId = int.Parse(GetCurrentUserId() ?? "0");
 
             var result = await _orderService.CreateOrderAsync(orderDto);
-            
-            if (result.IsSuccess && result.Data != null)
-            {
-                return HandleCreateResult(result, nameof(GetOrder), new { id = result.Data.Id });
-            }
-            
-            return HandleResult(result);
+            return HandleCreateResult(result);
         }
 
         // PUT: api/Order/5

@@ -65,7 +65,7 @@ namespace DecorStore.API.Middleware
                 {
                     request.EnableBuffering();
                     var buffer = new byte[Convert.ToInt32(request.ContentLength)];
-                    await request.Body.ReadAsync(buffer, 0, buffer.Length);
+                    await request.Body.ReadExactlyAsync(buffer, 0, buffer.Length);
                     requestBody = Encoding.UTF8.GetString(buffer);
                     request.Body.Position = 0;
                 }

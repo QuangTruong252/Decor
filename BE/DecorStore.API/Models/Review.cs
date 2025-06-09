@@ -13,12 +13,11 @@ namespace DecorStore.API.Models
         public int UserId { get; set; }
         
         public int ProductId { get; set; }
-        
-        [Required]
+          [Required]
         [Range(1, 5)]
         public int Rating { get; set; }
         
-        public string Comment { get; set; }
+        public required string Comment { get; set; }
         
         public bool IsDeleted { get; set; } = false;
         
@@ -28,9 +27,9 @@ namespace DecorStore.API.Models
         
         // Navigation properties
         [ForeignKey("UserId")]
-        public virtual User User { get; set; }
+        public virtual required User User { get; set; }
         
         [ForeignKey("ProductId")]
-        public virtual Product Product { get; set; }
+        public virtual required Product Product { get; set; }
     }
 }

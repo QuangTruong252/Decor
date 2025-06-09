@@ -10,48 +10,44 @@ namespace DecorStore.API.Models
     {
         [Key]
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
-        public int Id { get; set; }
+        public int Id { get; set; }        [Required]
+        [StringLength(100)]
+        public required string FirstName { get; set; }
 
         [Required]
         [StringLength(100)]
-        public string FirstName { get; set; }
-
-        [Required]
-        [StringLength(100)]
-        public string LastName { get; set; }
+        public required string LastName { get; set; }
 
         [Required]
         [StringLength(100)]
         [EmailAddress]
-        public string Email { get; set; }
+        public required string Email { get; set; }
 
         [StringLength(255)]
-        public string Address { get; set; }
+        public required string Address { get; set; }
 
         [StringLength(100)]
-        public string City { get; set; }
+        public required string City { get; set; }
 
         [StringLength(50)]
-        public string State { get; set; }
+        public required string State { get; set; }
 
         [StringLength(20)]
-        public string PostalCode { get; set; }
+        public required string PostalCode { get; set; }
 
         [StringLength(50)]
-        public string Country { get; set; }
+        public required string Country { get; set; }
 
         [StringLength(20)]
-        public string Phone { get; set; }
+        public required string Phone { get; set; }
 
         public bool IsDeleted { get; set; } = false;
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
-        public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
-
-        // Navigation properties
+        public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;        // Navigation properties
         [JsonIgnore]
-        public virtual ICollection<Order> Orders { get; set; }
+        public virtual ICollection<Order> Orders { get; set; } = new List<Order>();
 
         // Computed property for full name
         [NotMapped]

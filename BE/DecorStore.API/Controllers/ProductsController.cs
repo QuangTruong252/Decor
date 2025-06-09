@@ -92,29 +92,27 @@ namespace DecorStore.API.Controllers
         // POST: api/Products
         [HttpPost]
         [Authorize(Roles = "Admin")] // Only admin can create products
-        public async Task<ActionResult<ProductDTO>> CreateProduct(CreateProductDTO productDto)
-        {
+        public async Task<ActionResult<ProductDTO>> CreateProduct(CreateProductDTO productDto)        {
             // Validate model state
             var validationResult = ValidateModelState();
-            if (validationResult.IsFailure)
+            if (validationResult != null)
             {
-                return HandleResult(validationResult);
+                return BadRequest(validationResult);
             }
 
             var result = await _productService.CreateAsync(productDto);
-            return HandleCreateResult(result, nameof(GetProduct), new { id = result.Data?.Id });
+            return HandleCreateResult(result);
         }
 
         // PUT: api/Products/5
         [HttpPut("{id}")]
         [Authorize(Roles = "Admin")] // Only admin can update products
-        public async Task<IActionResult> UpdateProduct(int id, UpdateProductDTO productDto)
-        {
+        public async Task<IActionResult> UpdateProduct(int id, UpdateProductDTO productDto)        {
             // Validate model state
             var validationResult = ValidateModelState();
-            if (validationResult.IsFailure)
+            if (validationResult != null)
             {
-                return HandleResult(validationResult);
+                return BadRequest(validationResult);
             }
 
             var result = await _productService.UpdateAsync(id, productDto);
@@ -128,18 +126,16 @@ namespace DecorStore.API.Controllers
         {
             var result = await _productService.DeleteProductAsync(id);
             return HandleResult(result);
-        }
-
-        // DELETE: api/Products/bulk
+        }        // DELETE: api/Products/bulk
         [HttpDelete("bulk")]
         [Authorize(Roles = "Admin")] // Only admin can bulk delete products
         public async Task<IActionResult> BulkDeleteProducts(BulkDeleteDTO bulkDeleteDto)
         {
             // Validate model state
             var validationResult = ValidateModelState();
-            if (validationResult.IsFailure)
+            if (validationResult != null)
             {
-                return HandleResult(validationResult);
+                return validationResult;
             }
 
             var result = await _productService.BulkDeleteProductsAsync(bulkDeleteDto);

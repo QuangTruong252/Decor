@@ -67,13 +67,13 @@ namespace DecorStore.API.Controllers
         public async Task<ActionResult<CustomerDTO>> CreateCustomer(CreateCustomerDTO customerDto)
         {
             var validationResult = ValidateModelState();
-            if (validationResult.IsFailure)
+            if (validationResult != null)
             {
-                return HandleResult(validationResult);
+                return BadRequest(validationResult);
             }
 
             var result = await _customerService.CreateCustomerAsync(customerDto);
-            return HandleCreateResult(result, nameof(GetCustomer), new { id = result.Data?.Id });
+            return HandleCreateResult(result);
         }
 
         // PUT: api/Customer/5
@@ -82,9 +82,9 @@ namespace DecorStore.API.Controllers
         public async Task<ActionResult<CustomerDTO>> UpdateCustomer(int id, UpdateCustomerDTO customerDto)
         {
             var validationResult = ValidateModelState();
-            if (validationResult.IsFailure)
+            if (validationResult != null)
             {
-                return HandleResult(validationResult);
+                return BadRequest(validationResult);
             }
 
             var result = await _customerService.UpdateCustomerAsync(id, customerDto);

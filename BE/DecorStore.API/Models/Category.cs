@@ -29,12 +29,10 @@ namespace DecorStore.API.Models
 
         public bool IsDeleted { get; set; } = false;        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
-        public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
-
-        // Navigation properties
+        public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;        // Navigation properties
         [ForeignKey("ParentId")]
         [JsonIgnore]
-        public virtual Category ParentCategory { get; set; }
+        public virtual Category? ParentCategory { get; set; }
 
         [JsonIgnore]
         public virtual ICollection<Category> Subcategories { get; set; }

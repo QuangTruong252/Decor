@@ -30,34 +30,32 @@ namespace DecorStore.API.Controllers
             var (userId, sessionId) = GetUserIdentifiers();
             var result = await _cartService.GetCartAsync(userId, sessionId);
             return HandleResult(result);
-        }
-
-        // POST: api/Cart
+        }        // POST: api/Cart
         [HttpPost]
-        public async Task<ActionResult<CartDTO>> AddToCart(AddToCartDTO addToCartDto)
+        public async Task<IActionResult> AddToCart(AddToCartDTO addToCartDto)
         {
-            if (!ValidateModelState())
+            var validationResult = ValidateModelState();
+            if (validationResult != null)
             {
-                return BadRequest(ModelState);
-            }
-
-            var (userId, sessionId) = GetUserIdentifiers();
+                return validationResult;
+            }            var (userId, sessionId) = GetUserIdentifiers();
             var result = await _cartService.AddToCartAsync(userId, sessionId, addToCartDto);
-            return HandleResult(result);
-        }
-
-        // PUT: api/Cart/items/{id}
+            if (result.IsSuccess)
+                return Ok(result.Data);
+            return BadRequest(result.Error);
+        }        // PUT: api/Cart/items/{id}
         [HttpPut("items/{id}")]
-        public async Task<ActionResult<CartDTO>> UpdateCartItem(int id, UpdateCartItemDTO updateCartItemDto)
-        {
-            if (!ValidateModelState())
+        public async Task<IActionResult> UpdateCartItem(int id, UpdateCartItemDTO updateCartItemDto)
+        {            var validationResult = ValidateModelState();
+            if (validationResult != null)
             {
-                return BadRequest(ModelState);
+                return validationResult;
             }
 
-            var (userId, sessionId) = GetUserIdentifiers();
-            var result = await _cartService.UpdateCartItemAsync(userId, sessionId, id, updateCartItemDto);
-            return HandleResult(result);
+            var (userId, sessionId) = GetUserIdentifiers();            var result = await _cartService.UpdateCartItemAsync(userId, sessionId, id, updateCartItemDto);
+            if (result.IsSuccess)
+                return Ok(result.Data);
+            return BadRequest(result.Error);
         }
 
         // DELETE: api/Cart/items/{id}

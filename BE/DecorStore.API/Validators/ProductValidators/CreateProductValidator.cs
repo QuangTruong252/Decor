@@ -98,7 +98,7 @@ namespace DecorStore.API.Validators.ProductValidators
         {
             try
             {
-                return !await _unitOfWork.Products.AnyAsync(p => p.SKU.ToUpper() == sku.ToUpper());
+                return !await _unitOfWork.Products.SkuExistsAsync(sku);
             }
             catch
             {
@@ -110,7 +110,7 @@ namespace DecorStore.API.Validators.ProductValidators
         {
             try
             {
-                return !await _unitOfWork.Products.AnyAsync(p => p.Slug.ToLower() == slug.ToLower());
+                return !await _unitOfWork.Products.SlugExistsAsync(slug);
             }
             catch
             {
@@ -147,6 +147,7 @@ namespace DecorStore.API.Validators.ProductValidators
 
         private async Task<bool> BeValidProductCombination(CreateProductDTO product, CancellationToken cancellationToken)
         {
+            await Task.CompletedTask;
             try
             {
                 // Business rule: Digital products should have zero weight

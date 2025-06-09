@@ -33,9 +33,7 @@ namespace DecorStore.API.Repositories
 
             await _context.OrderItems.AddRangeAsync(entities);
             return entities;
-        }
-
-        public async Task UpdateRangeAsync(IEnumerable<OrderItem> orderItems)
+        }        public Task UpdateRangeAsync(IEnumerable<OrderItem> orderItems)
         {
             if (orderItems == null)
                 throw new ArgumentNullException(nameof(orderItems));
@@ -47,6 +45,7 @@ namespace DecorStore.API.Repositories
             }
 
             _context.OrderItems.UpdateRange(entities);
+            return Task.CompletedTask;
         }
 
         public async Task DeleteAsync(OrderItem orderItem)
@@ -58,9 +57,7 @@ namespace DecorStore.API.Repositories
             orderItem.IsDeleted = true;
             orderItem.UpdatedAt = DateTime.UtcNow;
             await UpdateAsync(orderItem);
-        }
-
-        public async Task DeleteRangeAsync(IEnumerable<OrderItem> orderItems)
+        }        public Task DeleteRangeAsync(IEnumerable<OrderItem> orderItems)
         {
             if (orderItems == null)
                 throw new ArgumentNullException(nameof(orderItems));
@@ -73,6 +70,7 @@ namespace DecorStore.API.Repositories
             }
 
             _context.OrderItems.UpdateRange(entities);
+            return Task.CompletedTask;
         }
 
         public async Task<bool> ExistsAsync(Expression<Func<OrderItem, bool>> predicate)

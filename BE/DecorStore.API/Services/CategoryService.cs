@@ -6,11 +6,9 @@ using DecorStore.API.Common;
 using AutoMapper;
 
 namespace DecorStore.API.Services
-{
-    public class CategoryService(IUnitOfWork unitOfWork, IImageService imageService, IMapper mapper) : ICategoryService
+{    public class CategoryService(IUnitOfWork unitOfWork, IImageService imageService, IMapper mapper) : ICategoryService
     {
         private readonly IUnitOfWork _unitOfWork = unitOfWork;
-        private readonly string _folderImageName = "categories";
         private readonly IImageService _imageService = imageService;
         private readonly IMapper _mapper = mapper;
 
@@ -405,7 +403,9 @@ namespace DecorStore.API.Services
             if (string.IsNullOrWhiteSpace(categoryDto.Name))
             {
                 errors.Add("Category name is required");
-            }            if (string.IsNullOrWhiteSpace(categoryDto.Slug))
+            }
+
+            if (string.IsNullOrWhiteSpace(categoryDto.Slug))
             {
                 errors.Add("Category slug is required");
             }
@@ -415,10 +415,9 @@ namespace DecorStore.API.Services
                 return Result.Failure("Validation failed", "VALIDATION_ERROR", errors);
             }
 
+            await Task.CompletedTask;
             return Result.Success();
-        }
-
-        private async Task<Result> ValidateUpdateCategoryDto(UpdateCategoryDTO categoryDto)
+        }        private async Task<Result> ValidateUpdateCategoryDto(UpdateCategoryDTO categoryDto)
         {
             var errors = new List<string>();
 
@@ -431,7 +430,9 @@ namespace DecorStore.API.Services
             if (categoryDto.Name != null && string.IsNullOrWhiteSpace(categoryDto.Name))
             {
                 errors.Add("Category name cannot be empty");
-            }            if (categoryDto.Slug != null && string.IsNullOrWhiteSpace(categoryDto.Slug))
+            }
+
+            if (categoryDto.Slug != null && string.IsNullOrWhiteSpace(categoryDto.Slug))
             {
                 errors.Add("Category slug cannot be empty");
             }
@@ -441,6 +442,7 @@ namespace DecorStore.API.Services
                 return Result.Failure("Validation failed", "VALIDATION_ERROR", errors);
             }
 
+            await Task.CompletedTask;
             return Result.Success();
         }
 

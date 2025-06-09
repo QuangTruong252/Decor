@@ -559,15 +559,13 @@ namespace DecorStore.API.Services
             }
 
             return Result.Success();
-        }
-
-        private async Task<Result> ValidateCreateOrderDto(CreateOrderDTO orderDto)
+        }        private Task<Result> ValidateCreateOrderDto(CreateOrderDTO orderDto)
         {
             var errors = new List<string>();
 
             if (orderDto == null)
             {
-                return Result.Failure("INVALID_REQUEST", "Order data cannot be null");
+                return Task.FromResult(Result.Failure("INVALID_REQUEST", "Order data cannot be null"));
             }
 
             if (orderDto.OrderItems == null || !orderDto.OrderItems.Any())
@@ -586,18 +584,17 @@ namespace DecorStore.API.Services
                     if (item.Quantity <= 0)
                     {
                         errors.Add($"Invalid quantity for product {item.ProductId}: {item.Quantity}");
-                    }                }
+                    }
+                }
             }
 
             if (errors.Any())
             {
-                return Result.Failure("Validation failed", "VALIDATION_ERROR", errors);
+                return Task.FromResult(Result.Failure("Validation failed", "VALIDATION_ERROR", errors));
             }
 
-            return Result.Success();
-        }
-
-        private async Task<Result> ValidateUpdateOrderDto(UpdateOrderDTO orderDto)
+            return Task.FromResult(Result.Success());
+        }private async Task<Result> ValidateUpdateOrderDto(UpdateOrderDTO orderDto)
         {
             var errors = new List<string>();
 
@@ -610,11 +607,14 @@ namespace DecorStore.API.Services
             if (orderDto.CustomerId.HasValue && orderDto.CustomerId.Value <= 0)
             {
                 errors.Add("Invalid customer ID");
-            }            if (errors.Any())
+            }
+
+            if (errors.Any())
             {
                 return Result.Failure("Validation failed", "VALIDATION_ERROR", errors);
             }
 
+            await Task.CompletedTask;
             return Result.Success();
         }
 

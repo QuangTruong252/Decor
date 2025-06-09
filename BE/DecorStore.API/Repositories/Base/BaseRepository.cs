@@ -59,9 +59,7 @@ namespace DecorStore.API.Repositories.Base
 
             var result = await _dbSet.AddAsync(entity);
             return result.Entity;
-        }
-
-        public virtual async Task UpdateAsync(T entity)
+        }        public virtual Task UpdateAsync(T entity)
         {
             if (entity == null)
                 throw new ArgumentNullException(nameof(entity));
@@ -74,6 +72,8 @@ namespace DecorStore.API.Repositories.Base
             // Ensure CreatedAt and IsDeleted are not modified during updates
             _context.Entry(entity).Property(e => e.CreatedAt).IsModified = false;
             _context.Entry(entity).Property(e => e.IsDeleted).IsModified = false;
+            
+            return Task.CompletedTask;
         }
 
         public virtual async Task DeleteAsync(int id)

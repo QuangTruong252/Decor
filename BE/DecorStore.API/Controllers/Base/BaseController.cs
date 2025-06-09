@@ -1,16 +1,16 @@
 using Microsoft.AspNetCore.Mvc;
 using DecorStore.API.Common;
+using DecorStore.API.Models;
 using System.Diagnostics;
 
 namespace DecorStore.API.Controllers.Base
 {
     /// <summary>
     /// Base controller providing consistent response handling and common functionality
-    /// </summary>
-    [ApiController]
+    /// </summary>    [ApiController]
     public abstract class BaseController : ControllerBase
     {
-        private readonly ILogger<BaseController> _logger;
+        private readonly ILogger<BaseController>? _logger;
 
         protected BaseController(ILogger<BaseController> logger)
         {
@@ -20,6 +20,7 @@ namespace DecorStore.API.Controllers.Base
         protected BaseController() 
         {
             // Parameterless constructor for controllers that don't need logging
+            _logger = null;
         }
 
         /// <summary>
@@ -39,36 +40,153 @@ namespace DecorStore.API.Controllers.Base
         }
 
         /// <summary>
-        /// Handles non-generic Result and returns appropriate HTTP response
+        /// Validates the model state and returns standardized error response
         /// </summary>
-        /// <param name="result">The result to handle</param>
-        /// <returns>Appropriate ActionResult based on result state</returns>
-        protected ActionResult HandleResult(Result result)
+        protected IActionResult ValidateModelState()
         {
-            if (result.IsSuccess)
+            if (!ModelState.IsValid)
             {
-                return Ok();
+                var errors = new Dictionary<string, string[]>();
+                var errorCodes = new List<string>();
+
+                foreach (var kvp in ModelState.Where(x => x.Value?.Errors.Count > 0))
+                {
+                    var fieldErrors = new List<string>();
+                    var fieldErrorCodes = new List<string>();
+
+                    foreach (var error in kvp.Value!.Errors)
+                    {
+                        // Handle FluentValidation errors which may include error codes
+                        if (!string.IsNullOrEmpty(error.ErrorMessage))
+                        {
+                            fieldErrors.Add(error.ErrorMessage);
+                            
+                            // Extract error code if it follows the pattern [CODE] Message
+                            var match = System.Text.RegularExpressions.Regex.Match(
+                                error.ErrorMessage, @"^\[([A-Z_]+)\]\s*(.+)$");
+                            
+                            if (match.Success)
+                            {
+                                fieldErrorCodes.Add(match.Groups[1].Value);
+                                // Update the error message to remove the code prefix
+                                fieldErrors[^1] = match.Groups[2].Value;
+                            }
+                        }
+                    }
+
+                    if (fieldErrors.Any())
+                    {
+                        errors[kvp.Key] = fieldErrors.ToArray();
+                        errorCodes.AddRange(fieldErrorCodes);
+                    }
+                }
+
+                // Determine primary error code
+                var primaryErrorCode = errorCodes.FirstOrDefault() ?? "VALIDATION_ERROR";
+                
+                // Determine severity based on error types
+                var severity = DetermineSeverity(errorCodes);
+
+                // Generate contextual suggested actions
+                var suggestedActions = GenerateSuggestedActions(errors);
+
+                var errorResponse = new ErrorResponse
+                {
+                    CorrelationId = GetCorrelationId(),
+                    ErrorCode = primaryErrorCode,
+                    Message = GetValidationErrorMessage(errors.Count),
+                    Details = $"Validation failed for {errors.Count} field(s). Please review and correct the highlighted issues.",
+                    Timestamp = DateTime.UtcNow,
+                    Path = Request.Path,
+                    ValidationErrors = errors,
+                    Severity = severity,
+                    SuggestedActions = suggestedActions.ToArray(),
+                    Metadata = new Dictionary<string, object>
+                    {
+                        { "TotalErrors", errors.Values.Sum(e => e.Length) },
+                        { "FieldsWithErrors", errors.Count },
+                        { "ErrorCodes", errorCodes.Distinct().ToArray() }
+                    }
+                };
+
+                return BadRequest(errorResponse);
             }
 
-            return HandleFailureResult(result);
+            return null!; // Model state is valid
         }
 
         /// <summary>
-        /// Handles Result<T> for create operations with location header
+        /// Determines error severity based on error codes
         /// </summary>
-        /// <typeparam name="T">The data type</typeparam>
-        /// <param name="result">The result to handle</param>
-        /// <param name="actionName">The action name for location header</param>
-        /// <param name="routeValues">The route values for location header</param>
-        /// <returns>Appropriate ActionResult based on result state</returns>
-        protected ActionResult<T> HandleCreateResult<T>(Result<T> result, string actionName, object? routeValues = null)
+        private static ErrorSeverity DetermineSeverity(List<string> errorCodes)
         {
-            if (result.IsSuccess)
+            if (errorCodes.Any(code => code.Contains("SECURITY") || code.Contains("UNAUTHORIZED")))
+                return ErrorSeverity.Critical;
+            
+            if (errorCodes.Any(code => code.Contains("DUPLICATE") || code.Contains("CONFLICT")))
+                return ErrorSeverity.Error;
+            
+            if (errorCodes.Any(code => code.Contains("FORMAT") || code.Contains("INVALID")))
+                return ErrorSeverity.Warning;
+            
+            return ErrorSeverity.Error;
+        }
+
+        /// <summary>
+        /// Generates contextual suggested actions based on validation errors
+        /// </summary>
+        private static List<string> GenerateSuggestedActions(Dictionary<string, string[]> errors)
+        {
+            var actions = new List<string>();
+
+            foreach (var field in errors.Keys)
             {
-                return CreatedAtAction(actionName, routeValues, result.Data);
+                var fieldName = field.ToLowerInvariant();
+                var fieldErrors = errors[field];
+
+                if (fieldErrors.Any(e => e.Contains("required", StringComparison.OrdinalIgnoreCase)))
+                {
+                    actions.Add($"Provide a value for {field}");
+                }
+                else if (fieldErrors.Any(e => e.Contains("format", StringComparison.OrdinalIgnoreCase)))
+                {
+                    actions.Add($"Check the format of {field}");
+                }
+                else if (fieldErrors.Any(e => e.Contains("length", StringComparison.OrdinalIgnoreCase)))
+                {
+                    actions.Add($"Adjust the length of {field}");
+                }
+                else if (fieldErrors.Any(e => e.Contains("exists", StringComparison.OrdinalIgnoreCase)))
+                {
+                    actions.Add($"Use a different value for {field}");
+                }
+                else if (fieldErrors.Any(e => e.Contains("range", StringComparison.OrdinalIgnoreCase)))
+                {
+                    actions.Add($"Ensure {field} is within the valid range");
+                }
             }
 
-            return HandleFailureResult<T>(result);
+            if (!actions.Any())
+            {
+                actions.Add("Please review and correct the validation errors");
+                actions.Add("Ensure all required fields are provided");
+                actions.Add("Check that all values meet the specified requirements");
+            }
+
+            return actions.Distinct().Take(5).ToList(); // Limit to 5 most relevant actions
+        }
+
+        /// <summary>
+        /// Gets appropriate validation error message based on error count
+        /// </summary>
+        private static string GetValidationErrorMessage(int errorCount)
+        {
+            return errorCount switch
+            {
+                1 => "A validation error occurred",
+                <= 5 => $"{errorCount} validation errors occurred",
+                _ => $"Multiple validation errors occurred ({errorCount} errors)"
+            };
         }
 
         /// <summary>
@@ -191,10 +309,9 @@ namespace DecorStore.API.Controllers.Base
         private void AddCorrelationId()
         {
             var correlationId = GetOrCreateCorrelationId();
-            
-            if (HttpContext?.Response?.Headers != null && !HttpContext.Response.Headers.ContainsKey("X-Correlation-ID"))
+              if (HttpContext?.Response?.Headers != null && !HttpContext.Response.Headers.ContainsKey("X-Correlation-ID"))
             {
-                HttpContext.Response.Headers.Add("X-Correlation-ID", correlationId);
+                HttpContext.Response.Headers["X-Correlation-ID"] = correlationId;
             }
         }
 
@@ -226,34 +343,57 @@ namespace DecorStore.API.Controllers.Base
             return User?.IsInRole(role) ?? false;
         }
 
-        /// <summary>
-        /// Validates model state and returns validation result
-        /// </summary>
-        /// <returns>Result indicating validation success or failure</returns>
-        protected Result ValidateModelState()
-        {
-            if (!ModelState.IsValid)
-            {
-                var errors = ModelState
-                    .Where(x => x.Value?.Errors.Count > 0)
-                    .SelectMany(x => x.Value!.Errors)
-                    .Select(x => x.ErrorMessage)
-                    .ToList();
-
-                return Result.ValidationFailure(errors);
-            }
-
-            return Result.Success();
-        }
 
         /// <summary>
         /// Creates a validation error response for invalid model state
         /// </summary>
         /// <returns>BadRequest with validation errors</returns>
-        protected ActionResult HandleValidationErrors()
+        protected IActionResult HandleValidationErrors()
         {
             var validationResult = ValidateModelState();
-            return HandleResult(validationResult);
+            return validationResult ?? Ok(); // Return the validation result directly, or Ok() if valid
+        }
+
+        /// <summary>
+        /// Gets the correlation ID from the current request context
+        /// </summary>
+        /// <returns>The correlation ID</returns>
+        protected string GetCorrelationId()
+        {
+            return GetOrCreateCorrelationId();
+        }
+
+        /// <summary>
+        /// Handles create operations and returns appropriate HTTP response
+        /// </summary>
+        /// <typeparam name="T">The data type</typeparam>
+        /// <param name="result">The result to handle</param>
+        /// <returns>Created response on success, error response on failure</returns>
+        protected ActionResult<T> HandleCreateResult<T>(Result<T> result)
+        {
+            if (result.IsSuccess)
+            {
+                AddCorrelationId();
+                return Created(string.Empty, result.Data);
+            }
+
+            return HandleFailureResult<T>(result);
+        }
+
+        /// <summary>
+        /// Handles non-generic result operations
+        /// </summary>
+        /// <param name="result">The result to handle</param>
+        /// <returns>Appropriate ActionResult based on result state</returns>
+        protected ActionResult HandleResult(Result result)
+        {
+            if (result.IsSuccess)
+            {
+                AddCorrelationId();
+                return Ok();
+            }
+
+            return HandleFailureResult(result);
         }
     }
 }

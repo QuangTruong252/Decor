@@ -410,9 +410,7 @@ namespace DecorStore.API.Services.Excel
             // passed to ExecuteWithExecutionStrategyAsync if specific rollback logic per operation is needed, 
             // or rely on the strategy to handle retries and the overall transaction to rollback on failure.
             // For simplicity here, the existing try-catch in the calling methods (ImportCategoriesAsync) will handle exceptions.
-        }
-
-        private async Task<List<CategoryExcelDTO>> MapToExcelDtosAsync(IEnumerable<Category> categories)
+        }        private async Task<List<CategoryExcelDTO>> MapToExcelDtosAsync(IEnumerable<Category> categories)
         {
             var result = new List<CategoryExcelDTO>();
 
@@ -429,6 +427,7 @@ namespace DecorStore.API.Services.Excel
             }
 
             // Build hierarchy information
+            await Task.CompletedTask;
             return CategoryExcelDTO.BuildHierarchy(result);
         }
 

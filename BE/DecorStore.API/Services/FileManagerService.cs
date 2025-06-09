@@ -11,14 +11,12 @@ using System.Text.RegularExpressions;
 namespace DecorStore.API.Services
 {
     public class FileManagerService : IFileManagerService
-    {
-        private readonly IImageRepository _imageRepository;
+    {        private readonly IImageRepository _imageRepository;
         private readonly IImageService _imageService;
         private readonly IConfiguration _configuration;
         private readonly string _uploadsPath;
         private readonly string _thumbnailsPath;
         private readonly string[] _imageExtensions = { ".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp" };
-        private readonly long _maxFileSize = 10 * 1024 * 1024; // 10MB
 
         public FileManagerService(
             IImageRepository imageRepository,

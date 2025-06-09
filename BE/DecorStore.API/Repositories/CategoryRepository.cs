@@ -37,9 +37,7 @@ namespace DecorStore.API.Repositories
                 .ThenInclude(ci => ci.Image)
                 .Where(c => c.ParentId == null)
                 .ToListAsync();
-        }
-
-        public async Task<Category> GetByIdWithChildrenAsync(int id)
+        }        public async Task<Category?> GetByIdWithChildrenAsync(int id)
         {
             return await _context.Categories
                 .Include(c => c.ParentCategory)
@@ -51,7 +49,7 @@ namespace DecorStore.API.Repositories
                 .FirstOrDefaultAsync(c => c.Id == id);
         }
 
-        public async Task<Category> GetBySlugAsync(string slug)
+        public async Task<Category?> GetBySlugAsync(string slug)
         {
             return await _context.Categories
                 .Include(c => c.ParentCategory)
@@ -191,6 +189,47 @@ namespace DecorStore.API.Repositories
             };
 
             return query;
+        }
+
+        public async Task<bool> ExistsByNameAsync(string name)
+        {
+            return await _context.Categories.AnyAsync(c => c.Name == name && !c.IsDeleted);
+        }
+
+        public async Task<bool> ExistsByNameAsync(string name, int excludeCategoryId)
+        {
+            return await _context.Categories.AnyAsync(c => c.Name == name && c.Id != excludeCategoryId && !c.IsDeleted);
+        }
+
+        public async Task<bool> ExistsBySlugAsync(string slug)
+        {
+            return await _context.Categories.AnyAsync(c => c.Slug == slug && !c.IsDeleted);
+        }
+
+        public async Task<bool> ExistsBySlugAsync(string slug, int excludeCategoryId)
+        {
+            return await _context.Categories.AnyAsync(c => c.Slug == slug && c.Id != excludeCategoryId && !c.IsDeleted);
+        }
+
+        public async Task<List<int>> GetDescendantIdsAsync(int categoryId)
+        {
+            var descendantIds = new List<int>();
+            await GetDescendantIdsRecursive(categoryId, descendantIds);
+            return descendantIds;
+        }
+
+        private async Task GetDescendantIdsRecursive(int categoryId, List<int> descendantIds)
+        {
+            var childrenIds = await _context.Categories
+                .Where(c => c.ParentId == categoryId && !c.IsDeleted)
+                .Select(c => c.Id)
+                .ToListAsync();
+
+            foreach (var childId in childrenIds)
+            {
+                descendantIds.Add(childId);
+                await GetDescendantIdsRecursive(childId, descendantIds);
+            }
         }
     }
 }

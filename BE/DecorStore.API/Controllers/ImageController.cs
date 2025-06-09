@@ -25,14 +25,12 @@ namespace DecorStore.API.Controllers
         /// Upload multiple images and return their IDs
         /// </summary>
         /// <param name="uploadDto">Images to upload</param>
-        /// <returns>List of uploaded image information</returns>
-        [HttpPost("upload")]
-        public async Task<ActionResult<ImageUploadResponseDTO>> UploadImages([FromForm] ImageUploadDTO uploadDto)
-        {
+        /// <returns>List of uploaded image information</returns>        [HttpPost("upload")]
+        public async Task<IActionResult> UploadImages([FromForm] ImageUploadDTO uploadDto){
             var validationResult = ValidateModelState();
-            if (validationResult.IsFailure)
+            if (validationResult != null)
             {
-                return BadRequest(validationResult.Error);
+                return validationResult;
             }
 
             if (uploadDto.Files == null || !uploadDto.Files.Any())

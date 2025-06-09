@@ -381,11 +381,10 @@ namespace DecorStore.API.Services.Excel
                     var cellValue = worksheet.Cells[row, columnIndex].Text;
                     rowErrors.Add(new ExcelValidationErrorDTO(row, columnName, $"Invalid value: {ex.Message}", ExcelErrorCodes.INVALID_DATA_TYPE, ExcelErrorSeverity.Error, cellValue));
                 }
-            }
-
-            errors.AddRange(rowErrors);
+            }            errors.AddRange(rowErrors);
 
             // Return item only if it has data and no critical errors
+            await Task.CompletedTask;
             return hasData && !rowErrors.Any(e => e.Severity == ExcelErrorSeverity.Critical) ? item : null;
         }
 

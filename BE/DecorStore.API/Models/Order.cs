@@ -24,15 +24,13 @@ namespace DecorStore.API.Models
 
         [Required]
         [StringLength(50)]
-        public string OrderStatus { get; set; } = "Pending";
-
-        [Required]
+        public string OrderStatus { get; set; } = "Pending";        [Required]
         [StringLength(50)]
-        public string PaymentMethod { get; set; }
+        public required string PaymentMethod { get; set; }
 
         [Required]
         [StringLength(255)]
-        public string ShippingAddress { get; set; }
+        public required string ShippingAddress { get; set; }
 
         [StringLength(100)]
         public string? ShippingCity { get; set; }
@@ -63,18 +61,16 @@ namespace DecorStore.API.Models
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
-        public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
-
-        // Navigation properties
+        public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;        // Navigation properties
         [ForeignKey("UserId")]
         [JsonIgnore]
-        public virtual User User { get; set; }
+        public virtual required User User { get; set; }
 
         [ForeignKey("CustomerId")]
         [JsonIgnore]
-        public virtual Customer Customer { get; set; }
+        public virtual Customer? Customer { get; set; }
 
         [JsonIgnore]
-        public virtual ICollection<OrderItem> OrderItems { get; set; }
+        public virtual ICollection<OrderItem> OrderItems { get; set; } = new List<OrderItem>();
     }
 }

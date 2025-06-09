@@ -9,17 +9,16 @@ namespace DecorStore.API.Models
         [Key]
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         public int Id { get; set; }
-        
-        [Required]
+          [Required]
         [StringLength(100)]
-        public string Title { get; set; }
+        public required string Title { get; set; }
         
         [Required]
         [StringLength(255)]
-        public string ImageUrl { get; set; }
+        public required string ImageUrl { get; set; }
         
         [StringLength(255)]
-        public string Link { get; set; }
+        public required string Link { get; set; }
         
         public bool IsActive { get; set; } = true;
         

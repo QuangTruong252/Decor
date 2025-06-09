@@ -18,14 +18,11 @@ namespace DecorStore.API.Controllers
             ILogger<FileManagerController> logger) : base(logger)
         {
             _fileManagerService = fileManagerService;
-        }
-
-        [HttpPost("browse")]
-        public async Task<ActionResult<FileBrowseResponseDTO>> BrowseFiles([FromBody] FileBrowseRequestDTO request)
-        {
-            var modelValidation = ValidateModelState();
-            if (modelValidation.IsFailure)
-                return BadRequest(modelValidation.Error);
+        }        [HttpPost("browse")]
+        public async Task<IActionResult> BrowseFiles([FromBody] FileBrowseRequestDTO request)
+        {            var modelValidation = ValidateModelState();
+            if (modelValidation != null)
+                return modelValidation;
 
             var result = await _fileManagerService.BrowseFilesAsync(request);
             if (result.IsFailure)
@@ -65,77 +62,63 @@ namespace DecorStore.API.Controllers
 
             var (fileStream, contentType, fileName) = result.Data;
             return File(fileStream, contentType, fileName);
-        }
-
-        [HttpPost("upload")]
-        public async Task<ActionResult<FileUploadResponseDTO>> UploadFiles([FromForm] IFormFileCollection files, [FromForm] FileUploadRequestDTO request)
+        }        [HttpPost("upload")]
+        public async Task<IActionResult> UploadFiles([FromForm] IFormFileCollection files, [FromForm] FileUploadRequestDTO request)
         {
             if (files == null || !files.Any())
                 return BadRequest("No files provided");
 
-            var modelValidation = ValidateModelState();
-            if (modelValidation.IsFailure)
-                return BadRequest(modelValidation.Error);
-
-            var result = await _fileManagerService.UploadFilesAsync(files, request);
-            var actionResult = HandleCreateResult(result, "Files uploaded successfully");
-            return actionResult.Result ?? actionResult;
-        }
-
-        [HttpPost("create-folder")]
+            var modelValidation = ValidateModelState();            if (modelValidation != null)
+                return modelValidation;            var result = await _fileManagerService.UploadFilesAsync(files, request);
+            if (result.IsSuccess)
+                return Ok(result.Data);
+            return BadRequest(result.Error);
+        }        [HttpPost("create-folder")]
         public async Task<ActionResult<FileItemDTO>> CreateFolder([FromBody] CreateFolderRequestDTO request)
         {
             var modelValidation = ValidateModelState();
-            if (modelValidation.IsFailure)
-                return BadRequest(modelValidation.Error);
+            if (modelValidation != null)
+                return BadRequest(modelValidation);
 
             var result = await _fileManagerService.CreateFolderAsync(request);
-            return HandleCreateResult(result, "Folder created successfully");
-        }
-
-        [HttpDelete("delete")]
+            return HandleCreateResult(result);
+        }        [HttpDelete("delete")]
         public async Task<ActionResult<DeleteFileResponseDTO>> DeleteFiles([FromBody] DeleteFileRequestDTO request)
         {
             var modelValidation = ValidateModelState();
-            if (modelValidation.IsFailure)
-                return BadRequest(modelValidation.Error);
+            if (modelValidation != null)
+                return BadRequest(modelValidation);
 
             var result = await _fileManagerService.DeleteFilesAsync(request);
             if (result.IsFailure)
                 return BadRequest(result.Error);
 
             return Ok(result.Data);
-        }
-
-        [HttpPost("move")]
+        }        [HttpPost("move")]
         public async Task<ActionResult<FileOperationResponseDTO>> MoveFiles([FromBody] MoveFileRequestDTO request)
         {
             var modelValidation = ValidateModelState();
-            if (modelValidation.IsFailure)
-                return BadRequest(modelValidation.Error);
+            if (modelValidation != null)
+                return BadRequest(modelValidation);
 
             var result = await _fileManagerService.MoveFilesAsync(request);
             if (result.IsFailure)
                 return BadRequest(result.Error);
 
             return Ok(result.Data);
-        }
-
-        [HttpPost("copy")]
+        }        [HttpPost("copy")]
         public async Task<ActionResult<FileOperationResponseDTO>> CopyFiles([FromBody] CopyFileRequestDTO request)
         {
             var modelValidation = ValidateModelState();
-            if (modelValidation.IsFailure)
-                return BadRequest(modelValidation.Error);
+            if (modelValidation != null)
+                return BadRequest(modelValidation);
 
             var result = await _fileManagerService.CopyFilesAsync(request);
             if (result.IsFailure)
                 return BadRequest(result.Error);
 
             return Ok(result.Data);
-        }
-
-        [HttpGet("validate-path")]
+        }        [HttpGet("validate-path")]
         public async Task<ActionResult<bool>> ValidatePath([FromQuery] string path)
         {
             if (string.IsNullOrWhiteSpace(path))

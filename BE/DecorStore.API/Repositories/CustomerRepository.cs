@@ -37,16 +37,14 @@ namespace DecorStore.API.Repositories
                 .Include(c => c.Orders)
                 .Where(c => !c.IsDeleted)
                 .ToListAsync();
-        }
-
-        public async Task<Customer> GetByIdAsync(int id)
+        }        public async Task<Customer?> GetByIdAsync(int id)
         {
             return await _context.Customers
                 .Include(c => c.Orders)
                 .FirstOrDefaultAsync(c => c.Id == id && !c.IsDeleted);
         }
 
-        public async Task<Customer> GetByEmailAsync(string email)
+        public async Task<Customer?> GetByEmailAsync(string email)
         {
             return await _context.Customers
                 .Include(c => c.Orders)
@@ -68,7 +66,24 @@ namespace DecorStore.API.Repositories
         public async Task<bool> EmailExistsAsync(string email, int excludeCustomerId)
         {
             return await _context.Customers
-                .AnyAsync(c => c.Email == email && !c.IsDeleted && c.Id != excludeCustomerId);
+                .AnyAsync(c => c.Email == email && c.Id != excludeCustomerId);
+        }
+
+        public async Task<bool> ExistsByEmailAsync(string email)
+        {
+            return await _context.Customers.AnyAsync(c => c.Email == email);
+        }
+
+        public async Task<bool> ExistsByEmailAsync(string email, int excludeCustomerId)
+        {
+            return await _context.Customers
+                .AnyAsync(c => c.Email == email && c.Id != excludeCustomerId);
+        }
+
+        public async Task<bool> ExistsByPhoneAsync(string phone, int excludeCustomerId)
+        {
+            return await _context.Customers
+                .AnyAsync(c => c.Phone == phone && c.Id != excludeCustomerId);
         }
 
         public async Task<int> GetTotalCountAsync(CustomerFilterDTO filter)

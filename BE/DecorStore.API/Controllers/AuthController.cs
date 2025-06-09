@@ -22,17 +22,16 @@ namespace DecorStore.API.Controllers
         }
 
         // POST: api/Auth/register
-        [HttpPost("register")]
-        public async Task<ActionResult<AuthResponseDTO>> Register(RegisterDTO registerDto)
+        [HttpPost("register")]        public async Task<ActionResult<AuthResponseDTO>> Register(RegisterDTO registerDto)
         {
             var validationResult = ValidateModelState();
-            if (validationResult.IsFailure)
+            if (validationResult != null)
             {
-                return HandleResult(validationResult);
+                return BadRequest(validationResult);
             }
 
             var registerResult = await _authService.RegisterAsync(registerDto);
-            return HandleCreateResult(registerResult, nameof(GetCurrentUser), null);
+            return HandleCreateResult(registerResult);
         }
 
         // POST: api/Auth/login
@@ -40,9 +39,9 @@ namespace DecorStore.API.Controllers
         public async Task<ActionResult<AuthResponseDTO>> Login(LoginDTO loginDto)
         {
             var validationResult = ValidateModelState();
-            if (validationResult.IsFailure)
+            if (validationResult != null)
             {
-                return HandleResult(validationResult);
+                return BadRequest(validationResult);
             }
 
             var loginResult = await _authService.LoginAsync(loginDto);
@@ -87,9 +86,9 @@ namespace DecorStore.API.Controllers
         public async Task<ActionResult<UserDTO>> MakeAdmin([FromBody] MakeAdminRequest request)
         {
             var validationResult = ValidateModelState();
-            if (validationResult.IsFailure)
+            if (validationResult != null)
             {
-                return HandleResult(validationResult);
+                return BadRequest(validationResult);
             }
 
             if (string.IsNullOrWhiteSpace(request?.Email))
@@ -101,15 +100,14 @@ namespace DecorStore.API.Controllers
             return HandleResult(makeAdminResult);
         }
 
-        // POST: api/Auth/change-password
-        [HttpPost("change-password")]
+        // POST: api/Auth/change-password        [HttpPost("change-password")]
         [Authorize]
-        public async Task<ActionResult> ChangePassword(ChangePasswordDTO changePasswordDto)
+        public async Task<IActionResult> ChangePassword(ChangePasswordDTO changePasswordDto)
         {
             var validationResult = ValidateModelState();
-            if (validationResult.IsFailure)
+            if (validationResult != null)
             {
-                return HandleResult(validationResult);
+                return validationResult;
             }
 
             // Get user ID from claims

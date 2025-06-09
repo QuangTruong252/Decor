@@ -47,13 +47,12 @@ namespace DecorStore.API.Controllers
         
         // POST: api/Banner
         [HttpPost]
-        [Authorize(Roles = "Admin")]
-        public async Task<ActionResult<BannerDTO>> CreateBanner([FromForm] CreateBannerDTO bannerDto)        {
+        [Authorize(Roles = "Admin")]        public async Task<ActionResult<BannerDTO>> CreateBanner([FromForm] CreateBannerDTO bannerDto)        {
             var modelValidation = ValidateModelState();
-            if (modelValidation.IsFailure) return BadRequest(modelValidation.Error);
+            if (modelValidation != null) return BadRequest(modelValidation);
 
             var result = await _bannerService.CreateBannerAsync(bannerDto);
-            return HandleCreateResult(result, nameof(GetBanner), new { id = result.Data?.Id });
+            return HandleCreateResult(result);
         }
         
         // PUT: api/Banner/5
@@ -61,10 +60,10 @@ namespace DecorStore.API.Controllers
         [Authorize(Roles = "Admin")]        public async Task<IActionResult> UpdateBanner(int id, [FromForm] UpdateBannerDTO bannerDto)
         {
             var modelValidation = ValidateModelState();
-            if (modelValidation.IsFailure) return BadRequest(modelValidation.Error);
-
-            var result = await _bannerService.UpdateBannerAsync(id, bannerDto);
-            return Ok(result.Data);
+            if (modelValidation != null) return BadRequest(modelValidation);            var result = await _bannerService.UpdateBannerAsync(id, bannerDto);
+            if (result.IsSuccess)
+                return Ok(result.Data);
+            return BadRequest(result.Error);
         }
         
         // DELETE: api/Banner/5

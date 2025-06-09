@@ -40,7 +40,7 @@ namespace DecorStore.API.Repositories
                 .ToListAsync();
         }
 
-        public async Task<Order> GetByIdWithItemsAsync(int id)
+        public async Task<Order?> GetByIdWithItemsAsync(int id)
         {
             return await _context.Orders
                 .Include(o => o.Customer)

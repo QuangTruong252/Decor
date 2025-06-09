@@ -4,9 +4,8 @@ using System.ComponentModel.DataAnnotations;
 namespace DecorStore.API.DTOs
 {
     public class BulkDeleteDTO
-    {
-        [Required]
+    {        [Required]
         [MinLength(1, ErrorMessage = "At least one ID must be provided")]
-        public List<int> Ids { get; set; }
+        public required List<int> Ids { get; set; }
     }
 }

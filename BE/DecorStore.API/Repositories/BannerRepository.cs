@@ -27,9 +27,7 @@ namespace DecorStore.API.Repositories
             return await _context.Banners
                 .Where(b => b.IsActive && !b.IsDeleted)
                 .ToListAsync();
-        }
-
-        public async Task<Banner> GetByIdAsync(int id)
+        }        public async Task<Banner?> GetByIdAsync(int id)
         {
             return await _context.Banners
                 .FirstOrDefaultAsync(b => b.Id == id);

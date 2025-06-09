@@ -64,14 +64,12 @@ namespace DecorStore.API.Controllers
         {
             var result = await _categoryService.GetCategoryBySlugAsync(slug);
             return HandleResult(result);
-        }
-
-        // POST: api/Category
+        }        // POST: api/Category
         [HttpPost]
         [Authorize(Roles = "Admin")]        public async Task<ActionResult<CategoryDTO>> CreateCategory(CreateCategoryDTO categoryDto)
         {
             var result = await _categoryService.CreateAsync(categoryDto);
-            return HandleCreateResult(result, nameof(GetCategory), new { id = result.Data?.Id });
+            return HandleCreateResult(result);
         }
 
         // PUT: api/Category/5

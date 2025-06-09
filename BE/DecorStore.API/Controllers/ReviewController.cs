@@ -50,9 +50,9 @@ namespace DecorStore.API.Controllers
         [Authorize]        public async Task<ActionResult<ReviewDTO>> CreateReview(CreateReviewDTO reviewDto)
         {
             var validationResult = ValidateModelState();
-            if (validationResult.IsFailure)
+            if (validationResult != null)
             {
-                return BadRequest(validationResult.Error);
+                return BadRequest(validationResult);
             }
 
             // Assign UserId from token to reviewDto
@@ -65,7 +65,7 @@ namespace DecorStore.API.Controllers
             reviewDto.CustomerId = currentUserId;
 
             var reviewResult = await _reviewService.CreateReviewAsync(reviewDto);
-            return HandleCreateResult(reviewResult, nameof(GetReview), new { id = reviewResult.Data?.Id });
+            return HandleCreateResult(reviewResult);
         }
 
         // PUT: api/Review/5
@@ -73,9 +73,9 @@ namespace DecorStore.API.Controllers
         [Authorize]        public async Task<ActionResult<ReviewDTO>> UpdateReview(int id, UpdateReviewDTO reviewDto)
         {
             var validationResult = ValidateModelState();
-            if (validationResult.IsFailure)
+            if (validationResult != null)
             {
-                return BadRequest(validationResult.Error);
+                return BadRequest(validationResult);
             }
 
             // Get existing review to check permissions

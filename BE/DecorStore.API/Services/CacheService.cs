@@ -15,13 +15,11 @@ namespace DecorStore.API.Services
         public CacheService(IMemoryCache cache)
         {
             _cache = cache;
-        }
-
-        public T GetOrCreate<T>(string key, Func<T> factory, TimeSpan? expiration = null)
+        }        public T GetOrCreate<T>(string key, Func<T> factory, TimeSpan? expiration = null)
         {
-            if (_cache.TryGetValue(key, out T cachedItem))
+            if (_cache.TryGetValue(key, out var cachedItem) && cachedItem is T typedItem)
             {
-                return cachedItem;
+                return typedItem;
             }
 
             T item = factory();
@@ -33,13 +31,11 @@ namespace DecorStore.API.Services
             _keys.Add(key);
             
             return item;
-        }
-
-        public async Task<T> GetOrCreateAsync<T>(string key, Func<Task<T>> factory, TimeSpan? expiration = null)
+        }        public async Task<T> GetOrCreateAsync<T>(string key, Func<Task<T>> factory, TimeSpan? expiration = null)
         {
-            if (_cache.TryGetValue(key, out T cachedItem))
+            if (_cache.TryGetValue(key, out var cachedItem) && cachedItem is T typedItem)
             {
-                return cachedItem;
+                return typedItem;
             }
 
             T item = await factory();

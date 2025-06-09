@@ -14,19 +14,17 @@ namespace DecorStore.API.Repositories
         public UserRepository(ApplicationDbContext context)
         {
             _context = context;
-        }
-
-        public async Task<User> GetByIdAsync(int id)
+        }        public async Task<User?> GetByIdAsync(int id)
         {
             return await _context.Users.FindAsync(id);
         }
 
-        public async Task<User> GetByEmailAsync(string email)
+        public async Task<User?> GetByEmailAsync(string email)
         {
             return await _context.Users.FirstOrDefaultAsync(u => u.Email == email);
         }
 
-        public async Task<User> GetByUsernameAsync(string username)
+        public async Task<User?> GetByUsernameAsync(string username)
         {
             return await _context.Users.FirstOrDefaultAsync(u => u.Username == username);
         }
@@ -69,9 +67,7 @@ namespace DecorStore.API.Repositories
             _context.Users.Remove(user);
             await _context.SaveChangesAsync();
             return true;
-        }
-
-        public async Task<User> ValidateUserAsync(string email, string password)
+        }        public async Task<User?> ValidateUserAsync(string email, string password)
         {
             var user = await GetByEmailAsync(email);
             if (user == null || !BC.Verify(password, user.PasswordHash))
