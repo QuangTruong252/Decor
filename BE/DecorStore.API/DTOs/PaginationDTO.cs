@@ -159,4 +159,143 @@ namespace DecorStore.API.DTOs
         /// </summary>
         public bool HasRange => MinValue.HasValue || MaxValue.HasValue;
     }
+
+    /// <summary>
+    /// Cursor-based pagination parameters for large datasets
+    /// </summary>
+    public class CursorPaginationParameters
+    {
+        /// <summary>
+        /// Number of items to return
+        /// </summary>
+        [Range(1, 100, ErrorMessage = "Page size must be between 1 and 100")]
+        public int Take { get; set; } = 25;
+
+        /// <summary>
+        /// Cursor value for pagination (typically an ID or timestamp)
+        /// </summary>
+        public string? Cursor { get; set; }
+
+        /// <summary>
+        /// Sort field for cursor pagination
+        /// </summary>
+        public string SortBy { get; set; } = "Id";
+
+        /// <summary>
+        /// Sort direction for cursor pagination
+        /// </summary>
+        public string SortDirection { get; set; } = "asc";
+
+        /// <summary>
+        /// Whether to paginate forward or backward
+        /// </summary>
+        public bool IsDescending => SortDirection?.ToLower() == "desc";
+    }
+
+    /// <summary>
+    /// Cursor-based paginated result for large datasets
+    /// </summary>
+    /// <typeparam name="T">Type of items in the result</typeparam>
+    public class CursorPagedResult<T>
+    {
+        public IEnumerable<T> Items { get; set; } = new List<T>();
+        public CursorPaginationMetadata Pagination { get; set; } = new CursorPaginationMetadata();
+
+        public CursorPagedResult()
+        {
+        }
+
+        public CursorPagedResult(IEnumerable<T> items, string? nextCursor, string? previousCursor, int requestedCount, bool hasMore)
+        {
+            Items = items;
+            Pagination = new CursorPaginationMetadata
+            {
+                NextCursor = nextCursor,
+                PreviousCursor = previousCursor,
+                RequestedCount = requestedCount,
+                ReturnedCount = items.Count(),
+                HasNext = hasMore,
+                HasPrevious = !string.IsNullOrEmpty(previousCursor)
+            };
+        }
+    }
+
+    /// <summary>
+    /// Cursor pagination metadata
+    /// </summary>
+    public class CursorPaginationMetadata
+    {
+        public string? NextCursor { get; set; }
+        public string? PreviousCursor { get; set; }
+        public int RequestedCount { get; set; }
+        public int ReturnedCount { get; set; }
+        public bool HasNext { get; set; }
+        public bool HasPrevious { get; set; }
+    }
+
+    /// <summary>
+    /// Optimized pagination parameters with count optimization
+    /// </summary>
+    public class OptimizedPaginationParameters : PaginationParameters
+    {
+        /// <summary>
+        /// Whether to skip total count calculation for performance
+        /// </summary>
+        public bool SkipTotalCount { get; set; } = false;
+
+        /// <summary>
+        /// Use estimated count for large datasets (faster but approximate)
+        /// </summary>
+        public bool UseEstimatedCount { get; set; } = false;
+
+        /// <summary>
+        /// Cache count result for subsequent requests
+        /// </summary>
+        public bool CacheCount { get; set; } = true;
+
+        /// <summary>
+        /// Count cache duration in seconds
+        /// </summary>
+        public int CountCacheDurationSeconds { get; set; } = 300; // 5 minutes
+    }
+
+    /// <summary>
+    /// Optimized paginated result with performance enhancements
+    /// </summary>
+    /// <typeparam name="T">Type of items in the result</typeparam>
+    public class OptimizedPagedResult<T> : PagedResult<T>
+    {
+        /// <summary>
+        /// Whether the total count is estimated
+        /// </summary>
+        public bool IsEstimatedCount { get; set; }
+
+        /// <summary>
+        /// Whether the count was retrieved from cache
+        /// </summary>
+        public bool IsCountFromCache { get; set; }
+
+        /// <summary>
+        /// Query execution time in milliseconds
+        /// </summary>
+        public long QueryTimeMs { get; set; }
+
+        public OptimizedPagedResult()
+        {
+        }
+
+        public OptimizedPagedResult(
+            IEnumerable<T> items, 
+            int totalCount, 
+            int pageNumber, 
+            int pageSize,
+            bool isEstimatedCount = false,
+            bool isCountFromCache = false,
+            long queryTimeMs = 0) : base(items, totalCount, pageNumber, pageSize)
+        {
+            IsEstimatedCount = isEstimatedCount;
+            IsCountFromCache = isCountFromCache;
+            QueryTimeMs = queryTimeMs;
+        }
+    }
 }

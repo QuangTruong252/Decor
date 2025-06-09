@@ -8,6 +8,10 @@ using DecorStore.API.Services;
 using FluentValidation;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Options;
+using Microsoft.AspNetCore.ResponseCompression;
+using System.IO.Compression;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace DecorStore.API.Extensions
 {
@@ -55,9 +59,7 @@ namespace DecorStore.API.Extensions
             
             // Register Unit of Work
             services.AddScoped<IUnitOfWork, DecorStore.API.Data.UnitOfWork>();
-        }
-
-        private static void AddBusinessServices(IServiceCollection services)
+        }        private static void AddBusinessServices(IServiceCollection services)
         {
             services.AddScoped<IProductService, ProductService>();
             services.AddScoped<ICategoryService, CategoryService>();
@@ -73,6 +75,9 @@ namespace DecorStore.API.Extensions
             
             // Add correlation ID service
             services.AddScoped<ICorrelationIdService, CorrelationIdService>();
+              // Add performance monitoring
+            services.AddScoped<IDatabasePerformanceMonitor, DatabasePerformanceMonitor>();
+            services.AddScoped<IPerformanceDashboardService, PerformanceDashboardService>();
         }
 
         private static void AddExcelServices(IServiceCollection services)
@@ -96,10 +101,11 @@ namespace DecorStore.API.Extensions
             services.AddMemoryCache(options =>
             {
                 options.SizeLimit = cacheSettings.DefaultSizeLimit;
-            });
-
-            // Add custom cache service
+            });            // Add custom cache service
             services.AddScoped<DecorStore.API.Interfaces.Services.ICacheService, CacheService>();
+            
+            // Add cache invalidation service
+            services.AddScoped<ICacheInvalidationService, CacheInvalidationService>();
         }
 
         private static void AddValidationServices(IServiceCollection services)
@@ -123,9 +129,7 @@ namespace DecorStore.API.Extensions
         {
             // Configure FileStorageSettings
             services.Configure<FileStorageSettings>(configuration.GetSection("FileStorage"));
-            services.AddSingleton<IValidateOptions<FileStorageSettings>, FileStorageSettingsValidator>();
-
-            return services;
+            services.AddSingleton<IValidateOptions<FileStorageSettings>, FileStorageSettingsValidator>();            return services;
         }
     }
 

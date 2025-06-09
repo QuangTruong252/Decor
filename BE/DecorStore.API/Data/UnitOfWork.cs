@@ -2,6 +2,7 @@ using System;
 using System.Threading.Tasks;
 using DecorStore.API.Interfaces;
 using DecorStore.API.Interfaces.Repositories;
+using DecorStore.API.Interfaces.Services;
 using DecorStore.API.Repositories;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
@@ -11,6 +12,7 @@ namespace DecorStore.API.Data
     public class UnitOfWork : IUnitOfWork
     {
         private readonly ApplicationDbContext _context;
+        private readonly ICacheService _cacheService;
         private IDbContextTransaction? _transaction;        private IProductRepository? _productRepository;
         private ICategoryRepository? _categoryRepository;
         private IImageRepository? _imageRepository;
@@ -23,11 +25,12 @@ namespace DecorStore.API.Data
         private IUserRepository? _userRepository;
         private IOrderItemRepository? _orderItemRepository;
 
-        public UnitOfWork(ApplicationDbContext context)
+        public UnitOfWork(ApplicationDbContext context, ICacheService cacheService)
         {
             _context = context ?? throw new ArgumentNullException(nameof(context));
-        }        public IProductRepository Products => _productRepository ??= new ProductRepository(_context);
-        public ICategoryRepository Categories => _categoryRepository ??= new CategoryRepository(_context);
+            _cacheService = cacheService ?? throw new ArgumentNullException(nameof(cacheService));
+        }        public IProductRepository Products => _productRepository ??= new ProductRepository(_context, _cacheService);
+        public ICategoryRepository Categories => _categoryRepository ??= new CategoryRepository(_context, _cacheService);
         public IImageRepository Images => _imageRepository ??= new ImageRepository(_context);
         public IOrderRepository Orders => _orderRepository ??= new OrderRepository(_context);
         public IReviewRepository Reviews => _reviewRepository ??= new ReviewRepository(_context);

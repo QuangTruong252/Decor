@@ -1,6 +1,7 @@
 using DecorStore.API.DTOs;
 using DecorStore.API.Common;
 using DecorStore.API.Interfaces;
+using DecorStore.API.Interfaces.Services;
 using DecorStore.API.Models;
 using AutoMapper;
 using System;
@@ -15,11 +16,11 @@ namespace DecorStore.API.Services
     {
         private readonly IUnitOfWork _unitOfWork;
         private readonly IMapper _mapper;
-
-        public CustomerService(IUnitOfWork unitOfWork, IMapper mapper)
+        private readonly ICacheInvalidationService _cacheInvalidationService;        public CustomerService(IUnitOfWork unitOfWork, IMapper mapper, ICacheInvalidationService cacheInvalidationService)
         {
             _unitOfWork = unitOfWork;
             _mapper = mapper;
+            _cacheInvalidationService = cacheInvalidationService;
         }
 
         public async Task<Result<PagedResult<CustomerDTO>>> GetPagedCustomersAsync(CustomerFilterDTO filter)
@@ -135,10 +136,11 @@ namespace DecorStore.API.Services
                 }
 
                 // Map DTO to entity
-                var customer = _mapper.Map<Customer>(customerDto);
-
-                await _unitOfWork.Customers.CreateAsync(customer);
+                var customer = _mapper.Map<Customer>(customerDto);                await _unitOfWork.Customers.CreateAsync(customer);
                 await _unitOfWork.SaveChangesAsync();
+
+                // Invalidate cache after successful creation
+                await _cacheInvalidationService.InvalidateCustomerCacheAsync(customer.Id);
 
                 var customerDto_result = _mapper.Map<CustomerDTO>(customer);
                 return Result<CustomerDTO>.Success(customerDto_result);
@@ -178,10 +180,11 @@ namespace DecorStore.API.Services
                 }
 
                 // Map DTO to entity
-                _mapper.Map(customerDto, customer);
-
-                await _unitOfWork.Customers.UpdateAsync(customer);
+                _mapper.Map(customerDto, customer);                await _unitOfWork.Customers.UpdateAsync(customer);
                 await _unitOfWork.SaveChangesAsync();
+
+                // Invalidate cache after successful update
+                await _cacheInvalidationService.InvalidateCustomerCacheAsync(customer.Id);
 
                 var customerDto_result = _mapper.Map<CustomerDTO>(customer);
                 return Result<CustomerDTO>.Success(customerDto_result);
@@ -205,10 +208,11 @@ namespace DecorStore.API.Services
                 if (!await _unitOfWork.Customers.ExistsAsync(id))
                 {
                     return Result.NotFound("Customer");
-                }
-
-                await _unitOfWork.Customers.DeleteAsync(id);
+                }                await _unitOfWork.Customers.DeleteAsync(id);
                 await _unitOfWork.SaveChangesAsync();
+
+                // Invalidate cache after successful deletion
+                await _cacheInvalidationService.InvalidateCustomerCacheAsync(id);
 
                 return Result.Success();
             }

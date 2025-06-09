@@ -23,11 +23,11 @@ namespace DecorStore.API.Models
         public string Slug { get; set; }
 
         [StringLength(255)]
-        public string Description { get; set; }
+        public string Description { get; set; }        public int? ParentId { get; set; }
 
-        public int? ParentId { get; set; }
+        public int SortOrder { get; set; } = 0;
 
-        public bool IsDeleted { get; set; } = false;        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        public bool IsDeleted { get; set; } = false;public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
         public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;        // Navigation properties
         [ForeignKey("ParentId")]

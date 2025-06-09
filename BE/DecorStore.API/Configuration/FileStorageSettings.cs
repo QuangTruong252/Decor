@@ -3,9 +3,11 @@ using System.ComponentModel.DataAnnotations;
 namespace DecorStore.API.Configuration
 {
     public class FileStorageSettings
-    {
-        [Required(ErrorMessage = "Upload path is required")]
+    {        [Required(ErrorMessage = "Upload path is required")]
         public string UploadPath { get; set; } = "Uploads";
+
+        [Required(ErrorMessage = "Storage path is required")]
+        public string StoragePath { get; set; } = "Storage";
 
         [Required(ErrorMessage = "Thumbnail path is required")]
         public string ThumbnailPath { get; set; } = ".thumbnails";

@@ -19,11 +19,7 @@ namespace DecorStore.API.Extensions
                     .AddFluentValidationClientsideAdapters()
                     .AddValidatorsFromAssemblyContaining<Program>(ServiceLifetime.Scoped);
 
-            // Add global exception handler middleware
-            services.AddScoped<GlobalExceptionHandlerMiddleware>();
-
-            // Add input sanitization middleware
-            services.AddScoped<InputSanitizationMiddleware>();
+            // Note: Middleware is not registered in DI - it's added to pipeline via UseMiddleware
 
             return services;
         }

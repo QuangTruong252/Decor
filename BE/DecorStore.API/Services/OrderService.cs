@@ -6,6 +6,7 @@ using DecorStore.API.DTOs;
 using DecorStore.API.Models;
 using DecorStore.API.Exceptions;
 using DecorStore.API.Interfaces;
+using DecorStore.API.Interfaces.Services;
 using DecorStore.API.Common;
 using AutoMapper;
 using Microsoft.Extensions.Caching.Memory;
@@ -17,12 +18,14 @@ namespace DecorStore.API.Services
         private readonly IUnitOfWork _unitOfWork;
         private readonly IMapper _mapper;
         private readonly IMemoryCache _cache;
+        private readonly ICacheInvalidationService _cacheInvalidationService;
 
-        public OrderService(IUnitOfWork unitOfWork, IMapper mapper, IMemoryCache cache)
+        public OrderService(IUnitOfWork unitOfWork, IMapper mapper, IMemoryCache cache, ICacheInvalidationService cacheInvalidationService)
         {
             _unitOfWork = unitOfWork;
             _mapper = mapper;
             _cache = cache;
+            _cacheInvalidationService = cacheInvalidationService;
         }
 
         public async Task<Result<PagedResult<OrderDTO>>> GetPagedOrdersAsync(OrderFilterDTO filter)
@@ -187,11 +190,10 @@ namespace DecorStore.API.Services
                         // Rollback transaction on error
                         await _unitOfWork.RollbackTransactionAsync();
                         throw;
-                    }
-                });
+                    }                });
 
                 // Invalidate related cache
-                InvalidateDashboardCache();
+                await _cacheInvalidationService.InvalidateOrderCacheAsync(order.Id, order.CustomerId);
 
                 // Get the created order with all details
                 var createdOrderResult = await GetOrderByIdAsync(order.Id);
@@ -249,14 +251,12 @@ namespace DecorStore.API.Services
                 }
 
                 // Map DTO to entity (only update provided fields)
-                _mapper.Map(orderDto, order);
-
-                // Update the order
+                _mapper.Map(orderDto, order);                // Update the order
                 await _unitOfWork.Orders.UpdateAsync(order);
                 await _unitOfWork.SaveChangesAsync();
 
                 // Invalidate related cache
-                InvalidateDashboardCache();
+                await _cacheInvalidationService.InvalidateOrderCacheAsync(order.Id, order.CustomerId);
 
                 return Result.Success();
             }            catch (Exception ex)
@@ -297,14 +297,12 @@ namespace DecorStore.API.Services
                 if (transitionResult.IsFailure)
                 {
                     return transitionResult;
-                }
-
-                // Update status
+                }                // Update status
                 await _unitOfWork.Orders.UpdateStatusAsync(id, statusDto.OrderStatus);
                 await _unitOfWork.SaveChangesAsync();
 
                 // Invalidate related cache
-                InvalidateDashboardCache();
+                await _cacheInvalidationService.InvalidateOrderCacheAsync(order.Id, order.CustomerId);
 
                 return Result.Success();
             }            catch (Exception ex)
@@ -332,13 +330,11 @@ namespace DecorStore.API.Services
                 if (order.OrderStatus != "Pending")
                 {
                     return Result.Failure("INVALID_STATUS", "Cannot delete orders that are not in Pending status");
-                }
-
-                await _unitOfWork.Orders.DeleteAsync(id);
+                }                await _unitOfWork.Orders.DeleteAsync(id);
                 await _unitOfWork.SaveChangesAsync();
 
                 // Invalidate related cache
-                InvalidateDashboardCache();
+                await _cacheInvalidationService.InvalidateOrderCacheAsync(order.Id, order.CustomerId);
 
                 return Result.Success();
             }            catch (Exception ex)
@@ -409,10 +405,8 @@ namespace DecorStore.API.Services
                         await _unitOfWork.RollbackTransactionAsync();
                         throw;
                     }
-                });
-
-                // Invalidate related cache
-                InvalidateDashboardCache();
+                });                // Invalidate related cache
+                await _cacheInvalidationService.InvalidateOrderCacheAsync();
 
                 return Result.Success();
             }

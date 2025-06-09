@@ -20,38 +20,51 @@ namespace DecorStore.API.Repositories
 
         public async Task<int> GetTotalProductCountAsync()
         {
-            return await _context.Products.CountAsync(p => !p.IsDeleted);
+            return await _context.Products
+                .AsNoTracking()
+                .CountAsync(p => !p.IsDeleted && p.IsActive);
         }
 
         public async Task<int> GetTotalOrderCountAsync()
         {
-            return await _context.Orders.CountAsync(o => !o.IsDeleted);
+            return await _context.Orders
+                .AsNoTracking()
+                .CountAsync(o => !o.IsDeleted);
         }
 
         public async Task<int> GetTotalCustomerCountAsync()
         {
-            return await _context.Customers.CountAsync(c => !c.IsDeleted);
+            return await _context.Customers
+                .AsNoTracking()
+                .CountAsync(c => !c.IsDeleted);
         }
 
         public async Task<decimal> GetTotalRevenueAsync()
         {
             return await _context.Orders
-                .Where(o => !o.IsDeleted)
+                .AsNoTracking()
+                .Where(o => !o.IsDeleted && o.OrderStatus == "Completed")
                 .SumAsync(o => o.TotalAmount);
         }
 
         public async Task<decimal> GetRevenueForPeriodAsync(DateTime startDate, DateTime endDate)
         {
             return await _context.Orders
-                .Where(o => !o.IsDeleted && o.OrderDate >= startDate && o.OrderDate <= endDate)
+                .AsNoTracking()
+                .Where(o => !o.IsDeleted && 
+                           o.OrderStatus == "Completed" &&
+                           o.OrderDate >= startDate && 
+                           o.OrderDate <= endDate)
                 .SumAsync(o => o.TotalAmount);
         }
 
         public async Task<IEnumerable<Order>> GetRecentOrdersAsync(int count = 10)
         {
             return await _context.Orders
+                .AsNoTracking()
+                .AsSplitQuery()
                 .Include(o => o.Customer)
-                .Include(o => o.OrderItems)
+                .Include(o => o.OrderItems.Where(oi => !oi.IsDeleted))
                     .ThenInclude(oi => oi.Product)
                 .Where(o => !o.IsDeleted)
                 .OrderByDescending(o => o.OrderDate)
@@ -62,10 +75,14 @@ namespace DecorStore.API.Repositories
         public async Task<IEnumerable<Product>> GetLowStockProductsAsync(int threshold = 10)
         {
             return await _context.Products
+                .AsNoTracking()
+                .AsSplitQuery()
                 .Include(p => p.Category)
-                .Include(p => p.ProductImages)
+                .Include(p => p.ProductImages.Take(1)) // Only first image for performance
                     .ThenInclude(pi => pi.Image)
-                .Where(p => !p.IsDeleted && p.StockQuantity <= threshold)
+                .Where(p => !p.IsDeleted && 
+                           p.IsActive && 
+                           p.StockQuantity <= threshold)
                 .OrderBy(p => p.StockQuantity)
                 .ToListAsync();
         }
@@ -73,6 +90,7 @@ namespace DecorStore.API.Repositories
         public async Task<Dictionary<string, int>> GetOrderStatusCountsAsync()
         {
             return await _context.Orders
+                .AsNoTracking()
                 .Where(o => !o.IsDeleted)
                 .GroupBy(o => o.OrderStatus)
                 .Select(g => new { Status = g.Key, Count = g.Count() })
@@ -81,25 +99,30 @@ namespace DecorStore.API.Repositories
 
         public async Task<Dictionary<string, decimal>> GetSalesByMonthAsync(int year)
         {
-            var monthlySales = await _context.Orders
-                .Where(o => !o.IsDeleted && o.OrderDate.Year == year)
+            var startDate = new DateTime(year, 1, 1);
+            var endDate = new DateTime(year, 12, 31, 23, 59, 59);
+
+            return await _context.Orders
+                .AsNoTracking()
+                .Where(o => !o.IsDeleted && 
+                           o.OrderStatus == "Completed" &&
+                           o.OrderDate >= startDate && 
+                           o.OrderDate <= endDate)
                 .GroupBy(o => o.OrderDate.Month)
                 .Select(g => new { Month = g.Key, Total = g.Sum(o => o.TotalAmount) })
                 .ToDictionaryAsync(x => GetMonthName(x.Month), x => x.Total);
-
-            // Ensure all months are included with 0 if no sales
-            var allMonths = Enumerable.Range(1, 12)
-                .ToDictionary(m => GetMonthName(m), m => monthlySales.ContainsKey(GetMonthName(m)) ? monthlySales[GetMonthName(m)] : 0m);
-
-            return allMonths;
         }
 
         public async Task<Dictionary<string, decimal>> GetSalesByCategoryAsync()
         {
             return await _context.OrderItems
+                .AsNoTracking()
                 .Include(oi => oi.Product)
                 .ThenInclude(p => p.Category)
-                .Where(oi => !oi.Order.IsDeleted && !oi.Product.IsDeleted)
+                .Where(oi => !oi.IsDeleted && 
+                            !oi.Order.IsDeleted && 
+                            !oi.Product.IsDeleted &&
+                            oi.Order.OrderStatus == "Completed")
                 .GroupBy(oi => oi.Product.Category.Name)
                 .Select(g => new { Category = g.Key, Total = g.Sum(oi => oi.UnitPrice * oi.Quantity) })
                 .ToDictionaryAsync(x => x.Category, x => x.Total);
@@ -108,6 +131,7 @@ namespace DecorStore.API.Repositories
         public async Task<Dictionary<string, int>> GetOrderStatusDistributionAsync()
         {
             return await _context.Orders
+                .AsNoTracking()
                 .Where(o => !o.IsDeleted)
                 .GroupBy(o => o.OrderStatus)
                 .Select(g => new { Status = g.Key, Count = g.Count() })
@@ -117,12 +141,14 @@ namespace DecorStore.API.Repositories
         public async Task<IEnumerable<Product>> GetPopularProductsAsync(int count = 10)
         {
             return await _context.Products
+                .AsNoTracking()
+                .AsSplitQuery()
                 .Include(p => p.Category)
-                .Include(p => p.ProductImages)
+                .Include(p => p.ProductImages.Take(1)) // Only first image for performance
                     .ThenInclude(pi => pi.Image)
-                .Include(p => p.OrderItems)
-                .Where(p => !p.IsDeleted)
-                .OrderByDescending(p => p.OrderItems.Count)
+                .Include(p => p.OrderItems.Where(oi => !oi.IsDeleted && !oi.Order.IsDeleted))
+                .Where(p => !p.IsDeleted && p.IsActive)
+                .OrderByDescending(p => p.OrderItems.Sum(oi => oi.Quantity))
                 .Take(count)
                 .ToListAsync();
         }

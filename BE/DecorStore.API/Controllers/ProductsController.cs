@@ -22,67 +22,59 @@ namespace DecorStore.API.Controllers
         {
             _productService = productService;
             _productExcelService = productExcelService;
-        }
-
-        // GET: api/Products
+        }        // GET: api/Products
         [HttpGet]
+        [ResponseCache(Duration = 300, Location = ResponseCacheLocation.Any, VaryByQueryKeys = new[] { "page", "pageSize", "searchTerm", "categoryId", "minPrice", "maxPrice", "sortBy", "isAscending", "isFeatured", "isActive" })]
         public async Task<ActionResult<PagedResult<ProductDTO>>> GetProducts([FromQuery] ProductFilterDTO filter)
         {
             var result = await _productService.GetPagedProductsAsync(filter);
             return HandlePagedResult(result);
-        }
-
-        // GET: api/Products/all (for backward compatibility)
+        }        // GET: api/Products/all (for backward compatibility)
         [HttpGet("all")]
+        [ResponseCache(Duration = 600, Location = ResponseCacheLocation.Any)]
         public async Task<ActionResult<IEnumerable<ProductDTO>>> GetAllProducts()
         {
             var result = await _productService.GetAllProductsAsync();
             return HandleResult(result);
-        }
-
-        // GET: api/Products/5
+        }        // GET: api/Products/5
         [HttpGet("{id}")]
+        [ResponseCache(Duration = 1800, Location = ResponseCacheLocation.Any, VaryByHeader = "Accept-Language")]
         public async Task<ActionResult<ProductDTO>> GetProduct(int id)
         {
             var result = await _productService.GetProductByIdAsync(id);
             return HandleResult(result);
-        }
-
-        // GET: api/Products/category/{categoryId}
+        }        // GET: api/Products/category/{categoryId}
         [HttpGet("category/{categoryId}")]
+        [ResponseCache(Duration = 600, Location = ResponseCacheLocation.Any, VaryByQueryKeys = new[] { "count" })]
         public async Task<ActionResult<IEnumerable<ProductDTO>>> GetProductsByCategory(int categoryId, [FromQuery] int count = 20)
         {
             var result = await _productService.GetProductsByCategoryAsync(categoryId, count);
             return HandleResult(result);
-        }
-
-        // GET: api/Products/featured
+        }        // GET: api/Products/featured
         [HttpGet("featured")]
+        [ResponseCache(Duration = 1800, Location = ResponseCacheLocation.Any, VaryByQueryKeys = new[] { "count" })]
         public async Task<ActionResult<IEnumerable<ProductDTO>>> GetFeaturedProducts([FromQuery] int count = 10)
         {
             var result = await _productService.GetFeaturedProductsAsync(count);
             return HandleResult(result);
-        }
-
-        // GET: api/Products/{id}/related
+        }        // GET: api/Products/{id}/related
         [HttpGet("{id}/related")]
+        [ResponseCache(Duration = 1200, Location = ResponseCacheLocation.Any, VaryByQueryKeys = new[] { "count" })]
         public async Task<ActionResult<IEnumerable<ProductDTO>>> GetRelatedProducts(int id, [FromQuery] int count = 5)
         {
             var result = await _productService.GetRelatedProductsAsync(id, count);
             return HandleResult(result);
-        }
-
-        // GET: api/Products/top-rated
+        }        // GET: api/Products/top-rated
         [HttpGet("top-rated")]
+        [ResponseCache(Duration = 1800, Location = ResponseCacheLocation.Any, VaryByQueryKeys = new[] { "count" })]
         public async Task<ActionResult<IEnumerable<ProductDTO>>> GetTopRatedProducts([FromQuery] int count = 10)
         {
             var result = await _productService.GetTopRatedProductsAsync(count);
             return HandleResult(result);
-        }
-
-        // GET: api/Products/low-stock
+        }        // GET: api/Products/low-stock
         [HttpGet("low-stock")]
         [Authorize(Roles = "Admin")] // Only admin can view low stock products
+        [ResponseCache(Duration = 180, Location = ResponseCacheLocation.Client, VaryByQueryKeys = new[] { "threshold" })]
         public async Task<ActionResult<IEnumerable<ProductDTO>>> GetLowStockProducts([FromQuery] int threshold = 10)
         {
             var result = await _productService.GetLowStockProductsAsync(threshold);

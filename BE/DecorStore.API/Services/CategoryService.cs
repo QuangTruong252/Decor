@@ -2,15 +2,17 @@ using DecorStore.API.DTOs;
 using DecorStore.API.Models;
 using DecorStore.API.Exceptions;
 using DecorStore.API.Interfaces;
+using DecorStore.API.Interfaces.Services;
 using DecorStore.API.Common;
 using AutoMapper;
 
 namespace DecorStore.API.Services
-{    public class CategoryService(IUnitOfWork unitOfWork, IImageService imageService, IMapper mapper) : ICategoryService
+{    public class CategoryService(IUnitOfWork unitOfWork, IImageService imageService, IMapper mapper, ICacheInvalidationService cacheInvalidationService) : ICategoryService
     {
         private readonly IUnitOfWork _unitOfWork = unitOfWork;
         private readonly IImageService _imageService = imageService;
         private readonly IMapper _mapper = mapper;
+        private readonly ICacheInvalidationService _cacheInvalidationService = cacheInvalidationService;
 
         public async Task<Result<PagedResult<CategoryDTO>>> GetPagedCategoriesAsync(CategoryFilterDTO filter)
         {
@@ -150,8 +152,10 @@ namespace DecorStore.API.Services
                         await _unitOfWork.Categories.DeleteAsync(category.Id);
                         await _unitOfWork.SaveChangesAsync();
                         return Result<CategoryDTO>.Failure(imageResult.ErrorCode ?? "IMAGE_ERROR", imageResult.Error ?? "Failed to assign images to category");
-                    }
-                }
+                    }                }
+
+                // Invalidate cache after successful creation
+                await _cacheInvalidationService.InvalidateCategoryCacheAsync(category.Id, category.ParentId);
 
                 var createdCategoryDto = _mapper.Map<CategoryDTO>(category);
                 return Result<CategoryDTO>.Success(createdCategoryDto);
@@ -244,9 +248,11 @@ namespace DecorStore.API.Services
                     catch
                     {
                         await _unitOfWork.RollbackTransactionAsync();
-                        throw;
-                    }
+                        throw;                    }
                 });
+
+                // Invalidate cache after successful update
+                await _cacheInvalidationService.InvalidateCategoryCacheAsync(category.Id, category.ParentId);
 
                 return Result.Success();
             }
@@ -290,10 +296,11 @@ namespace DecorStore.API.Services
                     {
                         await _imageService.DeleteImageAsync(img.FilePath);
                     }
-                }
-
-                await _unitOfWork.Categories.DeleteAsync(id);
+                }                await _unitOfWork.Categories.DeleteAsync(id);
                 await _unitOfWork.SaveChangesAsync();
+
+                // Invalidate cache after successful deletion
+                await _cacheInvalidationService.InvalidateCategoryCacheAsync(category.Id, category.ParentId);
 
                 return Result.Success();
             }
@@ -372,9 +379,7 @@ namespace DecorStore.API.Services
             {
                 return Result<IEnumerable<CategoryDTO>>.Failure("Failed to retrieve popular categories", "DATABASE_ERROR", new[] { ex.Message });
             }
-        }
-
-        public async Task<Result<IEnumerable<CategoryDTO>>> GetRootCategoriesAsync()
+        }        public async Task<Result<IEnumerable<CategoryDTO>>> GetRootCategoriesAsync()
         {
             try
             {
@@ -386,6 +391,20 @@ namespace DecorStore.API.Services
             catch (Exception ex)
             {
                 return Result<IEnumerable<CategoryDTO>>.Failure("Failed to retrieve root categories", "DATABASE_ERROR", new[] { ex.Message });
+            }
+        }
+
+        public async Task<Result<IEnumerable<CategoryDTO>>> GetRootCategoriesWithChildrenAsync()
+        {
+            try
+            {
+                var rootCategories = await _unitOfWork.Categories.GetRootCategoriesWithChildrenAsync();
+                var categoryDtos = _mapper.Map<IEnumerable<CategoryDTO>>(rootCategories);
+                return Result<IEnumerable<CategoryDTO>>.Success(categoryDtos);
+            }
+            catch (Exception ex)
+            {
+                return Result<IEnumerable<CategoryDTO>>.Failure("Failed to retrieve root categories with children", "DATABASE_ERROR", new[] { ex.Message });
             }
         }
 

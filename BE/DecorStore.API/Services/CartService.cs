@@ -1,6 +1,7 @@
 using DecorStore.API.DTOs;
 using DecorStore.API.Exceptions;
 using DecorStore.API.Interfaces;
+using DecorStore.API.Interfaces.Services;
 using DecorStore.API.Models;
 using DecorStore.API.Common;
 using AutoMapper;
@@ -15,11 +16,13 @@ namespace DecorStore.API.Services
     {
         private readonly IUnitOfWork _unitOfWork;
         private readonly IMapper _mapper;
+        private readonly ICacheInvalidationService _cacheInvalidationService;
 
-        public CartService(IUnitOfWork unitOfWork, IMapper mapper)
+        public CartService(IUnitOfWork unitOfWork, IMapper mapper, ICacheInvalidationService cacheInvalidationService)
         {
             _unitOfWork = unitOfWork;
             _mapper = mapper;
+            _cacheInvalidationService = cacheInvalidationService;
         }
 
         public async Task<Result<CartDTO>> GetCartAsync(int? userId, string? sessionId)
@@ -120,9 +123,10 @@ namespace DecorStore.API.Services
                 if (updateResult.IsFailure)
                 {
                     return Result<CartDTO>.Failure(updateResult.ErrorCode!, updateResult.Error!);
-                }
+                }                await _unitOfWork.SaveChangesAsync();
 
-                await _unitOfWork.SaveChangesAsync();
+                // Invalidate cache after successful cart update
+                await _cacheInvalidationService.InvalidateCartCacheAsync(userId, sessionId);
 
                 // Return updated cart
                 return await GetCartAsync(userId, sessionId);
@@ -195,9 +199,10 @@ namespace DecorStore.API.Services
                 if (updateResult.IsFailure)
                 {
                     return Result<CartDTO>.Failure(updateResult.ErrorCode!, updateResult.Error!);
-                }
+                }                await _unitOfWork.SaveChangesAsync();
 
-                await _unitOfWork.SaveChangesAsync();
+                // Invalidate cache after successful cart item update
+                await _cacheInvalidationService.InvalidateCartCacheAsync(userId, sessionId);
 
                 // Return updated cart
                 return await GetCartAsync(userId, sessionId);
@@ -246,9 +251,10 @@ namespace DecorStore.API.Services
                 if (updateResult.IsFailure)
                 {
                     return Result<CartDTO>.Failure(updateResult.ErrorCode!, updateResult.Error!);
-                }
+                }                await _unitOfWork.SaveChangesAsync();
 
-                await _unitOfWork.SaveChangesAsync();
+                // Invalidate cache after successful cart item removal
+                await _cacheInvalidationService.InvalidateCartCacheAsync(userId, sessionId);
 
                 // Return updated cart
                 return await GetCartAsync(userId, sessionId);
@@ -275,9 +281,11 @@ namespace DecorStore.API.Services
 
                 // Update cart total
                 cart.TotalAmount = 0;
-                cart.UpdatedAt = DateTime.UtcNow;
-                await _unitOfWork.Carts.UpdateAsync(cart);
+                cart.UpdatedAt = DateTime.UtcNow;                await _unitOfWork.Carts.UpdateAsync(cart);
                 await _unitOfWork.SaveChangesAsync();
+
+                // Invalidate cache after successful cart clearing
+                await _cacheInvalidationService.InvalidateCartCacheAsync(userId, sessionId);
 
                 // Return empty cart
                 var cartDto = MapCartToDTO(cart);

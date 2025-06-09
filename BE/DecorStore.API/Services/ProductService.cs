@@ -9,11 +9,12 @@ using Microsoft.AspNetCore.Http;
 
 namespace DecorStore.API.Services
 {
-    public class ProductService(IUnitOfWork unitOfWork, IImageService imageService, IMapper mapper) : IProductService
+    public class ProductService(IUnitOfWork unitOfWork, IImageService imageService, IMapper mapper, ICacheInvalidationService cacheInvalidationService) : IProductService
     {
         private readonly IUnitOfWork _unitOfWork = unitOfWork;
         private readonly IImageService _imageService = imageService;
         private readonly IMapper _mapper = mapper;
+        private readonly ICacheInvalidationService _cacheInvalidationService = cacheInvalidationService;
         private readonly string _folderImageName = "products";
 
         public async Task<Result<PagedResult<ProductDTO>>> GetPagedProductsAsync(ProductFilterDTO filter)
@@ -116,8 +117,10 @@ namespace DecorStore.API.Services
                     {
                         await _unitOfWork.Images.AddProductImageAsync(imageId, product.Id);
                     }
-                    await _unitOfWork.SaveChangesAsync();
-                }
+                    await _unitOfWork.SaveChangesAsync();                }
+                
+                // Invalidate cache after successful creation
+                await _cacheInvalidationService.InvalidateProductCacheAsync(product.Id, product.CategoryId);
                 
                 // Return the created product as DTO
                 var createdProductDto = _mapper.Map<ProductDTO>(product);
@@ -206,9 +209,7 @@ namespace DecorStore.API.Services
                             {
                                 await _unitOfWork.Images.AddProductImageAsync(imageId, product.Id);
                             }
-                        }
-
-                        // Step 3: Update product and save changes
+                        }                        // Step 3: Update product and save changes
                         await _unitOfWork.Products.UpdateAsync(product);
                         await _unitOfWork.SaveChangesAsync();
                         await _unitOfWork.CommitTransactionAsync();
@@ -221,6 +222,9 @@ namespace DecorStore.API.Services
                         throw;
                     }
                 });
+
+                // Invalidate cache after successful update
+                await _cacheInvalidationService.InvalidateProductCacheAsync(product.Id, product.CategoryId);
 
                 return Result.Success();
             }
@@ -291,10 +295,12 @@ namespace DecorStore.API.Services
                     {
                         await _imageService.DeleteImageAsync(img.FilePath);
                     }
-                }
-
-                await _unitOfWork.Products.DeleteAsync(id);
+                }                await _unitOfWork.Products.DeleteAsync(id);
                 await _unitOfWork.SaveChangesAsync();
+                
+                // Invalidate cache after successful deletion
+                await _cacheInvalidationService.InvalidateProductCacheAsync(product.Id, product.CategoryId);
+                
                 return Result.Success();
             }
             catch (Exception ex)
@@ -345,9 +351,7 @@ namespace DecorStore.API.Services
 
                         // Mark products as deleted in the database
                         await _unitOfWork.Products.BulkDeleteAsync(bulkDeleteDto.Ids);
-                        await _unitOfWork.SaveChangesAsync();
-
-                        // Commit transaction
+                        await _unitOfWork.SaveChangesAsync();                        // Commit transaction
                         await _unitOfWork.CommitTransactionAsync();
                         return true;
                     }
@@ -358,6 +362,9 @@ namespace DecorStore.API.Services
                         throw;
                     }
                 });
+
+                // Invalidate cache after successful bulk deletion
+                await _cacheInvalidationService.InvalidateProductCacheAsync();
 
                 return Result.Success();
             }
@@ -404,11 +411,12 @@ namespace DecorStore.API.Services
 
                 // Add the image to database first
                 await _unitOfWork.Images.AddAsync(newImage);
-                await _unitOfWork.SaveChangesAsync();
-
-                // Associate the image with the product using junction table
+                await _unitOfWork.SaveChangesAsync();                // Associate the image with the product using junction table
                 await _unitOfWork.Images.AddProductImageAsync(newImage.Id, productId);
                 await _unitOfWork.SaveChangesAsync();
+                
+                // Invalidate cache after successful image addition
+                await _cacheInvalidationService.InvalidateProductCacheAsync(product.Id, product.CategoryId);
                 
                 return Result.Success();
             }
@@ -453,11 +461,12 @@ namespace DecorStore.API.Services
                 {
                     // Delete the image file from storage
                     await _imageService.DeleteImageAsync(image.FilePath);
-                }
-
-                // Remove the association between product and image
+                }                // Remove the association between product and image
                 _unitOfWork.Images.RemoveProductImage(imageId, productId);
                 await _unitOfWork.SaveChangesAsync();
+                
+                // Invalidate cache after successful image removal
+                await _cacheInvalidationService.InvalidateProductCacheAsync(product.Id, product.CategoryId);
                 
                 return Result.Success();
             }

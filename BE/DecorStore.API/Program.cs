@@ -4,15 +4,19 @@ using DecorStore.API.Extensions;
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
-builder.Services.AddControllers().AddJsonOptions(options =>
-{
-    // Configure JSON serialization to handle circular references
-    options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
-    options.JsonSerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
-});
+builder.Services.AddControllers();
+
+// Add optimized JSON serialization
+builder.Services.AddOptimizedJsonSerialization();
+
+// Add response compression
+builder.Services.AddResponseCompressionServices();
 
 // Add service extensions
 builder.Services.AddDatabaseServices(builder.Configuration);
+// builder.Services.AddDatabaseOptimizationServices(builder.Configuration);
+builder.Services.AddDistributedCacheServices(builder.Configuration);
+builder.Services.AddPerformanceServices(builder.Configuration);
 builder.Services.AddAuthenticationServices(builder.Configuration);
 builder.Services.AddCorsServices(builder.Configuration);
 builder.Services.AddApplicationServices(builder.Configuration);
@@ -27,6 +31,12 @@ var app = builder.Build();
 
 // Configure the HTTP request pipeline.
 app.UseSwaggerMiddleware();
+
+// Use response compression (early in pipeline)
+app.UseResponseCompression();
+
+// Use performance middleware (early in pipeline for compression)
+app.UsePerformanceMiddleware();
 
 // Use validation middleware (early in pipeline)
 app.UseValidationMiddleware();

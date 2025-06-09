@@ -23,16 +23,36 @@ namespace DecorStore.API.Extensions
             if (string.IsNullOrEmpty(connectionString))
             {
                 throw new InvalidOperationException("DefaultConnection string is not configured");
-            }
-
-            // Configure DbContext with SQL Server
+            }            // Configure DbContext with SQL Server and Performance Optimizations
             services.AddDbContext<ApplicationDbContext>(options =>
             {
-                var databaseSettings = configuration.GetSection("Database").Get<DatabaseSettings>() ?? new DatabaseSettings();
-                
-                options.UseSqlServer(connectionString, sqlServerOptions =>
+                var databaseSettings = configuration.GetSection("Database").Get<DatabaseSettings>() ?? new DatabaseSettings();                // Build optimized connection string with pooling settings
+                var builder = new Microsoft.Data.SqlClient.SqlConnectionStringBuilder(connectionString)
                 {
-                    // Configure retry policy
+                    // Connection Pool Optimization
+                    Pooling = true,
+                    MinPoolSize = databaseSettings.MinPoolSize,
+                    MaxPoolSize = databaseSettings.MaxPoolSize,
+                    ConnectTimeout = databaseSettings.ConnectionTimeoutSeconds,
+                    CommandTimeout = databaseSettings.CommandTimeoutSeconds,
+                    
+                    // Performance optimizations
+                    ApplicationName = "DecorStoreAPI",
+                    ConnectRetryCount = 3,
+                    ConnectRetryInterval = 10,
+                    
+                    // Security settings
+                    Encrypt = databaseSettings.EnableEncryption,
+                    TrustServerCertificate = databaseSettings.TrustServerCertificate,
+                    
+                    // Additional performance settings
+                    MultipleActiveResultSets = true,
+                    LoadBalanceTimeout = 0
+                };
+                
+                options.UseSqlServer(builder.ConnectionString, sqlServerOptions =>
+                {
+                    // Configure retry policy for transient failures
                     sqlServerOptions.EnableRetryOnFailure(
                         maxRetryCount: databaseSettings.MaxRetryCount,
                         maxRetryDelay: TimeSpan.FromSeconds(databaseSettings.MaxRetryDelaySeconds),
@@ -40,19 +60,37 @@ namespace DecorStore.API.Extensions
 
                     // Configure migration history table
                     sqlServerOptions.MigrationsHistoryTable(databaseSettings.MigrationHistoryTable);
+                    
+                    // Set command timeout for long-running queries
+                    sqlServerOptions.CommandTimeout(databaseSettings.CommandTimeoutSeconds);
                 });
 
-                // Enable sensitive data logging in development only
-                if (databaseSettings.EnableSensitiveDataLogging)
+                // Performance optimizations
+                options.EnableServiceProviderCaching(true);
+                options.EnableSensitiveDataLogging(databaseSettings.EnableSensitiveDataLogging);
+                options.EnableDetailedErrors(databaseSettings.EnableDetailedErrors);
+                
+                // Configure query tracking behavior for performance
+                options.UseQueryTrackingBehavior(QueryTrackingBehavior.TrackAll);
+                
+                // Query optimization
+                options.ConfigureWarnings(warnings =>
                 {
-                    options.EnableSensitiveDataLogging();
+                    warnings.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.CoreEventId.DetachedLazyLoadingWarning);
+                });
+                
+                // Configure logging for slow queries
+                if (databaseSettings.EnableDetailedErrors)
+                {
+                    options.LogTo(message => System.Diagnostics.Debug.WriteLine(message), 
+                        new[] { Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.CommandExecuted },
+                        LogLevel.Information,
+                        Microsoft.EntityFrameworkCore.Diagnostics.DbContextLoggerOptions.SingleLine);
                 }
-            });
+            }, ServiceLifetime.Scoped); // Use Scoped lifetime for better connection pooling
 
             // Add Unit of Work
-            services.AddScoped<IUnitOfWork, UnitOfWork>();            // Add health checks for database
-            services.AddHealthChecks()
-                .AddCheck("database", () => Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckResult.Healthy("Database is available"));
+            services.AddScoped<IUnitOfWork, UnitOfWork>();            // Note: Database health checks are configured in HealthCheckExtensions.cs to avoid duplicates
 
             return services;
         }

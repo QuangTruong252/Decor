@@ -4,16 +4,20 @@ using System.Threading.Tasks;
 using DecorStore.API.Data;
 using DecorStore.API.DTOs;
 using DecorStore.API.Interfaces.Repositories;
+using DecorStore.API.Interfaces.Services;
 using DecorStore.API.Models;
 using DecorStore.API.Repositories.Base;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace DecorStore.API.Repositories
-{
-    public class CategoryRepository : BaseRepository<Category>, ICategoryRepository
+{    public class CategoryRepository : BaseRepository<Category>, ICategoryRepository
     {
-        public CategoryRepository(ApplicationDbContext context) : base(context)
+        private readonly ICacheService _cacheService;
+        
+        public CategoryRepository(ApplicationDbContext context, ICacheService cacheService) : base(context)
         {
+            _cacheService = cacheService;
         }
 
         public async Task<PagedResult<Category>> GetPagedAsync(CategoryFilterDTO filter)
@@ -27,46 +31,63 @@ namespace DecorStore.API.Repositories
                 .ToListAsync();
 
             return new PagedResult<Category>(items, totalCount, filter.PageNumber, filter.PageSize);
+        }        public async Task<IEnumerable<Category>> GetRootCategoriesWithChildrenAsync()
+        {
+            const string cacheKey = "categories:root-with-children";
+            
+            return await _cacheService.GetOrCreateAsync(cacheKey, async () =>
+            {
+                return await _context.Categories
+                    .AsNoTracking()
+                    .AsSplitQuery()
+                    .Include(c => c.Subcategories.Where(sub => !sub.IsDeleted))
+                    .Include(c => c.CategoryImages)
+                    .ThenInclude(ci => ci.Image)
+                    .Where(c => c.ParentId == null && !c.IsDeleted)
+                    .OrderBy(c => c.SortOrder)
+                    .ThenBy(c => c.Name)
+                    .ToListAsync();
+            }, TimeSpan.FromMinutes(60), CacheItemPriority.High, "categories");
         }
 
-        public async Task<IEnumerable<Category>> GetRootCategoriesWithChildrenAsync()
+        public async Task<Category?> GetByIdWithChildrenAsync(int id)
         {
             return await _context.Categories
-                .Include(c => c.Subcategories)
-                .Include(c => c.CategoryImages)
-                .ThenInclude(ci => ci.Image)
-                .Where(c => c.ParentId == null)
-                .ToListAsync();
-        }        public async Task<Category?> GetByIdWithChildrenAsync(int id)
-        {
-            return await _context.Categories
+                .AsNoTracking()
+                .AsSplitQuery()
                 .Include(c => c.ParentCategory)
-                .Include(c => c.Subcategories)
+                .Include(c => c.Subcategories.Where(sub => !sub.IsDeleted))
                     .ThenInclude(sc => sc.CategoryImages)
                     .ThenInclude(ci => ci.Image)
                 .Include(c => c.CategoryImages)
                 .ThenInclude(ci => ci.Image)
-                .FirstOrDefaultAsync(c => c.Id == id);
+                .FirstOrDefaultAsync(c => c.Id == id && !c.IsDeleted);
         }
 
         public async Task<Category?> GetBySlugAsync(string slug)
         {
             return await _context.Categories
+                .AsNoTracking()
+                .AsSplitQuery()
                 .Include(c => c.ParentCategory)
-                .Include(c => c.Subcategories)
+                .Include(c => c.Subcategories.Where(sub => !sub.IsDeleted))
                 .Include(c => c.CategoryImages)
                 .ThenInclude(ci => ci.Image)
-                .FirstOrDefaultAsync(c => c.Slug == slug);
+                .FirstOrDefaultAsync(c => c.Slug == slug && !c.IsDeleted);
         }
 
         public async Task<bool> SlugExistsAsync(string slug)
         {
-            return await _context.Categories.AnyAsync(c => c.Slug == slug && !c.IsDeleted);
+            return await _context.Categories
+                .AsNoTracking()
+                .AnyAsync(c => c.Slug == slug && !c.IsDeleted);
         }
 
         public async Task<bool> SlugExistsAsync(string slug, int excludeCategoryId)
         {
-            return await _context.Categories.AnyAsync(c => c.Slug == slug && !c.IsDeleted && c.Id != excludeCategoryId);
+            return await _context.Categories
+                .AsNoTracking()
+                .AnyAsync(c => c.Slug == slug && !c.IsDeleted && c.Id != excludeCategoryId);
         }
 
         public async Task<int> GetTotalCountAsync(CategoryFilterDTO filter)
@@ -77,44 +98,46 @@ namespace DecorStore.API.Repositories
         public async Task<IEnumerable<Category>> GetCategoriesWithProductCountAsync()
         {
             return await _context.Categories
-                .Include(c => c.Products)
+                .AsNoTracking()
+                .AsSplitQuery()
+                .Include(c => c.Products.Where(p => !p.IsDeleted && p.IsActive))
                 .Include(c => c.CategoryImages)
                 .ThenInclude(ci => ci.Image)
-                .Select(c => new Category
-                {
-                    Id = c.Id,
-                    Name = c.Name,
-                    Slug = c.Slug,
-                    Description = c.Description,
-                    ParentId = c.ParentId,
-                    CategoryImages = c.CategoryImages,
-                    Products = c.Products.Where(p => !p.IsDeleted).ToList()
-                })
+                .Where(c => !c.IsDeleted)
+                .OrderBy(c => c.Name)
                 .ToListAsync();
         }
 
         public async Task<IEnumerable<Category>> GetSubcategoriesAsync(int parentId)
         {
             return await _context.Categories
+                .AsNoTracking()
+                .AsSplitQuery()
                 .Include(c => c.CategoryImages)
                 .ThenInclude(ci => ci.Image)
-                .Where(c => c.ParentId == parentId)
+                .Where(c => c.ParentId == parentId && !c.IsDeleted)
+                .OrderBy(c => c.SortOrder)
+                .ThenBy(c => c.Name)
                 .ToListAsync();
         }
 
         public async Task<int> GetProductCountByCategoryAsync(int categoryId)
         {
             return await _context.Products
-                .CountAsync(p => p.CategoryId == categoryId && !p.IsDeleted);
+                .AsNoTracking()
+                .CountAsync(p => p.CategoryId == categoryId && !p.IsDeleted && p.IsActive);
         }
 
         public async Task<IEnumerable<Category>> GetPopularCategoriesAsync(int count = 10)
         {
             return await _context.Categories
-                .Include(c => c.Products)
+                .AsNoTracking()
+                .AsSplitQuery()
+                .Include(c => c.Products.Where(p => !p.IsDeleted && p.IsActive))
                 .Include(c => c.CategoryImages)
                 .ThenInclude(ci => ci.Image)
-                .OrderByDescending(c => c.Products.Count)
+                .Where(c => !c.IsDeleted)
+                .OrderByDescending(c => c.Products.Count(p => !p.IsDeleted && p.IsActive))
                 .Take(count)
                 .ToListAsync();
         }
@@ -122,16 +145,21 @@ namespace DecorStore.API.Repositories
         public async Task<IEnumerable<Category>> GetAllForExcelExportAsync()
         {
             return await _context.Categories
+                .AsNoTracking()
+                .AsSplitQuery()
                 .Include(c => c.ParentCategory)
-                .Include(c => c.Products)
+                .Include(c => c.Products.Where(p => !p.IsDeleted))
                 .Include(c => c.CategoryImages)
                 .ThenInclude(ci => ci.Image)
+                .Where(c => !c.IsDeleted)
+                .OrderBy(c => c.Name)
                 .ToListAsync();
         }
 
         private IQueryable<Category> GetFilteredCategories(CategoryFilterDTO filter)
         {
             var query = _context.Categories
+                .AsNoTracking()
                 .Include(c => c.ParentCategory)
                 .Include(c => c.CategoryImages)
                 .ThenInclude(ci => ci.Image)
@@ -193,22 +221,30 @@ namespace DecorStore.API.Repositories
 
         public async Task<bool> ExistsByNameAsync(string name)
         {
-            return await _context.Categories.AnyAsync(c => c.Name == name && !c.IsDeleted);
+            return await _context.Categories
+                .AsNoTracking()
+                .AnyAsync(c => c.Name == name && !c.IsDeleted);
         }
 
         public async Task<bool> ExistsByNameAsync(string name, int excludeCategoryId)
         {
-            return await _context.Categories.AnyAsync(c => c.Name == name && c.Id != excludeCategoryId && !c.IsDeleted);
+            return await _context.Categories
+                .AsNoTracking()
+                .AnyAsync(c => c.Name == name && c.Id != excludeCategoryId && !c.IsDeleted);
         }
 
         public async Task<bool> ExistsBySlugAsync(string slug)
         {
-            return await _context.Categories.AnyAsync(c => c.Slug == slug && !c.IsDeleted);
+            return await _context.Categories
+                .AsNoTracking()
+                .AnyAsync(c => c.Slug == slug && !c.IsDeleted);
         }
 
         public async Task<bool> ExistsBySlugAsync(string slug, int excludeCategoryId)
         {
-            return await _context.Categories.AnyAsync(c => c.Slug == slug && c.Id != excludeCategoryId && !c.IsDeleted);
+            return await _context.Categories
+                .AsNoTracking()
+                .AnyAsync(c => c.Slug == slug && c.Id != excludeCategoryId && !c.IsDeleted);
         }
 
         public async Task<List<int>> GetDescendantIdsAsync(int categoryId)
@@ -221,6 +257,7 @@ namespace DecorStore.API.Repositories
         private async Task GetDescendantIdsRecursive(int categoryId, List<int> descendantIds)
         {
             var childrenIds = await _context.Categories
+                .AsNoTracking()
                 .Where(c => c.ParentId == categoryId && !c.IsDeleted)
                 .Select(c => c.Id)
                 .ToListAsync();

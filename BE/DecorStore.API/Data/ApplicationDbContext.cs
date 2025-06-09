@@ -61,12 +61,154 @@ namespace DecorStore.API.Data
             modelBuilder.Entity<Category>()
                 .HasIndex(c => c.Slug)
                 .IsUnique()
-                .HasFilter("[IsDeleted] = 0");
-
-            modelBuilder.Entity<Customer>()
+                .HasFilter("[IsDeleted] = 0");            modelBuilder.Entity<Customer>()
                 .HasIndex(c => c.Email)
                 .IsUnique()
                 .HasFilter("[IsDeleted] = 0");
+
+            // Add performance indexes for frequently queried columns
+            // Product performance indexes
+            modelBuilder.Entity<Product>()
+                .HasIndex(p => p.CategoryId)
+                .HasDatabaseName("IX_Products_CategoryId");
+
+            modelBuilder.Entity<Product>()
+                .HasIndex(p => p.IsActive)
+                .HasDatabaseName("IX_Products_IsActive");
+
+            modelBuilder.Entity<Product>()
+                .HasIndex(p => p.IsFeatured)
+                .HasDatabaseName("IX_Products_IsFeatured");
+
+            modelBuilder.Entity<Product>()
+                .HasIndex(p => p.StockQuantity)
+                .HasDatabaseName("IX_Products_StockQuantity");
+
+            modelBuilder.Entity<Product>()
+                .HasIndex(p => p.Price)
+                .HasDatabaseName("IX_Products_Price");
+
+            modelBuilder.Entity<Product>()
+                .HasIndex(p => p.CreatedAt)
+                .HasDatabaseName("IX_Products_CreatedAt");
+
+            modelBuilder.Entity<Product>()
+                .HasIndex(p => p.AverageRating)
+                .HasDatabaseName("IX_Products_AverageRating");
+
+            // Composite indexes for complex queries
+            modelBuilder.Entity<Product>()
+                .HasIndex(p => new { p.CategoryId, p.IsActive, p.IsDeleted })
+                .HasDatabaseName("IX_Products_Category_Active_Deleted");
+
+            modelBuilder.Entity<Product>()
+                .HasIndex(p => new { p.IsActive, p.IsFeatured, p.IsDeleted })
+                .HasDatabaseName("IX_Products_Active_Featured_Deleted");
+
+            modelBuilder.Entity<Product>()
+                .HasIndex(p => new { p.Price, p.IsActive, p.IsDeleted })
+                .HasDatabaseName("IX_Products_Price_Active_Deleted");
+
+            // Order performance indexes
+            modelBuilder.Entity<Order>()
+                .HasIndex(o => o.UserId)
+                .HasDatabaseName("IX_Orders_UserId");
+
+            modelBuilder.Entity<Order>()
+                .HasIndex(o => o.CustomerId)
+                .HasDatabaseName("IX_Orders_CustomerId");
+
+            modelBuilder.Entity<Order>()
+                .HasIndex(o => o.OrderStatus)
+                .HasDatabaseName("IX_Orders_OrderStatus");
+
+            modelBuilder.Entity<Order>()
+                .HasIndex(o => o.OrderDate)
+                .HasDatabaseName("IX_Orders_OrderDate");
+
+            modelBuilder.Entity<Order>()
+                .HasIndex(o => o.CreatedAt)
+                .HasDatabaseName("IX_Orders_CreatedAt");
+
+            // Composite indexes for dashboard queries
+            modelBuilder.Entity<Order>()
+                .HasIndex(o => new { o.OrderStatus, o.IsDeleted, o.OrderDate })
+                .HasDatabaseName("IX_Orders_Status_Deleted_Date");
+
+            modelBuilder.Entity<Order>()
+                .HasIndex(o => new { o.IsDeleted, o.CreatedAt })
+                .HasDatabaseName("IX_Orders_Deleted_CreatedAt");
+
+            // OrderItem performance indexes
+            modelBuilder.Entity<OrderItem>()
+                .HasIndex(oi => oi.OrderId)
+                .HasDatabaseName("IX_OrderItems_OrderId");
+
+            modelBuilder.Entity<OrderItem>()
+                .HasIndex(oi => oi.ProductId)
+                .HasDatabaseName("IX_OrderItems_ProductId");
+
+            // Cart performance indexes
+            modelBuilder.Entity<Cart>()
+                .HasIndex(c => c.UserId)
+                .HasDatabaseName("IX_Carts_UserId");
+
+            modelBuilder.Entity<Cart>()
+                .HasIndex(c => c.SessionId)
+                .HasDatabaseName("IX_Carts_SessionId");
+
+            modelBuilder.Entity<Cart>()
+                .HasIndex(c => c.CreatedAt)
+                .HasDatabaseName("IX_Carts_CreatedAt");
+
+            // CartItem performance indexes
+            modelBuilder.Entity<CartItem>()
+                .HasIndex(ci => ci.CartId)
+                .HasDatabaseName("IX_CartItems_CartId");
+
+            modelBuilder.Entity<CartItem>()
+                .HasIndex(ci => ci.ProductId)
+                .HasDatabaseName("IX_CartItems_ProductId");
+
+            // Review performance indexes
+            modelBuilder.Entity<Review>()
+                .HasIndex(r => r.ProductId)
+                .HasDatabaseName("IX_Reviews_ProductId");
+
+            modelBuilder.Entity<Review>()
+                .HasIndex(r => r.UserId)
+                .HasDatabaseName("IX_Reviews_UserId");
+
+            modelBuilder.Entity<Review>()
+                .HasIndex(r => r.Rating)
+                .HasDatabaseName("IX_Reviews_Rating");
+
+            modelBuilder.Entity<Review>()
+                .HasIndex(r => r.CreatedAt)
+                .HasDatabaseName("IX_Reviews_CreatedAt");
+
+            // Category performance indexes
+            modelBuilder.Entity<Category>()
+                .HasIndex(c => c.ParentId)
+                .HasDatabaseName("IX_Categories_ParentId");
+
+            modelBuilder.Entity<Category>()
+                .HasIndex(c => c.IsDeleted)
+                .HasDatabaseName("IX_Categories_IsDeleted");
+
+            // User performance indexes
+            modelBuilder.Entity<User>()
+                .HasIndex(u => u.Role)
+                .HasDatabaseName("IX_Users_Role");
+
+            modelBuilder.Entity<User>()
+                .HasIndex(u => u.CreatedAt)
+                .HasDatabaseName("IX_Users_CreatedAt");
+
+            // Customer performance indexes
+            modelBuilder.Entity<Customer>()
+                .HasIndex(c => c.CreatedAt)
+                .HasDatabaseName("IX_Customers_CreatedAt");
 
             // Configure relationships
             modelBuilder.Entity<Product>()
@@ -242,6 +384,13 @@ namespace DecorStore.API.Data
                         UpdatedAt = seedDate
                     }
                 );
+        }
+
+        protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+        {
+            // Suppress pending model changes warning for now
+            optionsBuilder.ConfigureWarnings(warnings =>
+                warnings.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning));
         }
     }
 }

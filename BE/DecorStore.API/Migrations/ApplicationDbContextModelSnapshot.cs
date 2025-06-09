@@ -59,7 +59,7 @@ namespace DecorStore.API.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Banners");
+                    b.ToTable("Banners", (string)null);
                 });
 
             modelBuilder.Entity("DecorStore.API.Models.Cart", b =>
@@ -90,7 +90,7 @@ namespace DecorStore.API.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("Carts");
+                    b.ToTable("Carts", (string)null);
                 });
 
             modelBuilder.Entity("DecorStore.API.Models.CartItem", b =>
@@ -125,7 +125,7 @@ namespace DecorStore.API.Migrations
 
                     b.HasIndex("ProductId");
 
-                    b.ToTable("CartItems");
+                    b.ToTable("CartItems", (string)null);
                 });
 
             modelBuilder.Entity("DecorStore.API.Models.Category", b =>
@@ -167,7 +167,7 @@ namespace DecorStore.API.Migrations
                     b.HasIndex("Slug")
                         .IsUnique();
 
-                    b.ToTable("Categories");
+                    b.ToTable("Categories", (string)null);
 
                     b.HasData(
                         new
@@ -202,7 +202,7 @@ namespace DecorStore.API.Migrations
 
                     b.HasIndex("ImageId");
 
-                    b.ToTable("CategoryImages");
+                    b.ToTable("CategoryImages", (string)null);
                 });
 
             modelBuilder.Entity("DecorStore.API.Models.Customer", b =>
@@ -272,7 +272,7 @@ namespace DecorStore.API.Migrations
                     b.HasIndex("Email")
                         .IsUnique();
 
-                    b.ToTable("Customers");
+                    b.ToTable("Customers", (string)null);
                 });
 
             modelBuilder.Entity("DecorStore.API.Models.Image", b =>
@@ -306,7 +306,7 @@ namespace DecorStore.API.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Images");
+                    b.ToTable("Images", (string)null);
                 });
 
             modelBuilder.Entity("DecorStore.API.Models.Order", b =>
@@ -387,7 +387,7 @@ namespace DecorStore.API.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("Orders");
+                    b.ToTable("Orders", (string)null);
                 });
 
             modelBuilder.Entity("DecorStore.API.Models.OrderItem", b =>
@@ -419,7 +419,7 @@ namespace DecorStore.API.Migrations
 
                     b.HasIndex("ProductId");
 
-                    b.ToTable("OrderItems");
+                    b.ToTable("OrderItems", (string)null);
                 });
 
             modelBuilder.Entity("DecorStore.API.Models.Product", b =>
@@ -489,7 +489,7 @@ namespace DecorStore.API.Migrations
                     b.HasIndex("Slug")
                         .IsUnique();
 
-                    b.ToTable("Products");
+                    b.ToTable("Products", (string)null);
 
                     b.HasData(
                         new
@@ -542,7 +542,7 @@ namespace DecorStore.API.Migrations
 
                     b.HasIndex("ImageId");
 
-                    b.ToTable("ProductImages");
+                    b.ToTable("ProductImages", (string)null);
                 });
 
             modelBuilder.Entity("DecorStore.API.Models.Review", b =>
@@ -578,7 +578,7 @@ namespace DecorStore.API.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("Reviews");
+                    b.ToTable("Reviews", (string)null);
                 });
 
             modelBuilder.Entity("DecorStore.API.Models.User", b =>
@@ -641,7 +641,7 @@ namespace DecorStore.API.Migrations
                     b.HasIndex("Username")
                         .IsUnique();
 
-                    b.ToTable("Users");
+                    b.ToTable("Users", (string)null);
                 });
 
             modelBuilder.Entity("DecorStore.API.Models.Cart", b =>

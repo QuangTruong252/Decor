@@ -24,42 +24,37 @@ namespace DecorStore.API.Controllers
         {
             _categoryService = categoryService;
             _categoryExcelService = categoryExcelService;
-        }
-
-        // GET: api/Category
+        }        // GET: api/Category
         [HttpGet]
+        [ResponseCache(Duration = 600, Location = ResponseCacheLocation.Any, VaryByQueryKeys = new[] { "page", "pageSize", "searchTerm", "parentId", "sortBy", "isAscending" })]
         public async Task<ActionResult<PagedResult<CategoryDTO>>> GetCategories([FromQuery] CategoryFilterDTO filter)
         {
             var result = await _categoryService.GetPagedCategoriesAsync(filter);
             return HandlePagedResult(result);
-        }
-
-        // GET: api/Category/all (for backward compatibility)
+        }        // GET: api/Category/all (for backward compatibility)
         [HttpGet("all")]
+        [ResponseCache(Duration = 1800, Location = ResponseCacheLocation.Any)]
         public async Task<ActionResult<IEnumerable<CategoryDTO>>> GetAllCategories()
         {
             var result = await _categoryService.GetAllCategoriesAsync();
             return HandleResult(result);
-        }
-
-        // GET: api/Category/hierarchical
+        }        // GET: api/Category/hierarchical
         [HttpGet("hierarchical")]
+        [ResponseCache(Duration = 3600, Location = ResponseCacheLocation.Any)]
         public async Task<ActionResult<IEnumerable<CategoryDTO>>> GetHierarchicalCategories()
         {
             var result = await _categoryService.GetHierarchicalCategoriesAsync();
             return HandleResult(result);
-        }
-
-        // GET: api/Category/5
+        }        // GET: api/Category/5
         [HttpGet("{id}")]
+        [ResponseCache(Duration = 1800, Location = ResponseCacheLocation.Any)]
         public async Task<ActionResult<CategoryDTO>> GetCategory(int id)
         {
             var result = await _categoryService.GetCategoryByIdAsync(id);
             return HandleResult(result);
-        }
-
-        // GET: api/Category/slug/home-decor
+        }        // GET: api/Category/slug/home-decor
         [HttpGet("slug/{slug}")]
+        [ResponseCache(Duration = 1800, Location = ResponseCacheLocation.Any)]
         public async Task<ActionResult<CategoryDTO>> GetCategoryBySlug(string slug)
         {
             var result = await _categoryService.GetCategoryBySlugAsync(slug);
@@ -88,42 +83,37 @@ namespace DecorStore.API.Controllers
         {
             var result = await _categoryService.DeleteAsync(id);
             return HandleResult(result);
-        }
-
-        // GET: api/Category/with-product-count
+        }        // GET: api/Category/with-product-count
         [HttpGet("with-product-count")]
+        [ResponseCache(Duration = 600, Location = ResponseCacheLocation.Any)]
         public async Task<ActionResult<IEnumerable<CategoryDTO>>> GetCategoriesWithProductCount()
         {
             var result = await _categoryService.GetCategoriesWithProductCountAsync();
             return HandleResult(result);
-        }
-
-        // GET: api/Category/{parentId}/subcategories
+        }        // GET: api/Category/{parentId}/subcategories
         [HttpGet("{parentId}/subcategories")]
+        [ResponseCache(Duration = 1200, Location = ResponseCacheLocation.Any)]
         public async Task<ActionResult<IEnumerable<CategoryDTO>>> GetSubcategories(int parentId)
         {
             var result = await _categoryService.GetSubcategoriesAsync(parentId);
             return HandleResult(result);
-        }
-
-        // GET: api/Category/{categoryId}/product-count
+        }        // GET: api/Category/{categoryId}/product-count
         [HttpGet("{categoryId}/product-count")]
+        [ResponseCache(Duration = 300, Location = ResponseCacheLocation.Any)]
         public async Task<ActionResult<int>> GetProductCountByCategory(int categoryId)
         {
             var result = await _categoryService.GetProductCountByCategoryAsync(categoryId);
             return HandleResult(result);
-        }
-
-        // GET: api/Category/popular
+        }        // GET: api/Category/popular
         [HttpGet("popular")]
+        [ResponseCache(Duration = 1800, Location = ResponseCacheLocation.Any, VaryByQueryKeys = new[] { "count" })]
         public async Task<ActionResult<IEnumerable<CategoryDTO>>> GetPopularCategories([FromQuery] int count = 10)
         {
             var result = await _categoryService.GetPopularCategoriesAsync(count);
             return HandleResult(result);
-        }
-
-        // GET: api/Category/root
+        }        // GET: api/Category/root
         [HttpGet("root")]
+        [ResponseCache(Duration = 3600, Location = ResponseCacheLocation.Any)]
         public async Task<ActionResult<IEnumerable<CategoryDTO>>> GetRootCategories()
         {
             var result = await _categoryService.GetRootCategoriesAsync();

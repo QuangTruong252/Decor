@@ -20,41 +20,49 @@ namespace DecorStore.API.Repositories
         public async Task<Cart?> GetByUserIdAsync(int userId)
         {
             return await _context.Carts
-                .Include(c => c.Items)
+                .AsNoTracking()
+                .AsSplitQuery() // Optimize complex includes
+                .Include(c => c.Items.Where(i => !i.IsDeleted))
                     .ThenInclude(i => i.Product)
                         .ThenInclude(p => p.ProductImages)
                             .ThenInclude(pi => pi.Image)
-                .FirstOrDefaultAsync(c => c.UserId == userId);
+                .FirstOrDefaultAsync(c => c.UserId == userId && !c.IsDeleted);
         }
 
         public async Task<Cart?> GetBySessionIdAsync(string sessionId)
         {
             return await _context.Carts
-                .Include(c => c.Items)
+                .AsNoTracking()
+                .AsSplitQuery() // Optimize complex includes
+                .Include(c => c.Items.Where(i => !i.IsDeleted))
                     .ThenInclude(i => i.Product)
                         .ThenInclude(p => p.ProductImages)
                             .ThenInclude(pi => pi.Image)
-                .FirstOrDefaultAsync(c => c.SessionId == sessionId);
+                .FirstOrDefaultAsync(c => c.SessionId == sessionId && !c.IsDeleted);
         }
 
         public async Task<Cart?> GetByIdAsync(int id)
         {
             return await _context.Carts
-                .Include(c => c.Items)
+                .AsNoTracking()
+                .AsSplitQuery()
+                .Include(c => c.Items.Where(i => !i.IsDeleted))
                     .ThenInclude(i => i.Product)
                         .ThenInclude(p => p.ProductImages)
                             .ThenInclude(pi => pi.Image)
-                .FirstOrDefaultAsync(c => c.Id == id);
+                .FirstOrDefaultAsync(c => c.Id == id && !c.IsDeleted);
         }
 
         public async Task<Cart?> GetByIdWithItemsAsync(int id)
         {
             return await _context.Carts
-                .Include(c => c.Items)
+                .AsNoTracking()
+                .AsSplitQuery()
+                .Include(c => c.Items.Where(i => !i.IsDeleted))
                     .ThenInclude(i => i.Product)
                         .ThenInclude(p => p.ProductImages)
                             .ThenInclude(pi => pi.Image)
-                .FirstOrDefaultAsync(c => c.Id == id);
+                .FirstOrDefaultAsync(c => c.Id == id && !c.IsDeleted);
         }
 
         public async Task<Cart> CreateAsync(Cart cart)

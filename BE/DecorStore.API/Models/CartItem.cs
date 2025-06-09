@@ -15,10 +15,10 @@ namespace DecorStore.API.Models
         public int ProductId { get; set; }
 
         [Required]
-        public int Quantity { get; set; } = 1;
-
-        [Column(TypeName = "decimal(18,2)")]
+        public int Quantity { get; set; } = 1;        [Column(TypeName = "decimal(18,2)")]
         public decimal UnitPrice { get; set; }
+
+        public bool IsDeleted { get; set; } = false;
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
