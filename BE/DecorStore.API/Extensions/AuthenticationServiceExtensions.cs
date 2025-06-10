@@ -81,18 +81,9 @@ namespace DecorStore.API.Extensions
                 }
             });
 
-            // Add authorization policies
-            services.AddAuthorization(options =>
-            {
-                options.AddPolicy("RequireAuthenticatedUser", policy =>
-                    policy.RequireAuthenticatedUser());
-                
-                options.AddPolicy("RequireAdminRole", policy =>
-                    policy.RequireRole("Admin"));
-                
-                options.AddPolicy("RequireUserRole", policy =>
-                    policy.RequireRole("User", "Admin"));
-            });
+            // Add authorization policies and handlers
+            services.AddAuthorizationPolicies();
+            services.AddAuthorizationHandlers();
 
             return services;
         }

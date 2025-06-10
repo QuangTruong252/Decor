@@ -11,10 +11,8 @@ namespace DecorStore.API.Interfaces.Repositories
     {
         // Paginated queries (GetPagedAsync inherited from base)
         Task<PagedResult<Order>> GetPagedAsync(OrderFilterDTO filter);
-        Task<IEnumerable<Order>> GetByUserIdAsync(int userId);
-
-        // Single item queries (GetByIdAsync inherited from base)
-        Task<Order> GetByIdWithItemsAsync(int id);
+        Task<IEnumerable<Order>> GetByUserIdAsync(int userId);        // Single item queries (GetByIdAsync inherited from base)
+        Task<Order?> GetByIdWithItemsAsync(int id);
 
         // CRUD operations (basic CRUD inherited from base)
         Task UpdateStatusAsync(int id, string status);

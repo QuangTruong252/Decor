@@ -19,6 +19,14 @@ namespace DecorStore.API.Data
         public DbSet<Customer> Customers { get; set; }
         public DbSet<ProductImage> ProductImages { get; set; }
         public DbSet<CategoryImage> CategoryImages { get; set; }
+          // Security-related DbSets
+        public DbSet<RefreshToken> RefreshTokens { get; set; }
+        public DbSet<TokenBlacklist> TokenBlacklists { get; set; }
+        public DbSet<SecurityEvent> SecurityEvents { get; set; }
+        public DbSet<PasswordHistory> PasswordHistories { get; set; }
+        public DbSet<AccountLockout> AccountLockouts { get; set; }
+        public DbSet<ApiKey> ApiKeys { get; set; }
+        public DbSet<ApiKeyUsage> ApiKeyUsages { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -210,6 +218,163 @@ namespace DecorStore.API.Data
                 .HasIndex(c => c.CreatedAt)
                 .HasDatabaseName("IX_Customers_CreatedAt");
 
+            // Security-related performance indexes
+            // RefreshToken indexes
+            modelBuilder.Entity<RefreshToken>()
+                .HasIndex(rt => rt.Token)
+                .IsUnique()
+                .HasDatabaseName("IX_RefreshTokens_Token");
+
+            modelBuilder.Entity<RefreshToken>()
+                .HasIndex(rt => rt.UserId)
+                .HasDatabaseName("IX_RefreshTokens_UserId");
+
+            modelBuilder.Entity<RefreshToken>()
+                .HasIndex(rt => rt.ExpiryDate)
+                .HasDatabaseName("IX_RefreshTokens_ExpiryDate");
+
+            modelBuilder.Entity<RefreshToken>()
+                .HasIndex(rt => rt.TokenFamily)
+                .HasDatabaseName("IX_RefreshTokens_TokenFamily");
+
+            modelBuilder.Entity<RefreshToken>()
+                .HasIndex(rt => new { rt.IsUsed, rt.IsRevoked, rt.ExpiryDate })
+                .HasDatabaseName("IX_RefreshTokens_Status_Expiry");
+
+            // TokenBlacklist indexes
+            modelBuilder.Entity<TokenBlacklist>()
+                .HasIndex(tb => tb.JwtId)
+                .HasDatabaseName("IX_TokenBlacklist_JwtId");
+
+            modelBuilder.Entity<TokenBlacklist>()
+                .HasIndex(tb => tb.TokenHash)
+                .HasDatabaseName("IX_TokenBlacklist_TokenHash");
+
+            modelBuilder.Entity<TokenBlacklist>()
+                .HasIndex(tb => tb.UserId)
+                .HasDatabaseName("IX_TokenBlacklist_UserId");
+
+            modelBuilder.Entity<TokenBlacklist>()
+                .HasIndex(tb => tb.ExpiryDate)
+                .HasDatabaseName("IX_TokenBlacklist_ExpiryDate");
+
+            modelBuilder.Entity<TokenBlacklist>()
+                .HasIndex(tb => tb.BlacklistType)
+                .HasDatabaseName("IX_TokenBlacklist_BlacklistType");
+
+            // SecurityEvent indexes
+            modelBuilder.Entity<SecurityEvent>()
+                .HasIndex(se => se.EventType)
+                .HasDatabaseName("IX_SecurityEvents_EventType");
+
+            modelBuilder.Entity<SecurityEvent>()
+                .HasIndex(se => se.UserId)
+                .HasDatabaseName("IX_SecurityEvents_UserId");
+
+            modelBuilder.Entity<SecurityEvent>()
+                .HasIndex(se => se.IpAddress)
+                .HasDatabaseName("IX_SecurityEvents_IpAddress");
+
+            modelBuilder.Entity<SecurityEvent>()
+                .HasIndex(se => se.Timestamp)
+                .HasDatabaseName("IX_SecurityEvents_Timestamp");
+
+            modelBuilder.Entity<SecurityEvent>()
+                .HasIndex(se => se.Severity)
+                .HasDatabaseName("IX_SecurityEvents_Severity");
+
+            modelBuilder.Entity<SecurityEvent>()
+                .HasIndex(se => se.RequiresInvestigation)
+                .HasDatabaseName("IX_SecurityEvents_RequiresInvestigation");
+
+            modelBuilder.Entity<SecurityEvent>()
+                .HasIndex(se => new { se.EventType, se.Timestamp })
+                .HasDatabaseName("IX_SecurityEvents_Type_Timestamp");
+
+            modelBuilder.Entity<SecurityEvent>()
+                .HasIndex(se => new { se.UserId, se.Timestamp })
+                .HasDatabaseName("IX_SecurityEvents_User_Timestamp");
+
+            modelBuilder.Entity<SecurityEvent>()
+                .HasIndex(se => new { se.Success, se.Severity, se.Timestamp })
+                .HasDatabaseName("IX_SecurityEvents_Success_Severity_Timestamp");
+
+            // PasswordHistory indexes
+            modelBuilder.Entity<PasswordHistory>()
+                .HasIndex(ph => ph.UserId)
+                .HasDatabaseName("IX_PasswordHistory_UserId");
+
+            modelBuilder.Entity<PasswordHistory>()
+                .HasIndex(ph => ph.CreatedAt)
+                .HasDatabaseName("IX_PasswordHistory_CreatedAt");
+
+            modelBuilder.Entity<PasswordHistory>()
+                .HasIndex(ph => new { ph.UserId, ph.CreatedAt })
+                .HasDatabaseName("IX_PasswordHistory_User_CreatedAt");
+
+            // ApiKey indexes
+            modelBuilder.Entity<ApiKey>()
+                .HasIndex(ak => ak.KeyPrefix)
+                .IsUnique()
+                .HasDatabaseName("IX_ApiKeys_KeyPrefix");
+
+            modelBuilder.Entity<ApiKey>()
+                .HasIndex(ak => ak.CreatedByUserId)
+                .HasDatabaseName("IX_ApiKeys_CreatedByUserId");
+
+            modelBuilder.Entity<ApiKey>()
+                .HasIndex(ak => ak.ExpiresAt)
+                .HasDatabaseName("IX_ApiKeys_ExpiresAt");
+
+            modelBuilder.Entity<ApiKey>()
+                .HasIndex(ak => ak.IsActive)
+                .HasDatabaseName("IX_ApiKeys_IsActive");
+
+            modelBuilder.Entity<ApiKey>()
+                .HasIndex(ak => ak.IsRevoked)
+                .HasDatabaseName("IX_ApiKeys_IsRevoked");
+
+            modelBuilder.Entity<ApiKey>()
+                .HasIndex(ak => ak.Environment)
+                .HasDatabaseName("IX_ApiKeys_Environment");
+
+            modelBuilder.Entity<ApiKey>()
+                .HasIndex(ak => ak.CreatedAt)
+                .HasDatabaseName("IX_ApiKeys_CreatedAt");
+
+            modelBuilder.Entity<ApiKey>()
+                .HasIndex(ak => new { ak.IsActive, ak.IsRevoked, ak.ExpiresAt })
+                .HasDatabaseName("IX_ApiKeys_Active_Revoked_Expires");
+
+            // ApiKeyUsage indexes
+            modelBuilder.Entity<ApiKeyUsage>()
+                .HasIndex(aku => aku.ApiKeyId)
+                .HasDatabaseName("IX_ApiKeyUsages_ApiKeyId");
+
+            modelBuilder.Entity<ApiKeyUsage>()
+                .HasIndex(aku => aku.CreatedAt)
+                .HasDatabaseName("IX_ApiKeyUsages_CreatedAt");
+
+            modelBuilder.Entity<ApiKeyUsage>()
+                .HasIndex(aku => aku.IpAddress)
+                .HasDatabaseName("IX_ApiKeyUsages_IpAddress");
+
+            modelBuilder.Entity<ApiKeyUsage>()
+                .HasIndex(aku => aku.ResponseStatusCode)
+                .HasDatabaseName("IX_ApiKeyUsages_ResponseStatusCode");
+
+            modelBuilder.Entity<ApiKeyUsage>()
+                .HasIndex(aku => aku.IsSuspicious)
+                .HasDatabaseName("IX_ApiKeyUsages_IsSuspicious");
+
+            modelBuilder.Entity<ApiKeyUsage>()
+                .HasIndex(aku => new { aku.ApiKeyId, aku.CreatedAt })
+                .HasDatabaseName("IX_ApiKeyUsages_ApiKey_CreatedAt");
+
+            modelBuilder.Entity<ApiKeyUsage>()
+                .HasIndex(aku => new { aku.IsSuccessful, aku.CreatedAt })
+                .HasDatabaseName("IX_ApiKeyUsages_Successful_CreatedAt");
+
             // Configure relationships
             modelBuilder.Entity<Product>()
                 .HasOne(p => p.Category)
@@ -266,6 +431,32 @@ namespace DecorStore.API.Data
                 .HasForeignKey(r => r.UserId)
                 .OnDelete(DeleteBehavior.Restrict);
 
+            // Configure security-related relationships
+            modelBuilder.Entity<User>()
+                .HasMany(u => u.RefreshTokens)
+                .WithOne(rt => rt.User)
+                .HasForeignKey(rt => rt.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<User>()
+                .HasMany(u => u.BlacklistedTokens)
+                .WithOne(tb => tb.User)
+                .HasForeignKey(tb => tb.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<User>()
+                .HasMany(u => u.SecurityEvents)
+                .WithOne(se => se.User)
+                .HasForeignKey(se => se.UserId)
+                .OnDelete(DeleteBehavior.Restrict)
+                .IsRequired(false);
+
+            modelBuilder.Entity<User>()
+                .HasMany(u => u.PasswordHistory)
+                .WithOne(ph => ph.User)
+                .HasForeignKey(ph => ph.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
             modelBuilder.Entity<Order>()
                 .HasMany(o => o.OrderItems)
                 .WithOne(oi => oi.Order)
@@ -310,6 +501,11 @@ namespace DecorStore.API.Data
             modelBuilder.Entity<CartItem>()
                 .Property(ci => ci.UnitPrice)
                 .HasColumnType("decimal(18,2)");
+
+            // Configure decimal precision for security-related entities
+            modelBuilder.Entity<SecurityEvent>()
+                .Property(se => se.RiskScore)
+                .HasColumnType("decimal(3,2)");
 
             // Configure Cart relationships
             modelBuilder.Entity<Cart>()

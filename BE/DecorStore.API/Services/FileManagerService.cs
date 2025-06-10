@@ -658,13 +658,12 @@ namespace DecorStore.API.Services
                 if (!IsImageFile(filePath))
                 {
                     return Task.FromResult(Result<ImageMetadataDTO>.Failure("File is not a valid image", "INVALID_IMAGE_TYPE"));
-                }
-
-                if (!File.Exists(filePath))
+                }                if (!File.Exists(filePath))
                 {
                     return Task.FromResult(Result<ImageMetadataDTO>.Failure("File not found", "FILE_NOT_FOUND"));
                 }
 
+#if WINDOWS
                 using var image = System.Drawing.Image.FromFile(filePath);
                 var metadata = new ImageMetadataDTO
                 {
@@ -674,6 +673,16 @@ namespace DecorStore.API.Services
                     AspectRatio = Math.Round((double)image.Width / image.Height, 2),
                     ColorSpace = image.PixelFormat.ToString()
                 };
+#else
+                var metadata = new ImageMetadataDTO
+                {
+                    Width = 0,
+                    Height = 0,
+                    Format = "Unknown",
+                    AspectRatio = 0,
+                    ColorSpace = "Unknown"
+                };
+#endif
 
                 return Task.FromResult(Result<ImageMetadataDTO>.Success(metadata));
             }

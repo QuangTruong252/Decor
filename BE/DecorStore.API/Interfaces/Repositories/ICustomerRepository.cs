@@ -9,11 +9,9 @@ namespace DecorStore.API.Interfaces.Repositories
     {
         // Paginated queries
         Task<PagedResult<Customer>> GetPagedAsync(CustomerFilterDTO filter);
-        Task<IEnumerable<Customer>> GetAllAsync();
-
-        // Single item queries
-        Task<Customer> GetByIdAsync(int id);
-        Task<Customer> GetByEmailAsync(string email);
+        Task<IEnumerable<Customer>> GetAllAsync();        // Single item queries
+        Task<Customer?> GetByIdAsync(int id);
+        Task<Customer?> GetByEmailAsync(string email);
 
         // Count and existence checks
         Task<bool> ExistsAsync(int id);

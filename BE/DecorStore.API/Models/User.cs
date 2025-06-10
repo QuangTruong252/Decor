@@ -38,11 +38,21 @@ namespace DecorStore.API.Models
         [StringLength(20)]
         public string Role { get; set; } = "User";
 
+        [StringLength(20)]
+        public string Status { get; set; } = "Active";
+
         public bool IsDeleted { get; set; } = false;
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
         public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+
+        // Password security fields
+        public int AccessFailedCount { get; set; } = 0;
+
+        public DateTime? LockoutEnd { get; set; }
+
+        public DateTime? PasswordChangedAt { get; set; }
 
         // Navigation properties
         [JsonIgnore]
@@ -51,10 +61,26 @@ namespace DecorStore.API.Models
         [JsonIgnore]
         public virtual ICollection<Review> Reviews { get; set; }
 
+        [JsonIgnore]
+        public virtual ICollection<RefreshToken> RefreshTokens { get; set; }
+
+        [JsonIgnore]
+        public virtual ICollection<TokenBlacklist> BlacklistedTokens { get; set; }
+
+        [JsonIgnore]
+        public virtual ICollection<SecurityEvent> SecurityEvents { get; set; }
+
+        [JsonIgnore]
+        public virtual ICollection<PasswordHistory> PasswordHistory { get; set; }
+
         public User()
         {
             Orders = new List<Order>();
             Reviews = new List<Review>();
+            RefreshTokens = new List<RefreshToken>();
+            BlacklistedTokens = new List<TokenBlacklist>();
+            SecurityEvents = new List<SecurityEvent>();
+            PasswordHistory = new List<PasswordHistory>();
             Username = string.Empty;
             Email = string.Empty;
             PasswordHash = string.Empty;

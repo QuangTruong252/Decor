@@ -21,15 +21,20 @@ namespace DecorStore.API.Data
         private IBannerRepository? _bannerRepository;
         private ICartRepository? _cartRepository;
         private ICustomerRepository? _customerRepository;
-        private IDashboardRepository? _dashboardRepository;
-        private IUserRepository? _userRepository;
+        private IDashboardRepository? _dashboardRepository;        private IUserRepository? _userRepository;
         private IOrderItemRepository? _orderItemRepository;
+        private IRefreshTokenRepository? _refreshTokenRepository;
+        private ISecurityEventRepository? _securityEventRepository;
 
         public UnitOfWork(ApplicationDbContext context, ICacheService cacheService)
         {
             _context = context ?? throw new ArgumentNullException(nameof(context));
             _cacheService = cacheService ?? throw new ArgumentNullException(nameof(cacheService));
-        }        public IProductRepository Products => _productRepository ??= new ProductRepository(_context, _cacheService);
+        }
+
+        public ApplicationDbContext Context => _context;
+
+        public IProductRepository Products => _productRepository ??= new ProductRepository(_context, _cacheService);
         public ICategoryRepository Categories => _categoryRepository ??= new CategoryRepository(_context, _cacheService);
         public IImageRepository Images => _imageRepository ??= new ImageRepository(_context);
         public IOrderRepository Orders => _orderRepository ??= new OrderRepository(_context);
@@ -37,9 +42,10 @@ namespace DecorStore.API.Data
         public IBannerRepository Banners => _bannerRepository ??= new BannerRepository(_context);
         public ICartRepository Carts => _cartRepository ??= new CartRepository(_context);
         public ICustomerRepository Customers => _customerRepository ??= new CustomerRepository(_context);
-        public IDashboardRepository Dashboard => _dashboardRepository ??= new DashboardRepository(_context);
-        public IUserRepository Users => _userRepository ??= new UserRepository(_context);
+        public IDashboardRepository Dashboard => _dashboardRepository ??= new DashboardRepository(_context);        public IUserRepository Users => _userRepository ??= new UserRepository(_context);
         public IOrderItemRepository OrderItems => _orderItemRepository ??= new OrderItemRepository(_context);
+        public IRefreshTokenRepository RefreshTokens => _refreshTokenRepository ??= new RefreshTokenRepository(_context);
+        public ISecurityEventRepository SecurityEvents => _securityEventRepository ??= new SecurityEventRepository(_context);
 
         public async Task BeginTransactionAsync()
         {

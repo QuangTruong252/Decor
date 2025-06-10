@@ -1,4 +1,7 @@
 using DecorStore.API.Configuration;
+using DecorStore.API.Services;
+using DecorStore.API.Interfaces.Services;
+using DecorStore.API.Middleware;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Options;
 using System.Threading.RateLimiting;
@@ -12,6 +15,27 @@ namespace DecorStore.API.Extensions
             // Configure and validate ApiSettings for security
             services.Configure<ApiSettings>(configuration.GetSection("Api"));
             services.AddSingleton<IValidateOptions<ApiSettings>, Configuration.Validators.ApiSettingsValidator>();
+
+            // Configure API Key settings
+            services.Configure<ApiKeySettings>(configuration.GetSection("ApiKeySettings"));
+            
+            // Configure Service Authentication settings
+            services.Configure<ServiceAuthSettings>(configuration.GetSection("ServiceAuth"));
+            
+            // Configure Security Testing settings
+            services.Configure<SecurityTestingSettings>(configuration.GetSection("SecurityTesting"));
+
+            // Register all security services
+            services.AddScoped<Interfaces.Services.IApiKeyManagementService, Services.ApiKeyManagementService>();
+            services.AddScoped<Interfaces.Services.IJwtTokenService, Services.JwtTokenService>();
+            services.AddScoped<Interfaces.Services.ISecurityEventLogger, Services.SecurityEventLogger>();
+            services.AddScoped<Interfaces.Services.IPasswordSecurityService, Services.PasswordSecurityService>();
+            services.AddScoped<Interfaces.Services.IDataEncryptionService, Services.DataEncryptionService>();
+            services.AddScoped<IDataAnonymizationService, DataAnonymizationService>();
+            services.AddScoped<IServiceAuthenticationService, ServiceAuthenticationService>();
+            services.AddScoped<ISecurityDashboardService, SecurityDashboardService>();
+            services.AddScoped<IGdprComplianceService, GdprComplianceService>();
+            services.AddScoped<ISecurityTestingService, SecurityTestingService>();
 
             var apiSettings = configuration.GetSection("Api").Get<ApiSettings>() ?? new ApiSettings();
 
@@ -88,6 +112,9 @@ namespace DecorStore.API.Extensions
 
             // Use security headers
             app.UseSecurityHeaders();
+
+            // Use API key rate limiting middleware
+            app.UseMiddleware<ApiKeyRateLimitingMiddleware>();
 
             // Use rate limiting
             app.UseRateLimiter();

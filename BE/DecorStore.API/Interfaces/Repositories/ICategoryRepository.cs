@@ -10,11 +10,9 @@ namespace DecorStore.API.Interfaces.Repositories
     {
         // Paginated queries (GetPagedAsync inherited from base)
         Task<PagedResult<Category>> GetPagedAsync(CategoryFilterDTO filter);
-        Task<IEnumerable<Category>> GetRootCategoriesWithChildrenAsync();
-
-        // Single item queries (GetByIdAsync inherited from base)
-        Task<Category> GetByIdWithChildrenAsync(int id);
-        Task<Category> GetBySlugAsync(string slug);
+        Task<IEnumerable<Category>> GetRootCategoriesWithChildrenAsync();        // Single item queries (GetByIdAsync inherited from base)
+        Task<Category?> GetByIdWithChildrenAsync(int id);
+        Task<Category?> GetBySlugAsync(string slug);
 
         // Count and existence checks (ExistsAsync inherited from base)
         Task<bool> SlugExistsAsync(string slug);

@@ -3,8 +3,12 @@ using System.Threading.Tasks;
 using DecorStore.API.Interfaces.Repositories;
 
 namespace DecorStore.API.Interfaces
-{    public interface IUnitOfWork : IDisposable
+{
+    public interface IUnitOfWork : IDisposable
     {
+        // DbContext access
+        Data.ApplicationDbContext Context { get; }
+        
         // Repositories
         IProductRepository Products { get; }
         ICategoryRepository Categories { get; }
@@ -14,9 +18,10 @@ namespace DecorStore.API.Interfaces
         IBannerRepository Banners { get; }
         ICartRepository Carts { get; }
         ICustomerRepository Customers { get; }
-        IDashboardRepository Dashboard { get; }
-        IUserRepository Users { get; }
+        IDashboardRepository Dashboard { get; }        IUserRepository Users { get; }
         IOrderItemRepository OrderItems { get; }
+        IRefreshTokenRepository RefreshTokens { get; }
+        ISecurityEventRepository SecurityEvents { get; }
 
         // Transaction management
         Task BeginTransactionAsync();
