@@ -45,15 +45,25 @@ namespace DecorStore.API.Data
         public IDashboardRepository Dashboard => _dashboardRepository ??= new DashboardRepository(_context);        public IUserRepository Users => _userRepository ??= new UserRepository(_context);
         public IOrderItemRepository OrderItems => _orderItemRepository ??= new OrderItemRepository(_context);
         public IRefreshTokenRepository RefreshTokens => _refreshTokenRepository ??= new RefreshTokenRepository(_context);
-        public ISecurityEventRepository SecurityEvents => _securityEventRepository ??= new SecurityEventRepository(_context);
-
-        public async Task BeginTransactionAsync()
+        public ISecurityEventRepository SecurityEvents => _securityEventRepository ??= new SecurityEventRepository(_context);        public async Task BeginTransactionAsync()
         {
+            // Skip transactions for in-memory database
+            if (_context.Database.IsInMemory())
+            {
+                return;
+            }
+            
             _transaction = await _context.Database.BeginTransactionAsync();
         }
 
         public async Task CommitTransactionAsync()
         {
+            // Skip transactions for in-memory database
+            if (_context.Database.IsInMemory())
+            {
+                return;
+            }
+            
             try
             {
                 if (_transaction != null)
@@ -73,6 +83,12 @@ namespace DecorStore.API.Data
 
         public async Task RollbackTransactionAsync()
         {
+            // Skip transactions for in-memory database
+            if (_context.Database.IsInMemory())
+            {
+                return;
+            }
+            
             try
             {
                 if (_transaction != null)
@@ -93,10 +109,14 @@ namespace DecorStore.API.Data
         public async Task<int> SaveChangesAsync()
         {
             return await _context.SaveChangesAsync();
-        }
-
-        public async Task<TResult> ExecuteWithExecutionStrategyAsync<TResult>(Func<Task<TResult>> operation)
+        }        public async Task<TResult> ExecuteWithExecutionStrategyAsync<TResult>(Func<Task<TResult>> operation)
         {
+            // Skip execution strategy for in-memory database
+            if (_context.Database.IsInMemory())
+            {
+                return await operation();
+            }
+            
             var strategy = _context.Database.CreateExecutionStrategy();
             return await strategy.ExecuteAsync(operation);
         }

@@ -122,6 +122,13 @@ namespace DecorStore.API.Extensions
             // Configure Password Security Settings
             services.Configure<PasswordSecuritySettings>(configuration.GetSection("PasswordSecurity"));
             services.AddSingleton<IValidateOptions<PasswordSecuritySettings>, PasswordSecuritySettingsValidator>();
+            
+            // Register PasswordSecuritySettings for DI
+            services.AddSingleton<PasswordSecuritySettings>(provider =>
+            {
+                var options = provider.GetRequiredService<IOptions<PasswordSecuritySettings>>();
+                return options.Value;
+            });
 
             // Configure Data Encryption Settings
             services.Configure<DataEncryptionSettings>(configuration.GetSection("DataEncryption"));

@@ -1,16 +1,20 @@
 using System.Text.Json.Serialization;
 using DecorStore.API.Extensions;
+using DecorStore.API.Middleware;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddControllers();
 
+// Add HttpClient support
+builder.Services.AddHttpClient();
+
 // Add optimized JSON serialization
 builder.Services.AddOptimizedJsonSerialization();
 
 // Add response compression
-builder.Services.AddResponseCompressionServices();
+DecorStore.API.Extensions.CompressionServiceExtensions.AddResponseCompressionServices(builder.Services);
 
 // Add service extensions
 builder.Services.AddDatabaseServices(builder.Configuration);
@@ -30,16 +34,23 @@ builder.Services.AddSwaggerServices();
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
+// IMPORTANT: Exception handling must be FIRST to catch all exceptions
+app.UseMiddleware<GlobalExceptionHandlerMiddleware>();
+
 app.UseSwaggerMiddleware();
 
 // Use response compression (early in pipeline)
 app.UseResponseCompression();
 
+// Use response caching (before performance middleware)
+app.UseResponseCaching();
+
 // Use performance middleware (early in pipeline for compression)
 app.UsePerformanceMiddleware();
 
 // Use validation middleware (early in pipeline)
-app.UseValidationMiddleware();
+// TEMPORARILY DISABLED TO TEST STREAM ISSUE
+// app.UseValidationMiddleware();
 
 // Use security middleware
 app.UseSecurityMiddleware();

@@ -159,12 +159,10 @@ namespace DecorStore.API.Services.Excel
         /// <summary>
         /// Average order value
         /// </summary>
-        public decimal AverageOrderValue { get; set; }
-
-        /// <summary>
+        public decimal AverageOrderValue { get; set; }        /// <summary>
         /// Date range of orders in the import
         /// </summary>
-        public DateRange OrderDateRange { get; set; } = new DateRange();
+        public ExcelDateRange OrderDateRange { get; set; } = new ExcelDateRange();
 
         /// <summary>
         /// Invalid user emails detected
@@ -241,12 +239,10 @@ namespace DecorStore.API.Services.Excel
         /// Whether the product is active
         /// </summary>
         public bool IsActive { get; set; }
-    }
-
-    /// <summary>
-    /// Date range helper class
+    }    /// <summary>
+    /// Date range helper class for Excel operations
     /// </summary>
-    public class DateRange
+    public class ExcelDateRange
     {
         /// <summary>
         /// Start date

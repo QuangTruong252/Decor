@@ -99,9 +99,8 @@ namespace DecorStore.API.Controllers
 
             var updateResult = await _reviewService.UpdateReviewAsync(id, reviewDto);
             return HandleResult(updateResult);
-        }
-
-        // DELETE: api/Review/5        [HttpDelete("{id}")]
+        }        // DELETE: api/Review/5
+        [HttpDelete("{id}")]
         [Authorize]
         public async Task<ActionResult<ReviewDTO>> DeleteReview(int id)
         {

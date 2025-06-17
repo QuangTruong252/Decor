@@ -55,33 +55,22 @@ namespace DecorStore.API.Services.BackgroundServices
 
             try
             {
-                using var scope = _serviceProvider.CreateScope();
-                var cacheService = scope.ServiceProvider.GetRequiredService<ICacheService>();
-                var categoryRepository = scope.ServiceProvider.GetRequiredService<ICategoryRepository>();
-                var productRepository = scope.ServiceProvider.GetRequiredService<IProductRepository>();
-                var bannerService = scope.ServiceProvider.GetService<IBannerService>();
-
-                var warmupTasks = new List<Task>();
-
+                // Run warmup tasks sequentially to avoid DbContext concurrency issues
+                
                 // Warm up categories
-                warmupTasks.Add(WarmupCategories(cacheService, categoryRepository, cancellationToken));
+                await WarmupCategories(cancellationToken);
 
                 // Warm up featured products
-                warmupTasks.Add(WarmupFeaturedProducts(cacheService, productRepository, cancellationToken));
+                await WarmupFeaturedProducts(cancellationToken);
 
                 // Warm up top-rated products
-                warmupTasks.Add(WarmupTopRatedProducts(cacheService, productRepository, cancellationToken));
+                await WarmupTopRatedProducts(cancellationToken);
 
-                // Warm up banners if service is available
-                if (bannerService != null)
-                {
-                    warmupTasks.Add(WarmupBanners(cacheService, bannerService, cancellationToken));
-                }
+                // Warm up banners
+                await WarmupBanners(cancellationToken);
 
                 // Warm up dashboard stats
-                warmupTasks.Add(WarmupDashboardStats(cacheService, productRepository, categoryRepository, cancellationToken));
-
-                await Task.WhenAll(warmupTasks);
+                await WarmupDashboardStats(cancellationToken);
 
                 var duration = DateTime.UtcNow - startTime;
                 _logger.LogInformation("Cache warmup completed in {Duration}ms", duration.TotalMilliseconds);
@@ -92,10 +81,14 @@ namespace DecorStore.API.Services.BackgroundServices
             }
         }
 
-        private async Task WarmupCategories(ICacheService cacheService, ICategoryRepository categoryRepository, CancellationToken cancellationToken)
+        private async Task WarmupCategories(CancellationToken cancellationToken)
         {
             try
             {
+                using var scope = _serviceProvider.CreateScope();
+                var cacheService = scope.ServiceProvider.GetRequiredService<ICacheService>();
+                var categoryRepository = scope.ServiceProvider.GetRequiredService<ICategoryRepository>();
+                
                 await cacheService.GetOrCreateAsync("categories:all", async () =>
                 {
                     return await categoryRepository.GetRootCategoriesWithChildrenAsync();
@@ -109,10 +102,14 @@ namespace DecorStore.API.Services.BackgroundServices
             }
         }
 
-        private async Task WarmupFeaturedProducts(ICacheService cacheService, IProductRepository productRepository, CancellationToken cancellationToken)
+        private async Task WarmupFeaturedProducts(CancellationToken cancellationToken)
         {
             try
             {
+                using var scope = _serviceProvider.CreateScope();
+                var cacheService = scope.ServiceProvider.GetRequiredService<ICacheService>();
+                var productRepository = scope.ServiceProvider.GetRequiredService<IProductRepository>();
+                
                 await cacheService.GetOrCreateAsync("products:featured", async () =>
                 {
                     return await productRepository.GetFeaturedProductsAsync(20);
@@ -126,10 +123,14 @@ namespace DecorStore.API.Services.BackgroundServices
             }
         }
 
-        private async Task WarmupTopRatedProducts(ICacheService cacheService, IProductRepository productRepository, CancellationToken cancellationToken)
+        private async Task WarmupTopRatedProducts(CancellationToken cancellationToken)
         {
             try
             {
+                using var scope = _serviceProvider.CreateScope();
+                var cacheService = scope.ServiceProvider.GetRequiredService<ICacheService>();
+                var productRepository = scope.ServiceProvider.GetRequiredService<IProductRepository>();
+                
                 await cacheService.GetOrCreateAsync("products:top-rated", async () =>
                 {
                     return await productRepository.GetTopRatedProductsAsync(20);
@@ -143,16 +144,23 @@ namespace DecorStore.API.Services.BackgroundServices
             }
         }
 
-        private async Task WarmupBanners(ICacheService cacheService, IBannerService bannerService, CancellationToken cancellationToken)
+        private async Task WarmupBanners(CancellationToken cancellationToken)
         {
             try
             {
-                await cacheService.GetOrCreateAsync("banners:active", async () =>
+                using var scope = _serviceProvider.CreateScope();
+                var cacheService = scope.ServiceProvider.GetRequiredService<ICacheService>();
+                var bannerService = scope.ServiceProvider.GetService<IBannerService>();
+                
+                if (bannerService != null)
                 {
-                    return await bannerService.GetActiveBannersAsync();
-                }, TimeSpan.FromMinutes(_cacheSettings.DefaultExpirationMinutes));
+                    await cacheService.GetOrCreateAsync("banners:active", async () =>
+                    {
+                        return await bannerService.GetActiveBannersAsync();
+                    }, TimeSpan.FromMinutes(_cacheSettings.DefaultExpirationMinutes));
 
-                _logger.LogDebug("Banners cache warmed up");
+                    _logger.LogDebug("Banners cache warmed up");
+                }
             }
             catch (Exception ex)
             {
@@ -160,10 +168,15 @@ namespace DecorStore.API.Services.BackgroundServices
             }
         }
 
-        private async Task WarmupDashboardStats(ICacheService cacheService, IProductRepository productRepository, ICategoryRepository categoryRepository, CancellationToken cancellationToken)
+        private async Task WarmupDashboardStats(CancellationToken cancellationToken)
         {
             try
             {
+                using var scope = _serviceProvider.CreateScope();
+                var cacheService = scope.ServiceProvider.GetRequiredService<ICacheService>();
+                var productRepository = scope.ServiceProvider.GetRequiredService<IProductRepository>();
+                var categoryRepository = scope.ServiceProvider.GetRequiredService<ICategoryRepository>();
+                
                 await cacheService.GetOrCreateAsync("dashboard:stats", async () =>
                 {
                     var totalProducts = await productRepository.CountAsync();

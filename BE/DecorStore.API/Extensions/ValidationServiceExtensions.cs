@@ -8,8 +8,7 @@ namespace DecorStore.API.Extensions
     /// Extension methods for configuring validation services
     /// </summary>
     public static class ValidationServiceExtensions
-    {
-        /// <summary>
+    {        /// <summary>
         /// Adds comprehensive validation services to the DI container
         /// </summary>
         public static IServiceCollection AddValidationServices(this IServiceCollection services, IConfiguration configuration)
@@ -19,19 +18,15 @@ namespace DecorStore.API.Extensions
                     .AddFluentValidationClientsideAdapters()
                     .AddValidatorsFromAssemblyContaining<Program>(ServiceLifetime.Scoped);
 
-            // Note: Middleware is not registered in DI - it's added to pipeline via UseMiddleware
+            // Register middleware services that implement IMiddleware
+            services.AddScoped<GlobalExceptionHandlerMiddleware>();
 
             return services;
-        }
-
-        /// <summary>
+        }        /// <summary>
         /// Configures validation middleware in the request pipeline
         /// </summary>
         public static WebApplication UseValidationMiddleware(this WebApplication app)
         {
-            // Add global exception handling (should be early in pipeline)
-            app.UseMiddleware<GlobalExceptionHandlerMiddleware>();
-
             // Add input sanitization (before authentication/authorization)
             app.UseMiddleware<InputSanitizationMiddleware>();
 

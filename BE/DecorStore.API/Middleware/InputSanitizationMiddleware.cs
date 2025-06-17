@@ -155,9 +155,7 @@ namespace DecorStore.API.Middleware
             }
 
             return isAllowed;
-        }
-
-        private async Task SanitizeJsonRequest(HttpContext context, string correlationId)
+        }        private async Task SanitizeJsonRequest(HttpContext context, string correlationId)
         {
             context.Request.EnableBuffering();
             
@@ -197,6 +195,7 @@ namespace DecorStore.API.Middleware
                     // Replace request body with sanitized version
                     var sanitizedBytes = Encoding.UTF8.GetBytes(sanitizedJson);
                     context.Request.Body = new MemoryStream(sanitizedBytes);
+                    context.Request.Body.Position = 0;
                     context.Request.ContentLength = sanitizedBytes.Length;
                 }
             }

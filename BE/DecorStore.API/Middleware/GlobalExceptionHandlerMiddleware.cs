@@ -1,6 +1,7 @@
 using DecorStore.API.Exceptions;
 using DecorStore.API.Extensions;
 using DecorStore.API.Models;
+using DecorStore.API.Interfaces.Services;
 using Microsoft.EntityFrameworkCore;
 using System.Net;
 using System.Text.Json;
@@ -8,18 +9,17 @@ using ValidationException = DecorStore.API.Exceptions.ValidationException;
 using FluentValidationException = FluentValidation.ValidationException;
 
 namespace DecorStore.API.Middleware
-{
-    /// <summary>
+{    /// <summary>
     /// Global exception handling middleware that catches and processes all unhandled exceptions
     /// </summary>
     public class GlobalExceptionHandlerMiddleware : IMiddleware
     {
         private readonly ILogger<GlobalExceptionHandlerMiddleware> _logger;
-        private readonly ICorrelationIdService _correlationIdService;
+        private readonly DecorStore.API.Interfaces.Services.ICorrelationIdService _correlationIdService;
 
         public GlobalExceptionHandlerMiddleware(
             ILogger<GlobalExceptionHandlerMiddleware> logger,
-            ICorrelationIdService correlationIdService)
+            DecorStore.API.Interfaces.Services.ICorrelationIdService correlationIdService)
         {
             _logger = logger;
             _correlationIdService = correlationIdService;
@@ -33,13 +33,23 @@ namespace DecorStore.API.Middleware
             }
             catch (Exception ex)
             {
-                await HandleExceptionAsync(context, ex);
-            }
+                await HandleExceptionAsync(context, ex);            }
         }
 
         private async Task HandleExceptionAsync(HttpContext context, Exception exception)
         {
             var correlationId = _correlationIdService.GetCorrelationId();
+            
+            // Check if response has already started
+            if (context.Response.HasStarted)
+            {
+                // If response has started, we can only log the exception
+                _logger.LogError(exception, 
+                    "Exception occurred but response already started. CorrelationId: {CorrelationId}", 
+                    correlationId);
+                return;
+            }
+
             var path = context.Request.Path.Value ?? string.Empty;
 
             // Log the exception with correlation ID
@@ -49,21 +59,34 @@ namespace DecorStore.API.Middleware
             var errorResponse = CreateErrorResponse(exception, correlationId, path);
             var statusCode = GetStatusCode(exception);
 
-            // Set response properties
-            context.Response.StatusCode = (int)statusCode;
-            context.Response.ContentType = "application/json";
-
-            // Add correlation ID to response headers
-            context.Response.Headers.TryAdd("X-Correlation-ID", correlationId);
-
-            // Serialize and write response
-            var jsonResponse = JsonSerializer.Serialize(errorResponse, new JsonSerializerOptions
+            try
             {
-                PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-                WriteIndented = true
-            });
+                // Clear any existing response content
+                context.Response.Clear();
+                
+                // Set response properties
+                context.Response.StatusCode = (int)statusCode;
+                context.Response.ContentType = "application/json";
 
-            await context.Response.WriteAsync(jsonResponse);
+                // Add correlation ID to response headers
+                context.Response.Headers.TryAdd("X-Correlation-ID", correlationId);
+
+                // Serialize and write response
+                var jsonResponse = JsonSerializer.Serialize(errorResponse, new JsonSerializerOptions
+                {
+                    PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+                    WriteIndented = true
+                });
+
+                await context.Response.WriteAsync(jsonResponse);
+            }
+            catch (Exception writeException)
+            {
+                // If we can't write to the response, just log the error
+                _logger.LogError(writeException, 
+                    "Failed to write exception response. Original exception: {OriginalException}, CorrelationId: {CorrelationId}", 
+                    exception.Message, correlationId);
+            }
         }
 
         private void LogException(Exception exception, string correlationId, HttpContext context)

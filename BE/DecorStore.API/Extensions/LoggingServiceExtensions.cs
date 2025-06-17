@@ -1,5 +1,6 @@
 using DecorStore.API.Configuration;
 using DecorStore.API.Middleware;
+using DecorStore.API.Interfaces.Services;
 using Microsoft.Extensions.Options;
 using Serilog;
 using Serilog.Events;
@@ -43,10 +44,8 @@ namespace DecorStore.API.Extensions
             {
                 loggingBuilder.ClearProviders();
                 loggingBuilder.AddSerilog(Log.Logger);
-            });
-
-            // Add correlation ID support
-            services.AddScoped<ICorrelationIdService, CorrelationIdService>();
+            });            // Add correlation ID support
+            services.AddScoped<DecorStore.API.Interfaces.Services.ICorrelationIdService, DecorStore.API.Services.CorrelationIdService>();
 
             // Add performance logging
             services.AddScoped<IPerformanceLogger, PerformanceLogger>();
@@ -83,45 +82,7 @@ namespace DecorStore.API.Extensions
                 "critical" => LogEventLevel.Fatal,
                 "none" => LogEventLevel.Fatal,
                 _ => LogEventLevel.Information
-            };
-        }
-    }
-
-    // Correlation ID service interface and implementation
-    public interface ICorrelationIdService
-    {
-        string GetCorrelationId();
-        void SetCorrelationId(string correlationId);
-    }
-
-    public class CorrelationIdService : ICorrelationIdService
-    {
-        private readonly IHttpContextAccessor _httpContextAccessor;
-        private const string CorrelationIdHeaderName = "X-Correlation-ID";
-
-        public CorrelationIdService(IHttpContextAccessor httpContextAccessor)
-        {
-            _httpContextAccessor = httpContextAccessor;
-        }
-
-        public string GetCorrelationId()
-        {
-            var context = _httpContextAccessor.HttpContext;
-            if (context?.Items.ContainsKey(CorrelationIdHeaderName) == true)
-            {
-                return context.Items[CorrelationIdHeaderName]?.ToString() ?? Guid.NewGuid().ToString();
-            }
-            return Guid.NewGuid().ToString();
-        }
-
-        public void SetCorrelationId(string correlationId)
-        {
-            var context = _httpContextAccessor.HttpContext;
-            if (context != null)
-            {
-                context.Items[CorrelationIdHeaderName] = correlationId;
-            }
-        }
+            };        }
     }
 
     // Performance logger interface and implementation

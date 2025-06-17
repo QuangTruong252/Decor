@@ -8,10 +8,23 @@ namespace DecorStore.API.Mappings
     public class MappingProfile : Profile
     {
         public MappingProfile()
-        {
-            // Image mapping
+        {            // Image mapping
             CreateMap<Image, ImageDTO>();
             CreateMap<Image, ImageResponseDTO>();
+
+            // User mappings
+            CreateMap<User, UserDTO>();
+            CreateMap<RegisterDTO, User>()
+                .ForMember(dest => dest.FullName, opt => opt.MapFrom(src => $"{src.FirstName} {src.LastName}".Trim()))
+                .ForMember(dest => dest.CreatedAt, opt => opt.MapFrom(_ => System.DateTime.UtcNow))
+                .ForMember(dest => dest.UpdatedAt, opt => opt.MapFrom(_ => System.DateTime.UtcNow))
+                .ForMember(dest => dest.PasswordHash, opt => opt.Ignore())
+                .ForMember(dest => dest.Orders, opt => opt.Ignore())
+                .ForMember(dest => dest.Reviews, opt => opt.Ignore())
+                .ForMember(dest => dest.RefreshTokens, opt => opt.Ignore())
+                .ForMember(dest => dest.BlacklistedTokens, opt => opt.Ignore())
+                .ForMember(dest => dest.SecurityEvents, opt => opt.Ignore())
+                .ForMember(dest => dest.PasswordHistory, opt => opt.Ignore());
 
             // Product mappings
             CreateMap<Product, ProductDTO>()

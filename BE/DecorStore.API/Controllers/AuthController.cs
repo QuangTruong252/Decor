@@ -22,7 +22,8 @@ namespace DecorStore.API.Controllers
         }
 
         // POST: api/Auth/register
-        [HttpPost("register")]        public async Task<ActionResult<AuthResponseDTO>> Register(RegisterDTO registerDto)
+        [HttpPost("register")]
+        public async Task<ActionResult<AuthResponseDTO>> Register(RegisterDTO registerDto)
         {
             var validationResult = ValidateModelState();
             if (validationResult != null)
@@ -100,9 +101,13 @@ namespace DecorStore.API.Controllers
             return HandleResult(makeAdminResult);
         }
 
-        // POST: api/Auth/change-password        [HttpPost("change-password")]
+        // POST: api/Auth/change-password
+        [HttpPost("change-password")]
         [Authorize]
-        public async Task<IActionResult> ChangePassword(ChangePasswordDTO changePasswordDto)
+        [ProducesResponseType(200)]
+        [ProducesResponseType(400)]
+        [ProducesResponseType(401)]
+        public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordDTO changePasswordDto)
         {
             var validationResult = ValidateModelState();
             if (validationResult != null)

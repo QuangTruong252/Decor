@@ -1,6 +1,5 @@
 using FluentValidation;
 using DecorStore.API.DTOs;
-using DecorStore.API.Interfaces;
 using DecorStore.API.Validators.CustomRules;
 
 namespace DecorStore.API.Validators.AuthValidators
@@ -10,17 +9,11 @@ namespace DecorStore.API.Validators.AuthValidators
     /// </summary>
     public class RegisterValidator : AbstractValidator<RegisterDTO>
     {
-        private readonly IUnitOfWork _unitOfWork;
-
-        public RegisterValidator(IUnitOfWork unitOfWork)
-        {
-            _unitOfWork = unitOfWork;
-
-            RuleFor(x => x.Email)
+        public RegisterValidator()
+        {RuleFor(x => x.Email)
                 .NotEmpty().WithMessage("Email is required")
                 .EmailAddress().WithMessage("Please provide a valid email address")
                 .MaximumLength(255).WithMessage("Email cannot exceed 255 characters")
-                .MustAsync(BeUniqueEmail).WithMessage("This email address is already registered")
                 .WithErrorCode("EMAIL_INVALID");
 
             RuleFor(x => x.Password)
@@ -60,21 +53,7 @@ namespace DecorStore.API.Validators.AuthValidators
             RuleFor(x => x.AcceptPrivacyPolicy)
                 .Equal(true).WithMessage("You must accept the privacy policy")
                 .WithErrorCode("PRIVACY_POLICY_NOT_ACCEPTED");
-        }
-
-        private async Task<bool> BeUniqueEmail(string email, CancellationToken cancellationToken)
-        {
-            try
-            {
-                return !await _unitOfWork.Customers.EmailExistsAsync(email);
-            }
-            catch
-            {
-                return false; // Assume not unique on error
-            }
-        }
-
-        private bool BeValidAge(DateTime dateOfBirth)
+        }        private bool BeValidAge(DateTime dateOfBirth)
         {
             var age = DateTime.Today.Year - dateOfBirth.Year;
             if (dateOfBirth.Date > DateTime.Today.AddYears(-age))

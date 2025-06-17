@@ -25,8 +25,10 @@ namespace DecorStore.API.Controllers
         /// Upload multiple images and return their IDs
         /// </summary>
         /// <param name="uploadDto">Images to upload</param>
-        /// <returns>List of uploaded image information</returns>        [HttpPost("upload")]
-        public async Task<IActionResult> UploadImages([FromForm] ImageUploadDTO uploadDto){
+        /// <returns>List of uploaded image information</returns>
+        [HttpPost("upload")]
+        public async Task<IActionResult> UploadImages([FromForm] ImageUploadDTO uploadDto)
+        {
             var validationResult = ValidateModelState();
             if (validationResult != null)
             {
@@ -106,7 +108,7 @@ namespace DecorStore.API.Controllers
         /// </summary>
         /// <param name="ids">Comma-separated list of image IDs</param>
         /// <returns>List of images</returns>
-        [HttpGet("{ids}")]
+        [HttpGet("by-ids/{ids}")]
         public async Task<ActionResult<ImageUploadResponseDTO>> GetImagesByIds(string ids)
         {
             // Parse comma-separated IDs

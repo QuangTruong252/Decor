@@ -66,29 +66,32 @@ namespace DecorStore.API.Services
                 // Clean up expired blacklisted tokens
                 var expiredBlacklistedTokens = await context.TokenBlacklists
                     .Where(tb => tb.ExpiryDate < cutoffTime)
-                    .ToListAsync();
-
-                if (expiredBlacklistedTokens.Any())
+                    .ToListAsync();                if (expiredBlacklistedTokens.Any())
                 {
                     context.TokenBlacklists.RemoveRange(expiredBlacklistedTokens);
                     _logger.LogInformation("Cleaned up {Count} expired blacklisted tokens", expiredBlacklistedTokens.Count);
                 }
 
                 // Clean up old token families (keep only the last 5 tokens per family)
-                var tokenFamilies = await context.RefreshTokens
+                // First, get all token families that have tokens
+                var allTokenFamilies = await context.RefreshTokens
                     .Where(rt => !string.IsNullOrEmpty(rt.TokenFamily))
-                    .GroupBy(rt => rt.TokenFamily)
-                    .Where(g => g.Count() > 5)
+                    .Select(rt => rt.TokenFamily)
+                    .Distinct()
                     .ToListAsync();
 
-                foreach (var family in tokenFamilies)
+                foreach (var tokenFamily in allTokenFamilies)
                 {
-                    var tokensToRemove = family
+                    var familyTokens = await context.RefreshTokens
+                        .Where(rt => rt.TokenFamily == tokenFamily)
                         .OrderByDescending(rt => rt.CreatedAt)
-                        .Skip(5)
-                        .ToList();
+                        .ToListAsync();
 
-                    context.RefreshTokens.RemoveRange(tokensToRemove);
+                    if (familyTokens.Count > 5)
+                    {
+                        var tokensToRemove = familyTokens.Skip(5).ToList();
+                        context.RefreshTokens.RemoveRange(tokensToRemove);
+                    }
                 }
 
                 await context.SaveChangesAsync();

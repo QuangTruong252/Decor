@@ -507,6 +507,10 @@ namespace DecorStore.API.Data
                 .Property(se => se.RiskScore)
                 .HasColumnType("decimal(3,2)");
 
+            modelBuilder.Entity<ApiKeyUsage>()
+                .Property(aku => aku.RiskScore)
+                .HasColumnType("decimal(3,2)");
+
             // Configure Cart relationships
             modelBuilder.Entity<Cart>()
                 .HasMany(c => c.Items)
