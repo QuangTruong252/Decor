@@ -6,7 +6,8 @@ using DecorStore.API.Interfaces.Services;
 using Microsoft.Extensions.Options;
 
 namespace DecorStore.API.Services
-{    /// <summary>
+{
+    /// <summary>
     /// Service for encrypting and decrypting sensitive data with key rotation support
     /// </summary>
     public class DataEncryptionService : IDataEncryptionService

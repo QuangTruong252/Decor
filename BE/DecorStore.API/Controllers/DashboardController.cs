@@ -20,7 +20,9 @@ namespace DecorStore.API.Controllers
         public DashboardController(IDashboardService dashboardService, ILogger<DashboardController> logger) : base(logger)
         {
             _dashboardService = dashboardService;
-        }        /// <summary>
+        }
+
+        /// <summary>
         /// Get dashboard summary data including key metrics, recent orders, popular products, etc.
         /// </summary>
         /// <returns>Dashboard summary data</returns>
@@ -30,7 +32,9 @@ namespace DecorStore.API.Controllers
         {
             var result = await _dashboardService.GetDashboardSummaryAsync();
             return HandleResult(result);
-        }        /// <summary>
+        }
+
+        /// <summary>
         /// Get sales trend data over time
         /// </summary>
         /// <param name="period">Period type (daily, weekly, monthly)</param>
@@ -46,7 +50,9 @@ namespace DecorStore.API.Controllers
         {
             var result = await _dashboardService.GetSalesTrendAsync(period, startDate, endDate);
             return HandleResult(result);
-        }        /// <summary>
+        }
+
+        /// <summary>
         /// Get popular products with sales metrics
         /// </summary>
         /// <param name="limit">Number of products to return</param>

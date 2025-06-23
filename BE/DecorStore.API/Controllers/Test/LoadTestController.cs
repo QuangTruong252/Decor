@@ -6,7 +6,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Text.Json;
 
-namespace DecorStore.API.Controllers
+namespace DecorStore.API.Controllers.Test
 {
     /// <summary>
     /// Controller for load testing operations

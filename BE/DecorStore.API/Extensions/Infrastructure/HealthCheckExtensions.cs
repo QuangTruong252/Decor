@@ -7,7 +7,7 @@ using Microsoft.Extensions.Options;
 using System.Diagnostics;
 using System.Text.Json;
 
-namespace DecorStore.API.Extensions
+namespace DecorStore.API.Extensions.Infrastructure
 {
     public static class HealthCheckExtensions
     {

@@ -9,7 +9,8 @@ using DecorStore.API.DTOs;
 using Microsoft.EntityFrameworkCore;
 
 namespace DecorStore.API.Services
-{    /// <summary>
+{
+    /// <summary>
     /// Service for password security operations including validation, hashing, and policy enforcement
     /// </summary>
     public class PasswordSecurityService : IPasswordSecurityService

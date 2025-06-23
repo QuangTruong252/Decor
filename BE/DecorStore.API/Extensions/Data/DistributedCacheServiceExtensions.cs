@@ -15,8 +15,9 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace DecorStore.API.Extensions
-{    /// <summary>
+namespace DecorStore.API.Extensions.Data
+{
+    /// <summary>
     /// Extensions for Redis distributed caching services
     /// </summary>
     public static class DistributedCacheServiceExtensions
@@ -63,7 +64,9 @@ namespace DecorStore.API.Extensions
 
             return services;
         }
-    }    /// <summary>
+    }
+
+    /// <summary>
     /// Implementation of distributed cache service
     /// </summary>
     public class DistributedCacheService : IDistributedCacheService

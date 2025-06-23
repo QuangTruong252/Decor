@@ -2,7 +2,7 @@ using DecorStore.API.Configuration;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Options;
 
-namespace DecorStore.API.Extensions
+namespace DecorStore.API.Extensions.Http
 {
     public static class FileStorageMiddlewareExtensions
     {

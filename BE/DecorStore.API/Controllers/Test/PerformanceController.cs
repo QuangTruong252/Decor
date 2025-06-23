@@ -6,7 +6,7 @@ using System.Diagnostics;
 using System.Runtime;
 using System.Security.Claims;
 
-namespace DecorStore.API.Controllers
+namespace DecorStore.API.Controllers.Test
 {
     [ApiController]
     [Route("api/[controller]")]

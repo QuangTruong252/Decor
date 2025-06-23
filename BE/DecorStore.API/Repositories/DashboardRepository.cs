@@ -187,51 +187,5 @@ namespace DecorStore.API.Repositories
         {
             return new DateTime(2000, month, 1).ToString("MMMM");
         }
-
-        // Legacy method implementations for backward compatibility
-        public async Task<int> GetTotalProductsCountAsync()
-        {
-            return await GetTotalProductCountAsync();
-        }
-
-        public async Task<int> GetTotalOrdersCountAsync()
-        {
-            return await GetTotalOrderCountAsync();
-        }
-
-        public async Task<int> GetTotalCustomersCountAsync()
-        {
-            return await GetTotalCustomerCountAsync();
-        }
-
-        public async Task<Dictionary<string, decimal>> GetMonthlySalesAsync(int year)
-        {
-            return await GetSalesByMonthAsync(year);
-        }
-
-        public async Task<Dictionary<string, int>> GetProductCategoriesDistributionAsync()
-        {
-            return await _context.Products
-                .Include(p => p.Category)
-                .Where(p => !p.IsDeleted)
-                .GroupBy(p => p.Category.Name)
-                .Select(g => new { Category = g.Key, Count = g.Count() })
-                .ToDictionaryAsync(x => x.Category, x => x.Count);
-        }
-
-        public async Task<IEnumerable<Product>> GetTopSellingProductsAsync(int count = 10)
-        {
-            return await GetPopularProductsAsync(count);
-        }
-
-        public async Task<IEnumerable<Customer>> GetTopCustomersAsync(int count = 10)
-        {
-            return await _context.Customers
-                .Include(c => c.Orders)
-                .Where(c => !c.IsDeleted)
-                .OrderByDescending(c => c.Orders.Sum(o => o.TotalAmount))
-                .Take(count)
-                .ToListAsync();
-        }
     }
 }

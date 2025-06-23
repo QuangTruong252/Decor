@@ -9,7 +9,7 @@ using DecorStore.API.Configuration;
 using System.Data;
 using System.Data.Common;
 
-namespace DecorStore.API.Extensions
+namespace DecorStore.API.Extensions.Data
 {
     /// <summary>
     /// Extensions for database optimization and performance monitoring

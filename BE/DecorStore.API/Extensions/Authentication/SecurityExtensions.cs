@@ -6,7 +6,7 @@ using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Options;
 using System.Threading.RateLimiting;
 
-namespace DecorStore.API.Extensions
+namespace DecorStore.API.Extensions.Authentication
 {
     public static class SecurityExtensions
     {

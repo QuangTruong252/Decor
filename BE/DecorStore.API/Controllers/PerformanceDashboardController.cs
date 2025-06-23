@@ -44,24 +44,47 @@ namespace DecorStore.API.Controllers
                 _logger.LogError(ex, "Error retrieving performance dashboard");
                 return StatusCode(500, "An error occurred while retrieving performance data");
             }
-        }        /// <summary>
+        }
+
+        /// <summary>
         /// Get database performance metrics
         /// </summary>
         [HttpGet("database")]
-        [ProducesResponseType(typeof(DatabasePerformanceDTO), 200)]
-        public async Task<ActionResult<DatabasePerformanceDTO>> GetDatabaseMetrics()
+        [ProducesResponseType(typeof(DatabaseMetrics), 200)]
+        public async Task<ActionResult<DatabaseMetrics>> GetDatabaseMetrics()
         {
             try
             {
                 var result = await _performanceService.GetDatabaseMetricsAsync();
-                return HandleResult(result);
+                return Ok(result);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error retrieving database metrics");
                 return StatusCode(500, "An error occurred while retrieving database metrics");
             }
-        }        /// <summary>
+        }
+
+        /// <summary>
+        /// Get system health status
+        /// </summary>
+        [HttpGet("health")]
+        [ProducesResponseType(typeof(SystemHealthDTO), 200)]
+        public async Task<ActionResult<SystemHealthDTO>> GetSystemHealth()
+        {
+            try
+            {
+                var result = await _performanceService.GetSystemHealthAsync();
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving system health");
+                return StatusCode(500, "An error occurred while retrieving system health");
+            }
+        }
+
+        /// <summary>
         /// Get performance trends over time
         /// </summary>
         [HttpGet("trends")]
@@ -69,7 +92,8 @@ namespace DecorStore.API.Controllers
         public async Task<ActionResult<PerformanceTrendsDTO>> GetPerformanceTrends(
             [FromQuery] DateTime? startDate = null,
             [FromQuery] DateTime? endDate = null,
-            [FromQuery] string metric = "ResponseTime"){
+            [FromQuery] string metric = "ResponseTime")
+        {
             try
             {
                 var actualStartDate = startDate ?? DateTime.UtcNow.AddDays(-30);
@@ -101,7 +125,9 @@ namespace DecorStore.API.Controllers
                 _logger.LogError(ex, "Error retrieving resource utilization");
                 return StatusCode(500, "An error occurred while retrieving resource utilization");
             }
-        }        /// <summary>
+        }
+
+        /// <summary>
         /// Get cache performance metrics
         /// </summary>
         [HttpGet("cache")]

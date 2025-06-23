@@ -35,28 +35,26 @@ export const fileManagerService = {
    * Browse files and folders
    */
   async browse(params: BrowseParams = {}): Promise<BrowseResponse> {
-    const searchParams = new URLSearchParams();
-    
-    if (params.path) searchParams.append("path", params.path);
-    if (params.page) searchParams.append("page", params.page.toString());
-    if (params.pageSize) searchParams.append("pageSize", params.pageSize.toString());
-    if (params.search) searchParams.append("search", params.search);
-    if (params.fileType && params.fileType !== "all") searchParams.append("fileType", params.fileType);
-    if (params.extension) searchParams.append("extension", params.extension);
-    if (params.sortBy) searchParams.append("sortBy", params.sortBy);
-    if (params.sortOrder) searchParams.append("sortOrder", params.sortOrder);
-    if (params.minSize) searchParams.append("minSize", params.minSize.toString());
-    if (params.maxSize) searchParams.append("maxSize", params.maxSize.toString());
-    if (params.fromDate) searchParams.append("fromDate", params.fromDate);
-    if (params.toDate) searchParams.append("toDate", params.toDate);
-
-    const url = `${BASE_URL}/browse${searchParams.toString() ? `?${searchParams.toString()}` : ""}`;
-    const response = await fetchWithAuth(url);
-    
-    if (!response.ok) {
-      throw new Error("Failed to browse files");
-    }
-    
+    const url = `${BASE_URL}/browse`;
+    const response = await fetchWithAuth(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        path: params.path || "",
+        search: params.search || "",
+        fileType: params.fileType || "all",
+        extension: params.extension || "",
+        sortBy: params.sortBy || "name",
+        sortOrder: params.sortOrder || "asc",
+        minSize: params.minSize,
+        maxSize: params.maxSize,
+        fromDate: params.fromDate,
+        toDate: params.toDate,
+        pageNumber: params.page || 1,
+        pageSize: params.pageSize || 20,
+      }),
+    });
+    if (!response.ok) throw new Error("Failed to browse files");
     return response.json();
   },
 
@@ -67,7 +65,7 @@ export const fileManagerService = {
     const searchParams = new URLSearchParams();
     if (rootPath) searchParams.append("rootPath", rootPath);
 
-    const url = `${BASE_URL}/folders${searchParams.toString() ? `?${searchParams.toString()}` : ""}`;
+    const url = `${BASE_URL}/folder-structure${searchParams.toString() ? `?${searchParams.toString()}` : ""}`;
     const response = await fetchWithAuth(url);
     
     if (!response.ok) {

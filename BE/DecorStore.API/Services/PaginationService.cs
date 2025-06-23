@@ -3,7 +3,8 @@ using DecorStore.API.DTOs;
 using System.Linq.Expressions;
 
 namespace DecorStore.API.Services
-{    /// <summary>
+{
+    /// <summary>
     /// Service for optimized pagination operations
     /// </summary>
     public interface IPaginationService
@@ -27,13 +28,17 @@ namespace DecorStore.API.Services
         public PaginationService(ILogger<PaginationService> logger)
         {
             _logger = logger;
-        }        /// <summary>
+        }
+
+        /// <summary>
         /// Gets paginated results with optimized counting
         /// </summary>
         public async Task<PagedResult<T>> GetPagedResultAsync<T>(IQueryable<T> query, PaginationParameters parameters) where T : class
         {
             return await GetPagedResultAsync(query, parameters.PageNumber, parameters.PageSize);
-        }        /// <summary>
+        }
+
+        /// <summary>
         /// Gets paginated results with basic parameters
         /// </summary>
         public async Task<PagedResult<T>> GetPagedResultAsync<T>(IQueryable<T> query, int pageNumber, int pageSize) where T : class
@@ -55,7 +60,9 @@ namespace DecorStore.API.Services
                 .ToListAsync();
 
             return new PagedResult<T>(items, totalCount, pageNumber, pageSize);
-        }        /// <summary>
+        }
+
+        /// <summary>
         /// Gets paginated results with projection for better performance
         /// </summary>
         public async Task<PagedResult<TResult>> GetPagedResultAsync<TSource, TResult>(
@@ -98,7 +105,9 @@ namespace DecorStore.API.Services
                 throw;
             }
         }
-    }    /// <summary>
+    }
+
+    /// <summary>
     /// Cursor-based pagination for very large datasets
     /// </summary>
     public interface ICursorPaginationService
@@ -133,7 +142,10 @@ namespace DecorStore.API.Services
         public CursorPaginationService(ILogger<CursorPaginationService> logger)
         {
             _logger = logger;
-        }        /// <summary>
+        }
+
+
+        /// <summary>
         /// Gets cursor-based paginated results - more efficient for large datasets
         /// </summary>
         public async Task<CursorPagedResult<T>> GetCursorPagedResultAsync<T, TKey>(

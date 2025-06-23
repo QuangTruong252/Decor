@@ -57,7 +57,9 @@ namespace DecorStore.API.DTOs
         public bool IsActive { get; set; }
         public int UsageCount { get; set; }
         public string CreatedBy { get; set; } = string.Empty;
-    }    /// <summary>
+    }
+
+    /// <summary>
     /// DTO for API key validation result
     /// </summary>
     public class ApiKeyValidationResult
@@ -74,7 +76,9 @@ namespace DecorStore.API.DTOs
         public bool IsExpired { get; set; }
         public bool IsRevoked { get; set; }
         public bool IsActive { get; set; } = true;
-    }/// <summary>
+    }
+
+    /// <summary>
     /// DTO for API key usage request
     /// </summary>
     public class ApiKeyUsageRequest

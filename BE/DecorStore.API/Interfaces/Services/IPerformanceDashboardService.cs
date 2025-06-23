@@ -2,7 +2,8 @@ using DecorStore.API.Common;
 using DecorStore.API.DTOs;
 
 namespace DecorStore.API.Interfaces.Services
-{    /// <summary>
+{
+    /// <summary>
     /// Interface for performance dashboard service
     /// </summary>
     public interface IPerformanceDashboardService

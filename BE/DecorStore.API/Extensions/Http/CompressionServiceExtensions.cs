@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.ResponseCompression;
 using System.IO.Compression;
 
-namespace DecorStore.API.Extensions
+namespace DecorStore.API.Extensions.Http
 {
     /// <summary>
     /// Extension methods for configuring response compression services

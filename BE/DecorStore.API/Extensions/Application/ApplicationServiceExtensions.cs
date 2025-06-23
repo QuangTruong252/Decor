@@ -14,7 +14,7 @@ using System.IO.Compression;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace DecorStore.API.Extensions
+namespace DecorStore.API.Extensions.Application
 {
     public static class ApplicationServiceExtensions
     {

@@ -1,7 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace DecorStore.API.Extensions
+namespace DecorStore.API.Extensions.Http
 {
     /// <summary>
     /// Extension methods for configuring JSON serialization services

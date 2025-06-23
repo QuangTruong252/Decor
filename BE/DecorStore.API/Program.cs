@@ -1,11 +1,16 @@
 using System.Text.Json.Serialization;
-using DecorStore.API.Extensions;
+using DecorStore.API.Extensions.Authentication;
+using DecorStore.API.Extensions.Data;
+using DecorStore.API.Extensions.Http;
+using DecorStore.API.Extensions.Infrastructure;
+using DecorStore.API.Extensions.Application;
+using DecorStore.API.Extensions.Background;
 using DecorStore.API.Middleware;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
-builder.Services.AddControllers()
+var mvcBuilder = builder.Services.AddControllers()
     .AddJsonOptions(options =>
     {
         // Configure JSON options for MVC controllers to ensure proper model binding
@@ -28,7 +33,7 @@ builder.Services.AddHttpClient();
 builder.Services.AddOptimizedJsonSerialization();
 
 // Add response compression
-DecorStore.API.Extensions.CompressionServiceExtensions.AddResponseCompressionServices(builder.Services);
+builder.Services.AddResponseCompressionServices();
 
 // Add service extensions
 builder.Services.AddDatabaseServices(builder.Configuration);
@@ -44,6 +49,9 @@ builder.Services.AddHealthCheckServices(builder.Configuration);
 builder.Services.AddSecurityServices(builder.Configuration);
 builder.Services.AddValidationServices(builder.Configuration);
 builder.Services.AddSwaggerServices();
+
+// Add test controllers only in Development environment
+mvcBuilder.AddTestControllers(builder.Environment);
 
 var app = builder.Build();
 

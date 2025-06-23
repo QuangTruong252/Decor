@@ -5,7 +5,7 @@ using Microsoft.Extensions.Options;
 using Serilog;
 using Serilog.Events;
 
-namespace DecorStore.API.Extensions
+namespace DecorStore.API.Extensions.Infrastructure
 {
     public static class LoggingServiceExtensions
     {

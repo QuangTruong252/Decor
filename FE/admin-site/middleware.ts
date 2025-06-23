@@ -6,6 +6,9 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   console.log(`[Middleware] Checking path: ${pathname}`);
+  console.log(`[Middleware] Request cookies: ${request.cookies}`);
+  console.log(`[Middleware] NEXTAUTH_SECRET:`, process.env.NEXTAUTH_SECRET ? "Available" : "Not set");
+  
 
   // Allow access to login page, root page, and NextAuth API routes
   if (pathname.startsWith("/login") || pathname.startsWith("/api/auth") || pathname === "/") {

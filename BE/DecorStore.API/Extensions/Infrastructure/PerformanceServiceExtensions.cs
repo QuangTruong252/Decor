@@ -8,7 +8,7 @@ using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.EntityFrameworkCore;
 using System.IO.Compression;
 
-namespace DecorStore.API.Extensions
+namespace DecorStore.API.Extensions.Infrastructure
 {
     public static class PerformanceServiceExtensions
     {        public static IServiceCollection AddPerformanceServices(this IServiceCollection services, IConfiguration configuration)

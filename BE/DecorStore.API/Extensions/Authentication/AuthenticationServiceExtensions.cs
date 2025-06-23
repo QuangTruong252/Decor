@@ -6,7 +6,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 
-namespace DecorStore.API.Extensions
+namespace DecorStore.API.Extensions.Authentication
 {
     public static class AuthenticationServiceExtensions
     {

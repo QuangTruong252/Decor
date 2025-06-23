@@ -9,7 +9,8 @@ using ValidationException = DecorStore.API.Exceptions.ValidationException;
 using FluentValidationException = FluentValidation.ValidationException;
 
 namespace DecorStore.API.Middleware
-{    /// <summary>
+{
+    /// <summary>
     /// Global exception handling middleware that catches and processes all unhandled exceptions
     /// </summary>
     public class GlobalExceptionHandlerMiddleware : IMiddleware

@@ -2,7 +2,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using DecorStore.API.Services.BackgroundServices;
 
-namespace DecorStore.API.Extensions
+namespace DecorStore.API.Extensions.Background
 {
     /// <summary>
     /// Extensions for background processing services

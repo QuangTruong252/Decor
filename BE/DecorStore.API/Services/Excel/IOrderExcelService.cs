@@ -159,7 +159,9 @@ namespace DecorStore.API.Services.Excel
         /// <summary>
         /// Average order value
         /// </summary>
-        public decimal AverageOrderValue { get; set; }        /// <summary>
+        public decimal AverageOrderValue { get; set; }
+
+        /// <summary>
         /// Date range of orders in the import
         /// </summary>
         public ExcelDateRange OrderDateRange { get; set; } = new ExcelDateRange();
@@ -239,7 +241,9 @@ namespace DecorStore.API.Services.Excel
         /// Whether the product is active
         /// </summary>
         public bool IsActive { get; set; }
-    }    /// <summary>
+    }
+
+    /// <summary>
     /// Date range helper class for Excel operations
     /// </summary>
     public class ExcelDateRange

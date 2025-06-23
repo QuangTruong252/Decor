@@ -1,5 +1,6 @@
 namespace DecorStore.API.DTOs
-{    /// <summary>
+{
+    /// <summary>
     /// Performance dashboard overview data
     /// </summary>
     public class PerformanceDashboardDTO
@@ -33,7 +34,9 @@ namespace DecorStore.API.DTOs
         public TimeSpan Uptime { get; set; }
         public int ThreadCount { get; set; }
         public long GCTotalMemoryMB { get; set; }
-    }    /// <summary>
+    }
+
+    /// <summary>
     /// API performance metrics
     /// </summary>
     public class ApiPerformanceDTO
@@ -47,13 +50,15 @@ namespace DecorStore.API.DTOs
         public int SuccessfulRequests { get; set; }
         public int FailedRequests { get; set; }
         public List<EndpointPerformanceDTO> SlowestEndpoints { get; set; } = new();
-        
+
         // Additional properties used by PerformanceDashboardService
         public double AverageResponseTime { get; set; }
         public int ActiveUsers { get; set; }
         public double PeakResponseTime { get; set; }
         public double SuccessRate { get; set; }
-    }/// <summary>
+    }
+
+    /// <summary>
     /// Individual endpoint performance data
     /// </summary>
     public class EndpointPerformanceDTO
@@ -100,7 +105,9 @@ namespace DecorStore.API.DTOs
         public int ExecutionCount { get; set; }
         public DateTime LastExecuted { get; set; }
         public string? Parameters { get; set; }
-    }    /// <summary>
+    }
+
+    /// <summary>
     /// Cache performance metrics
     /// </summary>
     public class CachePerformanceDTO
@@ -130,7 +137,9 @@ namespace DecorStore.API.DTOs
         public long SizeBytes { get; set; }
         public DateTime LastAccessed { get; set; }
         public TimeSpan? TTL { get; set; }
-    }    /// <summary>
+    }
+
+    /// <summary>
     /// Performance metrics over time
     /// </summary>
     public class PerformanceMetricsDTO
@@ -161,7 +170,9 @@ namespace DecorStore.API.DTOs
         public DateTime Timestamp { get; set; }
         public double Value { get; set; }
         public string? Label { get; set; }
-    }    /// <summary>
+    }
+
+    /// <summary>
     /// Performance trends analysis
     /// </summary>
     public class PerformanceTrendsDTO
@@ -199,7 +210,9 @@ namespace DecorStore.API.DTOs
         public double ErrorRateChange { get; set; }
         public string OverallTrend { get; set; } = string.Empty;
         public List<string> Recommendations { get; set; } = new();
-    }    /// <summary>
+    }
+
+    /// <summary>
     /// Resource utilization data
     /// </summary>
     public class ResourceUtilizationDTO
@@ -338,7 +351,9 @@ namespace DecorStore.API.DTOs
         public DateTime Timestamp { get; set; }
         public double Value { get; set; }
         public string? Label { get; set; }
-    }    /// <summary>
+    }
+
+    /// <summary>
     /// System resource utilization summary DTO
     /// </summary>
     public class SystemResourceSummaryDTO

@@ -4,7 +4,7 @@ using DecorStore.API.Interfaces;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 
-namespace DecorStore.API.Extensions
+namespace DecorStore.API.Extensions.Data
 {
     public static class DatabaseServiceExtensions
     {

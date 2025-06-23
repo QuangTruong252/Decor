@@ -416,31 +416,7 @@ namespace DecorStore.API.DTOs
     }
 
     /// <summary>
-    /// DTO for security statistics
-    /// </summary>
-    public class SecurityStatsDTO
-    {
-        public int TotalEvents { get; set; }
-        public int AuthenticationEvents { get; set; }
-        public int AuthorizationEvents { get; set; }
-        public int SecurityViolations { get; set; }
-        public int FailedEvents { get; set; }
-        public int HighRiskEvents { get; set; }
-        public int EventsRequiringInvestigation { get; set; }
-        public int UniqueIpAddresses { get; set; }
-        public int UniqueUsers { get; set; }
-        public DateTime StartDate { get; set; }
-        public DateTime EndDate { get; set; }
-        public int EventsToday { get; set; }
-        public int EventsThisWeek { get; set; }
-        public int HighSeverityEvents { get; set; }
-        public int FailedLogins { get; set; }
-        public int SuccessfulLogins { get; set; }
-        public int BlockedRequests { get; set; }
-        public List<string> TopThreats { get; set; } = new List<string>();
-        public Dictionary<string, int> EventsByType { get; set; } = new Dictionary<string, int>();
-    }    /// <summary>
-    /// DTO for security alert
+    /// DTO for security alert information
     /// </summary>
     public class SecurityAlertDTO
     {
@@ -472,7 +448,8 @@ namespace DecorStore.API.DTOs
     {
         public IEnumerable<T> Items { get; set; } = Enumerable.Empty<T>();
         public int TotalCount { get; set; }
-        public int PageNumber { get; set; }        public int Page { get; set; }
+        public int PageNumber { get; set; }
+        public int Page { get; set; }
         public int PageSize { get; set; }
         public int TotalPages => (int)Math.Ceiling((double)TotalCount / PageSize);
         public bool HasPrevious => PageNumber > 1;

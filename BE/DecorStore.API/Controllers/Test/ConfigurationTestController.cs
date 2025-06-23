@@ -5,7 +5,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.Options;
 using Microsoft.EntityFrameworkCore;
 
-namespace DecorStore.API.Controllers
+namespace DecorStore.API.Controllers.Test
 {
     [ApiController]
     [Route("api/[controller]")]

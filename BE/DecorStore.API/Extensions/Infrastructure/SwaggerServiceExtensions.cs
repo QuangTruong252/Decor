@@ -1,6 +1,6 @@
 using Microsoft.OpenApi.Models;
 
-namespace DecorStore.API.Extensions
+namespace DecorStore.API.Extensions.Infrastructure
 {
     public static class SwaggerServiceExtensions
     {

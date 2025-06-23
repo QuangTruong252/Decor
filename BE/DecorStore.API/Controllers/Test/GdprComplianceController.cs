@@ -3,7 +3,7 @@ using DecorStore.API.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
-namespace DecorStore.API.Controllers
+namespace DecorStore.API.Controllers.Test
 {
     /// <summary>
     /// Controller for GDPR compliance and data privacy management
