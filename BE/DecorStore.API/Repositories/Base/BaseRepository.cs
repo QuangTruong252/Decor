@@ -84,7 +84,13 @@ namespace DecorStore.API.Repositories.Base
                 // Soft delete
                 entity.IsDeleted = true;
                 entity.UpdatedAt = DateTime.UtcNow;
-                await UpdateAsync(entity);
+
+                // Update the entity directly without using UpdateAsync to allow IsDeleted modification
+                _dbSet.Attach(entity);
+                _context.Entry(entity).State = EntityState.Modified;
+
+                // Only prevent CreatedAt from being modified, allow IsDeleted to be modified
+                _context.Entry(entity).Property(e => e.CreatedAt).IsModified = false;
             }
         }
 

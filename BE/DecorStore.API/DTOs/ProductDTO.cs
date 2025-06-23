@@ -49,30 +49,22 @@ namespace DecorStore.API.DTOs
     }
     public class CreateProductDTO
     {
-        [Required]
-        [StringLength(255, MinimumLength = 3)]
+        // Note: Data Annotations removed to avoid conflicts with FluentValidation
+        // All validation is handled by CreateProductValidator
         public string Name { get; set; } = string.Empty;
 
-        [Required]
-        [StringLength(255)]
         public string Slug { get; set; } = string.Empty;
 
         public string? Description { get; set; }
 
-        [Required]
-        [Range(0.01, double.MaxValue, ErrorMessage = "Price must be greater than 0")]
         public decimal Price { get; set; }
 
         public decimal OriginalPrice { get; set; }
 
-        [Required]
         public int StockQuantity { get; set; }
 
-        [Required]
-        [StringLength(50)]
         public string SKU { get; set; } = string.Empty;
 
-        [Required]
         public int CategoryId { get; set; }
 
         public bool IsFeatured { get; set; }
@@ -98,24 +90,20 @@ namespace DecorStore.API.DTOs
     {
         public int Id { get; set; }
 
-        [Required]
-        [StringLength(255, MinimumLength = 3)]
+        // Note: Data Annotations removed to avoid conflicts with FluentValidation
+        // All validation is handled by UpdateProductValidator
         public string Name { get; set; } = string.Empty;
 
-        [StringLength(255)]
         public string Slug { get; set; } = string.Empty;
 
         public string? Description { get; set; }
 
-        [Required]
-        [Range(0.01, double.MaxValue, ErrorMessage = "Price must be greater than 0")]
         public decimal Price { get; set; }
 
         public decimal OriginalPrice { get; set; }
 
         public int StockQuantity { get; set; }
 
-        [StringLength(50)]
         public string SKU { get; set; } = string.Empty;
 
         public int CategoryId { get; set; }
@@ -134,7 +122,7 @@ namespace DecorStore.API.DTOs
 
         public string[]? Images { get; set; }
 
-        // Use ImageIds to associate existing images with product  
+        // Use ImageIds to associate existing images with product
         public List<int> ImageIds { get; set; } = new List<int>();
     }
 

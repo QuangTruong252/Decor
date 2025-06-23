@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using DecorStore.API.Interfaces;
 using DecorStore.API.DTOs;
 using DecorStore.API.Models;
@@ -27,6 +28,7 @@ namespace DecorStore.API.Controllers
         /// <param name="uploadDto">Images to upload</param>
         /// <returns>List of uploaded image information</returns>
         [HttpPost("upload")]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> UploadImages([FromForm] ImageUploadDTO uploadDto)
         {
             var validationResult = ValidateModelState();
@@ -70,6 +72,7 @@ namespace DecorStore.API.Controllers
         /// </summary>
         /// <returns>List of all images</returns>
         [HttpGet("system")]
+        [Authorize(Roles = "Admin")]
         public async Task<ActionResult<ImageUploadResponseDTO>> GetSystemImages()
         {
             var allImagesResult = await _imageService.GetAllImagesAsync();
@@ -109,6 +112,7 @@ namespace DecorStore.API.Controllers
         /// <param name="ids">Comma-separated list of image IDs</param>
         /// <returns>List of images</returns>
         [HttpGet("by-ids/{ids}")]
+        [Authorize(Roles = "Admin")]
         public async Task<ActionResult<ImageUploadResponseDTO>> GetImagesByIds(string ids)
         {
             // Parse comma-separated IDs
@@ -139,6 +143,7 @@ namespace DecorStore.API.Controllers
         }
 
         [HttpGet("get-by-filepaths")]
+        [Authorize(Roles = "Admin")]
         public async Task<ActionResult<ImageUploadResponseDTO>> GetImagesByFilePaths([FromQuery] List<string> filePaths)
         {
             var imagesResult = await _imageService.GetImagesByFilePathsAsync(filePaths);

@@ -8,6 +8,9 @@ using DecorStore.API.Controllers.Base;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using DecorStore.API.Models;
+using DecorStore.API.Common;
+using FluentValidation;
+using System.Text.Json;
 
 namespace DecorStore.API.Controllers
 {
@@ -16,12 +19,23 @@ namespace DecorStore.API.Controllers
     {
         private readonly IProductService _productService;
         private readonly IProductExcelService _productExcelService;
+        private readonly IValidator<CreateProductDTO> _createProductValidator;
+        private readonly IValidator<UpdateProductDTO> _updateProductValidator;
+        private readonly ILogger<ProductsController> _logger;
 
-        public ProductsController(IProductService productService, IProductExcelService productExcelService, ILogger<ProductsController> logger) 
+        public ProductsController(
+            IProductService productService,
+            IProductExcelService productExcelService,
+            IValidator<CreateProductDTO> createProductValidator,
+            IValidator<UpdateProductDTO> updateProductValidator,
+            ILogger<ProductsController> logger)
             : base(logger)
         {
             _productService = productService;
             _productExcelService = productExcelService;
+            _createProductValidator = createProductValidator;
+            _updateProductValidator = updateProductValidator;
+            _logger = logger;
         }        // GET: api/Products
         [HttpGet]
         [ResponseCache(Duration = 300, Location = ResponseCacheLocation.Any, VaryByQueryKeys = new[] { "page", "pageSize", "searchTerm", "categoryId", "minPrice", "maxPrice", "sortBy", "isAscending", "isFeatured", "isActive" })]
@@ -81,33 +95,156 @@ namespace DecorStore.API.Controllers
             return HandleResult(result);
         }
 
+        // GET: api/Products/search
+        [HttpGet("search")]
+        [ResponseCache(Duration = 300, Location = ResponseCacheLocation.Any, VaryByQueryKeys = new[] { "query", "categoryId", "minPrice", "maxPrice", "count" })]
+        public async Task<ActionResult<IEnumerable<ProductDTO>>> SearchProducts([FromQuery] string query, [FromQuery] int? categoryId = null, [FromQuery] decimal? minPrice = null, [FromQuery] decimal? maxPrice = null, [FromQuery] int count = 20)
+        {
+            if (string.IsNullOrWhiteSpace(query))
+            {
+                return BadRequest("Search query cannot be empty");
+            }
+
+            var filter = new ProductFilterDTO
+            {
+                SearchTerm = query,
+                CategoryId = categoryId,
+                MinPrice = minPrice,
+                MaxPrice = maxPrice,
+                PageSize = count,
+                PageNumber = 1
+            };
+
+            var result = await _productService.GetPagedProductsAsync(filter);
+            if (result.IsSuccess)
+            {
+                return Ok(result.Data!.Items);
+            }
+
+            // Convert Result<PagedResult<ProductDTO>> to Result for HandleResult
+            var failureResult = Result.Failure(result.Error, result.ErrorCode, result.ErrorDetails);
+            return HandleResult(failureResult);
+        }
+
         // POST: api/Products
         [HttpPost]
         [Authorize(Roles = "Admin")] // Only admin can create products
         public async Task<ActionResult<ProductDTO>> CreateProduct(CreateProductDTO productDto)        {
-            // Validate model state
-            var validationResult = ValidateModelState();
-            if (validationResult != null)
+            // Debug: Log request details
+            _logger.LogInformation("CreateProduct called");
+            _logger.LogInformation("Request Content-Type: {ContentType}", Request.ContentType);
+            _logger.LogInformation("Request Content-Length: {ContentLength}", Request.ContentLength);
+            _logger.LogInformation("Request Method: {Method}", Request.Method);
+
+            // Debug: Log what we received
+            _logger.LogInformation("CreateProduct called with: Name={Name}, SKU={SKU}, Price={Price}, CategoryId={CategoryId}",
+                productDto?.Name ?? "NULL", productDto?.SKU ?? "NULL", productDto?.Price ?? 0, productDto?.CategoryId ?? 0);
+
+            // WORKAROUND: ASP.NET Core model binding is broken, so manually deserialize the JSON
+            CreateProductDTO actualProductDto = productDto;
+            try
             {
-                return BadRequest(validationResult);
+                Request.EnableBuffering();
+                Request.Body.Position = 0;
+                using var reader = new StreamReader(Request.Body, leaveOpen: true);
+                var requestBody = await reader.ReadToEndAsync();
+                Request.Body.Position = 0;
+
+                if (!string.IsNullOrEmpty(requestBody))
+                {
+                    var options = new JsonSerializerOptions
+                    {
+                        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+                        PropertyNameCaseInsensitive = true
+                    };
+                    var manualDto = JsonSerializer.Deserialize<CreateProductDTO>(requestBody, options);
+                    if (manualDto != null)
+                    {
+                        actualProductDto = manualDto;
+                        _logger.LogInformation("Using manually deserialized DTO: Name={Name}, SKU={SKU}, Price={Price}, CategoryId={CategoryId}",
+                            actualProductDto.Name, actualProductDto.SKU, actualProductDto.Price, actualProductDto.CategoryId);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error manually deserializing request body, falling back to model-bound parameter");
             }
 
-            var result = await _productService.CreateAsync(productDto);
+            // Validate using FluentValidation
+            var validationResult = await _createProductValidator.ValidateAsync(actualProductDto);
+            if (!validationResult.IsValid)
+            {
+                // Convert FluentValidation errors to ModelState errors for consistent error response format
+                foreach (var error in validationResult.Errors)
+                {
+                    ModelState.AddModelError(error.PropertyName, error.ErrorMessage);
+                }
+                var validationErrorResult = ValidateModelState();
+                return BadRequest(validationErrorResult);
+            }
+
+            var result = await _productService.CreateAsync(actualProductDto);
             return HandleCreateResult(result);
         }
+
+        
 
         // PUT: api/Products/5
         [HttpPut("{id}")]
         [Authorize(Roles = "Admin")] // Only admin can update products
         public async Task<IActionResult> UpdateProduct(int id, UpdateProductDTO productDto)        {
-            // Validate model state
-            var validationResult = ValidateModelState();
-            if (validationResult != null)
+            // Debug: Log what we received
+            _logger.LogInformation("UpdateProduct called with: Id={Id}, Name={Name}, SKU={SKU}, Price={Price}, CategoryId={CategoryId}",
+                id, productDto?.Name ?? "NULL", productDto?.SKU ?? "NULL", productDto?.Price ?? 0, productDto?.CategoryId ?? 0);
+
+            // WORKAROUND: ASP.NET Core model binding is broken, so manually deserialize the JSON
+            UpdateProductDTO actualProductDto = productDto;
+            try
             {
-                return BadRequest(validationResult);
+                Request.EnableBuffering();
+                Request.Body.Position = 0;
+                using var reader = new StreamReader(Request.Body, leaveOpen: true);
+                var requestBody = await reader.ReadToEndAsync();
+                Request.Body.Position = 0;
+
+                if (!string.IsNullOrEmpty(requestBody))
+                {
+                    var options = new JsonSerializerOptions
+                    {
+                        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+                        PropertyNameCaseInsensitive = true
+                    };
+                    var manualDto = JsonSerializer.Deserialize<UpdateProductDTO>(requestBody, options);
+                    if (manualDto != null)
+                    {
+                        // Set the ID from the route parameter
+                        manualDto.Id = id;
+                        actualProductDto = manualDto;
+                        _logger.LogInformation("Using manually deserialized DTO: Id={Id}, Name={Name}, SKU={SKU}, Price={Price}, CategoryId={CategoryId}",
+                            actualProductDto.Id, actualProductDto.Name, actualProductDto.SKU, actualProductDto.Price, actualProductDto.CategoryId);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error manually deserializing request body, falling back to model-bound parameter");
             }
 
-            var result = await _productService.UpdateAsync(id, productDto);
+            // Validate using FluentValidation
+            var validationResult = await _updateProductValidator.ValidateAsync(actualProductDto);
+            if (!validationResult.IsValid)
+            {
+                // Convert FluentValidation errors to ModelState errors for consistent error response format
+                foreach (var error in validationResult.Errors)
+                {
+                    ModelState.AddModelError(error.PropertyName, error.ErrorMessage);
+                }
+                var validationErrorResult = ValidateModelState();
+                return BadRequest(validationErrorResult);
+            }
+
+            var result = await _productService.UpdateAsync(id, actualProductDto);
             return HandleResult(result);
         }
 
@@ -117,7 +254,7 @@ namespace DecorStore.API.Controllers
         public async Task<IActionResult> DeleteProduct(int id)
         {
             var result = await _productService.DeleteProductAsync(id);
-            return HandleResult(result);
+            return HandleDeleteResult(result);
         }        // DELETE: api/Products/bulk
         [HttpDelete("bulk")]
         [Authorize(Roles = "Admin")] // Only admin can bulk delete products

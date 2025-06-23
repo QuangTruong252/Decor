@@ -25,8 +25,8 @@ namespace DecorStore.API.Middleware
             var correlationId = context.Items["X-Correlation-ID"]?.ToString() ?? Guid.NewGuid().ToString();
             var startTime = DateTime.UtcNow;
 
-            // Log request
-            await LogRequest(context.Request, correlationId);
+            // Log request (without reading body to avoid JWT conflicts)
+            await LogRequestHeaders(context.Request, correlationId);
 
             // Capture response
             var originalBodyStream = context.Response.Body;
@@ -48,6 +48,27 @@ namespace DecorStore.API.Middleware
                 // Copy response back to original stream
                 responseBody.Seek(0, SeekOrigin.Begin);
                 await responseBody.CopyToAsync(originalBodyStream);
+            }
+        }
+
+        private async Task LogRequestHeaders(HttpRequest request, string correlationId)
+        {
+            try
+            {
+                // Log request without reading body to avoid JWT authentication conflicts
+                _logger.LogInformation(
+                    "HTTP Request [{CorrelationId}]: {Method} {Path} {QueryString} | Content-Type: {ContentType} | Content-Length: {ContentLength} | Authorization: {HasAuth}",
+                    correlationId,
+                    request.Method,
+                    request.Path,
+                    request.QueryString,
+                    request.ContentType ?? "N/A",
+                    request.ContentLength ?? 0,
+                    request.Headers.ContainsKey("Authorization") ? "Present" : "None");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error logging request headers for correlation ID: {CorrelationId}", correlationId);
             }
         }
 

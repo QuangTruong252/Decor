@@ -1,5 +1,6 @@
 using DecorStore.API.Common;
 using DecorStore.API.DTOs;
+using DecorStore.API.Interfaces.Services;
 using Microsoft.Extensions.Options;
 using System.Collections.Concurrent;
 using System.Diagnostics;
@@ -7,26 +8,6 @@ using System.Net.Http;
 
 namespace DecorStore.API.Services
 {
-    /// <summary>
-    /// Service interface for load testing functionality
-    /// </summary>
-    public interface ILoadTestingService
-    {
-        /// <summary>
-        /// Executes a load test based on configuration
-        /// </summary>
-        Task<Result<LoadTestResultDTO>> ExecuteLoadTestAsync(LoadTestConfigurationDTO configuration);
-
-        /// <summary>
-        /// Gets available endpoints for testing
-        /// </summary>
-        Task<Result<List<string>>> GetAvailableEndpointsAsync();
-
-        /// <summary>
-        /// Validates load test configuration
-        /// </summary>
-        Result<LoadTestConfigurationDTO> ValidateConfiguration(LoadTestConfigurationDTO configuration);
-    }
 
     /// <summary>
     /// Implementation of load testing service

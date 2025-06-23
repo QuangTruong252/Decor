@@ -67,10 +67,9 @@ namespace DecorStore.API.Mappings
                 .ForMember(dest => dest.CategoryImages, opt => opt.Ignore())
                 .ForMember(dest => dest.ParentCategory, opt => opt.Ignore())
                 .ForMember(dest => dest.Subcategories, opt => opt.Ignore())
-                .ForMember(dest => dest.Products, opt => opt.Ignore());
-
-            // Banner mappings
-            CreateMap<Banner, BannerDTO>();
+                .ForMember(dest => dest.Products, opt => opt.Ignore());            // Banner mappings
+            CreateMap<Banner, BannerDTO>()
+                .ForMember(dest => dest.LinkUrl, opt => opt.MapFrom(src => src.Link));
 
             CreateMap<CreateBannerDTO, Banner>()
                 .ForMember(dest => dest.CreatedAt, opt => opt.MapFrom(_ => System.DateTime.UtcNow))

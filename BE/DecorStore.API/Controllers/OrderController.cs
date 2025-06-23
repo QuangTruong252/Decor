@@ -98,12 +98,17 @@ namespace DecorStore.API.Controllers
         [HttpPost]
         public async Task<ActionResult<OrderDTO>> CreateOrder([FromBody][Required] CreateOrderDTO orderDto)
         {
-            if (orderDto == null)
+            // WORKAROUND: ASP.NET Core model binding is broken, so manually deserialize the JSON
+            var actualOrderDto = await TryManualDeserializationAsync(orderDto, _logger);
+
+            if (actualOrderDto == null)
             {
                 return BadRequest("Order data is required");
-            }            orderDto.UserId = int.Parse(GetCurrentUserId() ?? "0");
+            }
 
-            var result = await _orderService.CreateOrderAsync(orderDto);
+            actualOrderDto.UserId = int.Parse(GetCurrentUserId() ?? "0");
+
+            var result = await _orderService.CreateOrderAsync(actualOrderDto);
             return HandleCreateResult(result);
         }
 
@@ -112,7 +117,10 @@ namespace DecorStore.API.Controllers
         [Authorize(Roles = "Admin")]
         public async Task<ActionResult<OrderDTO>> UpdateOrder(int id, UpdateOrderDTO orderDto)
         {
-            var result = await _orderService.UpdateOrderAsync(id, orderDto);
+            // WORKAROUND: ASP.NET Core model binding is broken, so manually deserialize the JSON
+            var actualOrderDto = await TryManualDeserializationAsync(orderDto, _logger);
+
+            var result = await _orderService.UpdateOrderAsync(id, actualOrderDto);
             return HandleResult(result);
         }
 
@@ -121,7 +129,10 @@ namespace DecorStore.API.Controllers
         [Authorize(Roles = "Admin")]
         public async Task<ActionResult<OrderDTO>> UpdateOrderStatus(int id, UpdateOrderStatusDTO statusDto)
         {
-            var result = await _orderService.UpdateOrderStatusAsync(id, statusDto);
+            // WORKAROUND: ASP.NET Core model binding is broken, so manually deserialize the JSON
+            var actualStatusDto = await TryManualDeserializationAsync(statusDto, _logger);
+
+            var result = await _orderService.UpdateOrderStatusAsync(id, actualStatusDto);
             return HandleResult(result);
         }
 
@@ -149,7 +160,10 @@ namespace DecorStore.API.Controllers
         [Authorize(Roles = "Admin")] // Only admin can bulk delete orders
         public async Task<ActionResult<bool>> BulkDeleteOrders(BulkDeleteDTO bulkDeleteDto)
         {
-            var result = await _orderService.BulkDeleteOrdersAsync(bulkDeleteDto);
+            // WORKAROUND: ASP.NET Core model binding is broken, so manually deserialize the JSON
+            var actualBulkDeleteDto = await TryManualDeserializationAsync(bulkDeleteDto, _logger);
+
+            var result = await _orderService.BulkDeleteOrdersAsync(actualBulkDeleteDto);
             return HandleResult(result);
         }
 

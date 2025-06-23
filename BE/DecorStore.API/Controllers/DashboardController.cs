@@ -38,7 +38,7 @@ namespace DecorStore.API.Controllers
         /// <param name="endDate">End date for the trend data</param>
         /// <returns>Sales trend data</returns>
         [HttpGet("sales-trend")]
-        [ResponseCache(Duration = 600, Location = ResponseCacheLocation.Client, VaryByQueryKeys = new[] { "period", "startDate", "endDate" })]
+        [ResponseCache(Duration = 600, Location = ResponseCacheLocation.Client)]
         public async Task<ActionResult<SalesTrendDTO>> GetSalesTrend(
             [FromQuery] string period = "daily",
             [FromQuery] DateTime? startDate = null,
@@ -52,7 +52,7 @@ namespace DecorStore.API.Controllers
         /// <param name="limit">Number of products to return</param>
         /// <returns>List of popular products</returns>
         [HttpGet("popular-products")]
-        [ResponseCache(Duration = 900, Location = ResponseCacheLocation.Client, VaryByQueryKeys = new[] { "limit" })]
+        [ResponseCache(Duration = 900, Location = ResponseCacheLocation.Client)]
         public async Task<ActionResult<List<PopularProductDTO>>> GetPopularProducts([FromQuery] int limit = 5)
         {
             var result = await _dashboardService.GetPopularProductsAsync(limit);

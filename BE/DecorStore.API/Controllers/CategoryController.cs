@@ -47,14 +47,12 @@ namespace DecorStore.API.Controllers
             return HandleResult(result);
         }        // GET: api/Category/5
         [HttpGet("{id}")]
-        [ResponseCache(Duration = 1800, Location = ResponseCacheLocation.Any)]
         public async Task<ActionResult<CategoryDTO>> GetCategory(int id)
         {
             var result = await _categoryService.GetCategoryByIdAsync(id);
             return HandleResult(result);
         }        // GET: api/Category/slug/home-decor
         [HttpGet("slug/{slug}")]
-        [ResponseCache(Duration = 1800, Location = ResponseCacheLocation.Any)]
         public async Task<ActionResult<CategoryDTO>> GetCategoryBySlug(string slug)
         {
             var result = await _categoryService.GetCategoryBySlugAsync(slug);
@@ -63,6 +61,12 @@ namespace DecorStore.API.Controllers
         [HttpPost]
         [Authorize(Roles = "Admin")]        public async Task<ActionResult<CategoryDTO>> CreateCategory(CreateCategoryDTO categoryDto)
         {
+            var validationResult = ValidateModelState();
+            if (validationResult != null)
+            {
+                return BadRequest(validationResult);
+            }
+
             var result = await _categoryService.CreateAsync(categoryDto);
             return HandleCreateResult(result);
         }
@@ -72,7 +76,16 @@ namespace DecorStore.API.Controllers
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> UpdateCategory(int id, UpdateCategoryDTO categoryDto)
         {
-            var result = await _categoryService.UpdateAsync(id, categoryDto);
+            // WORKAROUND: ASP.NET Core model binding is broken, so manually deserialize the JSON
+            var actualCategoryDto = await TryManualDeserializationAsync(categoryDto, _logger);
+
+            var validationResult = ValidateModelState();
+            if (validationResult != null)
+            {
+                return BadRequest(validationResult);
+            }
+
+            var result = await _categoryService.UpdateAsync(id, actualCategoryDto);
             return HandleResult(result);
         }
 
@@ -82,7 +95,7 @@ namespace DecorStore.API.Controllers
         public async Task<IActionResult> DeleteCategory(int id)
         {
             var result = await _categoryService.DeleteAsync(id);
-            return HandleResult(result);
+            return HandleDeleteResult(result);
         }        // GET: api/Category/with-product-count
         [HttpGet("with-product-count")]
         [ResponseCache(Duration = 600, Location = ResponseCacheLocation.Any)]

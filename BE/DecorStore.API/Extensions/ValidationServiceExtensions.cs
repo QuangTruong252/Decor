@@ -13,10 +13,10 @@ namespace DecorStore.API.Extensions
         /// </summary>
         public static IServiceCollection AddValidationServices(this IServiceCollection services, IConfiguration configuration)
         {
-            // Add FluentValidation
-            services.AddFluentValidationAutoValidation()
-                    .AddFluentValidationClientsideAdapters()
-                    .AddValidatorsFromAssemblyContaining<Program>(ServiceLifetime.Scoped);
+            // Completely disable FluentValidation's automatic integration with ASP.NET Core
+            // We'll handle ALL validation manually in controllers to avoid async validation conflicts
+            // Only register validators for manual use - no automatic validation
+            services.AddValidatorsFromAssemblyContaining<Program>(ServiceLifetime.Scoped);
 
             // Register middleware services that implement IMiddleware
             services.AddScoped<GlobalExceptionHandlerMiddleware>();

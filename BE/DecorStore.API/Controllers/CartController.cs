@@ -34,25 +34,37 @@ namespace DecorStore.API.Controllers
         [HttpPost]
         public async Task<IActionResult> AddToCart(AddToCartDTO addToCartDto)
         {
+            // WORKAROUND: ASP.NET Core model binding is broken, so manually deserialize the JSON
+            var actualAddToCartDto = await TryManualDeserializationAsync(addToCartDto, _logger);
+
             var validationResult = ValidateModelState();
-            if (validationResult != null)
-            {
-                return validationResult;
-            }            var (userId, sessionId) = GetUserIdentifiers();
-            var result = await _cartService.AddToCartAsync(userId, sessionId, addToCartDto);
-            if (result.IsSuccess)
-                return Ok(result.Data);
-            return BadRequest(result.Error);
-        }        // PUT: api/Cart/items/{id}
-        [HttpPut("items/{id}")]
-        public async Task<IActionResult> UpdateCartItem(int id, UpdateCartItemDTO updateCartItemDto)
-        {            var validationResult = ValidateModelState();
             if (validationResult != null)
             {
                 return validationResult;
             }
 
-            var (userId, sessionId) = GetUserIdentifiers();            var result = await _cartService.UpdateCartItemAsync(userId, sessionId, id, updateCartItemDto);
+            var (userId, sessionId) = GetUserIdentifiers();
+            var result = await _cartService.AddToCartAsync(userId, sessionId, actualAddToCartDto);
+            if (result.IsSuccess)
+                return Ok(result.Data);
+            return BadRequest(result.Error);
+        }
+
+        // PUT: api/Cart/items/{id}
+        [HttpPut("items/{id}")]
+        public async Task<IActionResult> UpdateCartItem(int id, UpdateCartItemDTO updateCartItemDto)
+        {
+            // WORKAROUND: ASP.NET Core model binding is broken, so manually deserialize the JSON
+            var actualUpdateCartItemDto = await TryManualDeserializationAsync(updateCartItemDto, _logger);
+
+            var validationResult = ValidateModelState();
+            if (validationResult != null)
+            {
+                return validationResult;
+            }
+
+            var (userId, sessionId) = GetUserIdentifiers();
+            var result = await _cartService.UpdateCartItemAsync(userId, sessionId, id, actualUpdateCartItemDto);
             if (result.IsSuccess)
                 return Ok(result.Data);
             return BadRequest(result.Error);

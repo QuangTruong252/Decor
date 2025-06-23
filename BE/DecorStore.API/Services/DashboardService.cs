@@ -8,7 +8,7 @@ using DecorStore.API.Interfaces;
 using DecorStore.API.Interfaces.Repositories;
 using DecorStore.API.Models;
 using DecorStore.API.Common;
-using Microsoft.Extensions.Caching.Memory;
+using DecorStore.API.Interfaces.Services;
 
 namespace DecorStore.API.Services
 {
@@ -17,7 +17,7 @@ namespace DecorStore.API.Services
         private readonly IUnitOfWork _unitOfWork;
         private readonly IDashboardRepository _dashboardRepository;
         private readonly IMapper _mapper;
-        private readonly IMemoryCache _cache;
+        private readonly ICacheService _cache;
         private readonly IImageService _imageService;
 
         // Cache keys
@@ -31,7 +31,7 @@ namespace DecorStore.API.Services
             IUnitOfWork unitOfWork,
             IDashboardRepository dashboardRepository,
             IMapper mapper,
-            IMemoryCache cache,
+            ICacheService cache,
             IImageService imageService)
         {
             _unitOfWork = unitOfWork;
@@ -45,13 +45,7 @@ namespace DecorStore.API.Services
         {
             try
             {
-                // Try to get from cache first
-                if (_cache.TryGetValue("DashboardSummary", out DashboardSummaryDTO cachedSummary))
-                {
-                    return Result<DashboardSummaryDTO>.Success(cachedSummary);
-                }
-
-                // If not in cache, generate the summary
+                // Generate the summary (don't use circular cache logic in summary)
                 var summary = new DashboardSummaryDTO
                 {
                     TotalProducts = await _dashboardRepository.GetTotalProductCountAsync(),
@@ -59,19 +53,19 @@ namespace DecorStore.API.Services
                     TotalCustomers = await _dashboardRepository.GetTotalCustomerCountAsync(),
                     TotalRevenue = await _dashboardRepository.GetTotalRevenueAsync(),
 
-                    // Get recent orders
+                    // Get recent orders directly from repository
                     RecentOrders = await GetRecentOrdersAsync(5),
 
-                    // Get popular products
-                    PopularProducts = (await GetPopularProductsAsync(5)).Data ?? new List<PopularProductDTO>(),
+                    // Get popular products directly from repository  
+                    PopularProducts = await GetPopularProductsDirectAsync(5),
 
-                    // Get sales by category
-                    SalesByCategory = (await GetSalesByCategoryAsync()).Data ?? new List<CategorySalesDTO>(),
+                    // Get sales by category directly from repository
+                    SalesByCategory = await GetSalesByCategoryDirectAsync(),
 
-                    // Get order status distribution
-                    OrderStatusDistribution = (await GetOrderStatusDistributionAsync()).Data ?? new OrderStatusDistributionDTO(),
+                    // Get order status distribution directly from repository
+                    OrderStatusDistribution = await GetOrderStatusDistributionDirectAsync(),
 
-                    // Get recent sales trend (last 7 days)
+                    // Get recent sales trend (last 7 days) directly from repository
                     RecentSalesTrend = await GetRecentSalesTrendAsync()
                 };
 
@@ -110,9 +104,13 @@ namespace DecorStore.API.Services
                 string cacheKey = $"SalesTrend_{period}_{startDate}_{endDate}";
 
                 // Try to get from cache first
-                if (_cache.TryGetValue(cacheKey, out SalesTrendDTO cachedTrend))
+                if (_cache.Exists(cacheKey))
                 {
-                    return Result<SalesTrendDTO>.Success(cachedTrend);
+                    var cachedTrend = _cache.GetOrCreate(cacheKey, () => (SalesTrendDTO)null!);
+                    if (cachedTrend != null)
+                    {
+                        return Result<SalesTrendDTO>.Success(cachedTrend);
+                    }
                 }
 
                 // If not in cache, get the data
@@ -157,9 +155,13 @@ namespace DecorStore.API.Services
                 string cacheKey = $"PopularProducts_{limit}";
 
                 // Try to get from cache first
-                if (_cache.TryGetValue(cacheKey, out List<PopularProductDTO> cachedProducts))
+                if (_cache.Exists(cacheKey))
                 {
-                    return Result<List<PopularProductDTO>>.Success(cachedProducts);
+                    var cachedProducts = _cache.GetOrCreate(cacheKey, () => (List<PopularProductDTO>)null!);
+                    if (cachedProducts != null)
+                    {
+                        return Result<List<PopularProductDTO>>.Success(cachedProducts);
+                    }
                 }
 
                 // If not in cache, get the data
@@ -192,9 +194,13 @@ namespace DecorStore.API.Services
             try
             {
                 // Try to get from cache first
-                if (_cache.TryGetValue("SalesByCategory", out List<CategorySalesDTO> cachedCategories))
+                if (_cache.Exists("SalesByCategory"))
                 {
-                    return Result<List<CategorySalesDTO>>.Success(cachedCategories);
+                    var cachedCategories = _cache.GetOrCreate("SalesByCategory", () => (List<CategorySalesDTO>)null!);
+                    if (cachedCategories != null)
+                    {
+                        return Result<List<CategorySalesDTO>>.Success(cachedCategories);
+                    }
                 }
 
                 // If not in cache, get the data
@@ -229,9 +235,13 @@ namespace DecorStore.API.Services
             try
             {
                 // Try to get from cache first
-                if (_cache.TryGetValue("OrderStatusDistribution", out OrderStatusDistributionDTO cachedDistribution))
+                if (_cache.Exists("OrderStatusDistribution"))
                 {
-                    return Result<OrderStatusDistributionDTO>.Success(cachedDistribution);
+                    var cachedDistribution = _cache.GetOrCreate("OrderStatusDistribution", () => (OrderStatusDistributionDTO)null!);
+                    if (cachedDistribution != null)
+                    {
+                        return Result<OrderStatusDistributionDTO>.Success(cachedDistribution);
+                    }
                 }
 
                 // If not in cache, get the data
@@ -287,6 +297,51 @@ namespace DecorStore.API.Services
                 Revenue = st.Value,
                 OrderCount = 0 // Will need to be calculated separately if needed
             }).ToList();
+        }
+
+        private async Task<List<PopularProductDTO>> GetPopularProductsDirectAsync(int limit)
+        {
+            var popularProducts = await _dashboardRepository.GetPopularProductsAsync(limit);
+
+            return popularProducts.Select(p => new PopularProductDTO
+            {
+                ProductId = p.Id,
+                Name = p.Name,
+                ImageUrl = p.ProductImages.FirstOrDefault()?.Image?.FilePath ?? "",
+                Price = p.Price,
+                TotalSold = p.OrderItems?.Count ?? 0,
+                TotalRevenue = p.OrderItems?.Sum(oi => oi.UnitPrice * oi.Quantity) ?? 0
+            }).ToList();
+        }
+
+        private async Task<List<CategorySalesDTO>> GetSalesByCategoryDirectAsync()
+        {
+            var categorySales = await _dashboardRepository.GetSalesByCategoryAsync();
+            decimal totalRevenue = categorySales.Values.Sum();
+
+            return categorySales.Select(cs => new CategorySalesDTO
+            {
+                CategoryId = 0, // Will need to be populated differently
+                CategoryName = cs.Key,
+                TotalSales = 0, // Will need to be calculated differently  
+                TotalRevenue = cs.Value,
+                Percentage = totalRevenue > 0 ? Math.Round((cs.Value / totalRevenue) * 100, 2) : 0
+            }).ToList();
+        }
+
+        private async Task<OrderStatusDistributionDTO> GetOrderStatusDistributionDirectAsync()
+        {
+            var statusDistribution = await _dashboardRepository.GetOrderStatusDistributionAsync();
+
+            return new OrderStatusDistributionDTO
+            {
+                Pending = statusDistribution.GetValueOrDefault("Pending"),
+                Processing = statusDistribution.GetValueOrDefault("Processing"),
+                Shipped = statusDistribution.GetValueOrDefault("Shipped"),
+                Delivered = statusDistribution.GetValueOrDefault("Delivered"),
+                Cancelled = statusDistribution.GetValueOrDefault("Cancelled"),
+                Total = statusDistribution.Values.Sum()
+            };
         }
     }
 }

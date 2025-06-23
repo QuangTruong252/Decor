@@ -47,21 +47,21 @@ namespace DecorStore.API.DTOs
         [Required]
         [StringLength(100)]
         public required string Title { get; set; }
-        
-        public required IFormFile ImageFile { get; set; }
-        
+
+        public IFormFile? ImageFile { get; set; }
+
         [StringLength(255)]
         public required string Link { get; set; }
-        
+
         [StringLength(255)]
         public required string LinkUrl { get; set; }
-        
+
         public DateTime? StartDate { get; set; }
-        
+
         public DateTime? EndDate { get; set; }
-        
+
         public bool IsActive { get; set; }
-        
+
         public int DisplayOrder { get; set; }
     }
 }

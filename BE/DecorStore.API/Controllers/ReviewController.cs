@@ -43,12 +43,14 @@ namespace DecorStore.API.Controllers
         {
             var ratingResult = await _reviewService.GetAverageRatingForProductAsync(productId);
             return HandleResult(ratingResult);
-        }
-
-        // POST: api/Review
+        }        // POST: api/Review
         [HttpPost]
-        [Authorize]        public async Task<ActionResult<ReviewDTO>> CreateReview(CreateReviewDTO reviewDto)
+        [Authorize]
+        public async Task<ActionResult<ReviewDTO>> CreateReview(CreateReviewDTO reviewDto)
         {
+            // WORKAROUND: ASP.NET Core model binding is broken, so manually deserialize the JSON
+            var actualReviewDto = await TryManualDeserializationAsync(reviewDto, _logger);
+
             var validationResult = ValidateModelState();
             if (validationResult != null)
             {
@@ -62,16 +64,18 @@ namespace DecorStore.API.Controllers
                 return BadRequest("Invalid user authentication");
             }
 
-            reviewDto.CustomerId = currentUserId;
+            actualReviewDto.CustomerId = currentUserId;
 
-            var reviewResult = await _reviewService.CreateReviewAsync(reviewDto);
+            var reviewResult = await _reviewService.CreateReviewAsync(actualReviewDto);
             return HandleCreateResult(reviewResult);
-        }
-
-        // PUT: api/Review/5
+        }        // PUT: api/Review/5
         [HttpPut("{id}")]
-        [Authorize]        public async Task<ActionResult<ReviewDTO>> UpdateReview(int id, UpdateReviewDTO reviewDto)
+        [Authorize]
+        public async Task<ActionResult<ReviewDTO>> UpdateReview(int id, UpdateReviewDTO reviewDto)
         {
+            // WORKAROUND: ASP.NET Core model binding is broken, so manually deserialize the JSON
+            var actualReviewDto = await TryManualDeserializationAsync(reviewDto, _logger);
+
             var validationResult = ValidateModelState();
             if (validationResult != null)
             {
@@ -90,16 +94,15 @@ namespace DecorStore.API.Controllers
             if (string.IsNullOrEmpty(userIdClaim) || !int.TryParse(userIdClaim, out var currentUserId))
             {
                 return BadRequest("Invalid user authentication");
-            }
-
-            if (currentUserId != existingReviewResult.Data!.CustomerId && !User.IsInRole("Admin"))
+            }            if (currentUserId != existingReviewResult.Data!.CustomerId && !User.IsInRole("Admin"))
             {
-                return Forbid("You can only update your own reviews");
+                return Problem("You can only update your own reviews", statusCode: 403);
             }
-
-            var updateResult = await _reviewService.UpdateReviewAsync(id, reviewDto);
+            var updateResult = await _reviewService.UpdateReviewAsync(id, actualReviewDto);
             return HandleResult(updateResult);
-        }        // DELETE: api/Review/5
+        }
+
+        // DELETE: api/Review/5
         [HttpDelete("{id}")]
         [Authorize]
         public async Task<ActionResult<ReviewDTO>> DeleteReview(int id)
@@ -116,15 +119,13 @@ namespace DecorStore.API.Controllers
             if (string.IsNullOrEmpty(userIdClaim) || !int.TryParse(userIdClaim, out var currentUserId))
             {
                 return BadRequest("Invalid user authentication");
-            }
-
-            if (currentUserId != existingReviewResult.Data!.CustomerId && !User.IsInRole("Admin"))
+            }            if (currentUserId != existingReviewResult.Data!.CustomerId && !User.IsInRole("Admin"))
             {
-                return Forbid("You can only delete your own reviews");
+                return Problem("You can only delete your own reviews", statusCode: 403);
             }
 
             var deleteResult = await _reviewService.DeleteReviewAsync(id);
-            return HandleResult(deleteResult);
+            return HandleDeleteResult(deleteResult);
         }
     }
 }

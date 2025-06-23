@@ -79,9 +79,12 @@ namespace DecorStore.API.Extensions
             
             // Add correlation ID service
             services.AddScoped<ICorrelationIdService, CorrelationIdService>();
-              // Add performance monitoring
+            // Add performance monitoring
             services.AddScoped<IDatabasePerformanceMonitor, DatabasePerformanceMonitor>();
             services.AddScoped<IPerformanceDashboardService, PerformanceDashboardService>();
+            
+            // Add load testing service
+            services.AddScoped<DecorStore.API.Interfaces.Services.ILoadTestingService, DecorStore.API.Services.LoadTestingService>();
         }
 
         private static void AddExcelServices(IServiceCollection services)
@@ -101,11 +104,8 @@ namespace DecorStore.API.Extensions
 
             var cacheSettings = configuration.GetSection("Cache").Get<CacheSettings>() ?? new CacheSettings();
 
-            // Add memory cache with configuration
-            services.AddMemoryCache(options =>
-            {
-                options.SizeLimit = cacheSettings.DefaultSizeLimit;
-            });            
+            // NOTE: Memory cache is configured in PerformanceServiceExtensions.AddPerformanceServices()
+            // to avoid duplicate registrations and ensure proper configuration
             // Add custom cache service
             services.AddScoped<DecorStore.API.Interfaces.Services.ICacheService, CacheService>();
             
@@ -160,12 +160,12 @@ namespace DecorStore.API.Extensions
             services.AddScoped<IValidator<DecorStore.API.DTOs.Excel.CustomerExcelDTO>, DecorStore.API.Validators.Excel.CustomerExcelValidator>();
             services.AddScoped<IValidator<DecorStore.API.DTOs.Excel.OrderExcelDTO>, DecorStore.API.Validators.Excel.OrderExcelValidator>();
 
-            // Add core DTO validators
+            // Add core DTO validators manually since they contain async rules incompatible with automatic validation
             services.AddScoped<IValidator<CreateProductDTO>, DecorStore.API.Validators.ProductValidators.CreateProductValidator>();
             services.AddScoped<IValidator<UpdateProductDTO>, DecorStore.API.Validators.ProductValidators.UpdateProductValidator>();
 
-            // Add general FluentValidation
-            services.AddValidatorsFromAssembly(typeof(Program).Assembly);
+            // NOTE: These validators are excluded from automatic registration in ValidationServiceExtensions
+            // because they contain MustAsync rules that are incompatible with ASP.NET's synchronous validation pipeline
 
         }
 

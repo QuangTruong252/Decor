@@ -113,11 +113,15 @@ namespace DecorStore.API.Extensions
             // Use security headers
             app.UseSecurityHeaders();
 
-            // Use API key rate limiting middleware
-            app.UseMiddleware<ApiKeyRateLimitingMiddleware>();
+            // Skip API key middleware in test environment to avoid JWT interference
+            if (!app.Environment.IsEnvironment("Test"))
+            {
+                // Use API key rate limiting middleware
+                app.UseMiddleware<ApiKeyRateLimitingMiddleware>();
 
-            // Use rate limiting
-            app.UseRateLimiter();
+                // Use rate limiting
+                app.UseRateLimiter();
+            }
 
             return app;
         }

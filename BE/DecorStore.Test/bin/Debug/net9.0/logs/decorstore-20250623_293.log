@@ -1,0 +1,18 @@
+[2025-06-23 09:47:28.354 +07:00 INF] Cache warmup service started {"SourceContext":"DecorStore.API.Services.BackgroundServices.CacheWarmupService","Application":"DecorStore.API","Environment":"Test"}
+[2025-06-23 09:47:28.355 +07:00 INF] Cache warmup service started {"SourceContext":"DecorStore.API.Services.BackgroundServices.CacheWarmupService","Application":"DecorStore.API","Environment":"Test"}
+[2025-06-23 09:47:28.359 +07:00 INF] Starting cache warmup process {"SourceContext":"DecorStore.API.Services.BackgroundServices.CacheWarmupService","Application":"DecorStore.API","Environment":"Test"}
+[2025-06-23 09:47:28.359 +07:00 INF] Starting cache warmup process {"SourceContext":"DecorStore.API.Services.BackgroundServices.CacheWarmupService","Application":"DecorStore.API","Environment":"Test"}
+[2025-06-23 09:47:28.381 +07:00 INF] Cache warmup completed in 22.5915ms {"SourceContext":"DecorStore.API.Services.BackgroundServices.CacheWarmupService","Application":"DecorStore.API","Environment":"Test"}
+[2025-06-23 09:47:28.381 +07:00 INF] Cache warmup completed in 22.7441ms {"SourceContext":"DecorStore.API.Services.BackgroundServices.CacheWarmupService","Application":"DecorStore.API","Environment":"Test"}
+[2025-06-23 09:47:28.381 +07:00 INF] Cache cleanup service started {"SourceContext":"DecorStore.API.Services.BackgroundServices.CacheCleanupService","Application":"DecorStore.API","Environment":"Test"}
+[2025-06-23 09:47:28.382 +07:00 INF] Cache cleanup service started {"SourceContext":"DecorStore.API.Services.BackgroundServices.CacheCleanupService","Application":"DecorStore.API","Environment":"Test"}
+[2025-06-23 09:47:28.382 +07:00 INF] Performance monitoring service started {"SourceContext":"DecorStore.API.Services.BackgroundServices.PerformanceMonitoringService","Application":"DecorStore.API","Environment":"Test"}
+[2025-06-23 09:47:28.382 +07:00 INF] Performance monitoring service started {"SourceContext":"DecorStore.API.Services.BackgroundServices.PerformanceMonitoringService","Application":"DecorStore.API","Environment":"Test"}
+[2025-06-23 09:47:28.383 +07:00 INF] Token Cleanup Service started {"SourceContext":"DecorStore.API.Services.TokenCleanupService","Application":"DecorStore.API","Environment":"Test"}
+[2025-06-23 09:47:28.383 +07:00 INF] Token Cleanup Service started {"SourceContext":"DecorStore.API.Services.TokenCleanupService","Application":"DecorStore.API","Environment":"Test"}
+[2025-06-23 09:47:28.383 +07:00 INF] Token cleanup completed successfully {"SourceContext":"DecorStore.API.Services.TokenCleanupService","Application":"DecorStore.API","Environment":"Test"}
+[2025-06-23 09:47:28.383 +07:00 INF] Token cleanup completed successfully {"SourceContext":"DecorStore.API.Services.TokenCleanupService","Application":"DecorStore.API","Environment":"Test"}
+[2025-06-23 09:47:28.395 +07:00 INF] Token Cleanup Service is stopping {"SourceContext":"DecorStore.API.Services.TokenCleanupService","Application":"DecorStore.API","Environment":"Test"}
+[2025-06-23 09:47:28.395 +07:00 INF] Token Cleanup Service is stopping {"SourceContext":"DecorStore.API.Services.TokenCleanupService","Application":"DecorStore.API","Environment":"Test"}
+[2025-06-23 09:47:28.573 +07:00 INF] Token Cleanup Service is stopping {"SourceContext":"DecorStore.API.Services.TokenCleanupService","Application":"DecorStore.API","Environment":"Test"}
+[2025-06-23 09:47:28.573 +07:00 INF] Token Cleanup Service is stopping {"SourceContext":"DecorStore.API.Services.TokenCleanupService","Application":"DecorStore.API","Environment":"Test"}

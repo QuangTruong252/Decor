@@ -66,13 +66,16 @@ namespace DecorStore.API.Controllers
         [Authorize(Roles = "Admin")]
         public async Task<ActionResult<CustomerDTO>> CreateCustomer(CreateCustomerDTO customerDto)
         {
+            // WORKAROUND: ASP.NET Core model binding is broken, so manually deserialize the JSON
+            var actualCustomerDto = await TryManualDeserializationAsync(customerDto, _logger);
+
             var validationResult = ValidateModelState();
             if (validationResult != null)
             {
                 return BadRequest(validationResult);
             }
 
-            var result = await _customerService.CreateCustomerAsync(customerDto);
+            var result = await _customerService.CreateCustomerAsync(actualCustomerDto);
             return HandleCreateResult(result);
         }
 
@@ -81,13 +84,16 @@ namespace DecorStore.API.Controllers
         [Authorize(Roles = "Admin")]
         public async Task<ActionResult<CustomerDTO>> UpdateCustomer(int id, UpdateCustomerDTO customerDto)
         {
+            // WORKAROUND: ASP.NET Core model binding is broken, so manually deserialize the JSON
+            var actualCustomerDto = await TryManualDeserializationAsync(customerDto, _logger);
+
             var validationResult = ValidateModelState();
             if (validationResult != null)
             {
                 return BadRequest(validationResult);
             }
 
-            var result = await _customerService.UpdateCustomerAsync(id, customerDto);
+            var result = await _customerService.UpdateCustomerAsync(id, actualCustomerDto);
             return HandleResult(result);
         }
 
@@ -97,7 +103,7 @@ namespace DecorStore.API.Controllers
         public async Task<IActionResult> DeleteCustomer(int id)
         {
             var result = await _customerService.DeleteCustomerAsync(id);
-            return HandleResult(result);
+            return HandleDeleteResult(result);
         }
 
         // GET: api/Customer/with-orders

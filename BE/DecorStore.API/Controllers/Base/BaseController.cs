@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using DecorStore.API.Common;
 using DecorStore.API.Models;
 using System.Diagnostics;
+using System.Text.Json;
 
 namespace DecorStore.API.Controllers.Base
 {
@@ -10,7 +11,7 @@ namespace DecorStore.API.Controllers.Base
     /// </summary>    [ApiController]
     public abstract class BaseController : ControllerBase
     {
-        private readonly ILogger<BaseController>? _logger;
+        protected readonly ILogger<BaseController>? _logger;
 
         protected BaseController(ILogger<BaseController> logger)
         {
@@ -217,8 +218,17 @@ namespace DecorStore.API.Controllers.Base
             return result.ErrorCode switch
             {
                 "NOT_FOUND" => NotFound(errorResponse),
+                "REVIEW_NOT_FOUND" => NotFound(errorResponse),
+                "PRODUCT_NOT_FOUND" => NotFound(errorResponse),
+                "CATEGORY_NOT_FOUND" => NotFound(errorResponse),
+                "CUSTOMER_NOT_FOUND" => NotFound(errorResponse),
+                "USER_NOT_FOUND" => NotFound(errorResponse),
+                "ORDER_NOT_FOUND" => NotFound(errorResponse),
+                "CART_NOT_FOUND" => NotFound(errorResponse),
+                "BANNER_NOT_FOUND" => NotFound(errorResponse),
                 "UNAUTHORIZED" => Unauthorized(errorResponse),
                 "FORBIDDEN" => StatusCode(403, errorResponse),
+                "DUPLICATE_REVIEW" => Conflict(errorResponse),
                 "VALIDATION_ERROR" => BadRequest(errorResponse),
                 _ => BadRequest(errorResponse)
             };
@@ -235,8 +245,17 @@ namespace DecorStore.API.Controllers.Base
             return result.ErrorCode switch
             {
                 "NOT_FOUND" => NotFound(errorResponse),
+                "REVIEW_NOT_FOUND" => NotFound(errorResponse),
+                "PRODUCT_NOT_FOUND" => NotFound(errorResponse),
+                "CATEGORY_NOT_FOUND" => NotFound(errorResponse),
+                "CUSTOMER_NOT_FOUND" => NotFound(errorResponse),
+                "USER_NOT_FOUND" => NotFound(errorResponse),
+                "ORDER_NOT_FOUND" => NotFound(errorResponse),
+                "CART_NOT_FOUND" => NotFound(errorResponse),
+                "BANNER_NOT_FOUND" => NotFound(errorResponse),
                 "UNAUTHORIZED" => Unauthorized(errorResponse),
                 "FORBIDDEN" => StatusCode(403, errorResponse),
+                "DUPLICATE_REVIEW" => Conflict(errorResponse),
                 "VALIDATION_ERROR" => BadRequest(errorResponse),
                 _ => BadRequest(errorResponse)
             };
@@ -321,7 +340,9 @@ namespace DecorStore.API.Controllers.Base
         /// <returns>The current user ID or null if not authenticated</returns>
         protected string? GetCurrentUserId()
         {
-            return User?.FindFirst("sub")?.Value ?? User?.FindFirst("id")?.Value;
+            return User?.FindFirst("sub")?.Value ??
+                   User?.FindFirst("id")?.Value ??
+                   User?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
         }
 
         /// <summary>
@@ -394,6 +415,120 @@ namespace DecorStore.API.Controllers.Base
             }
 
             return HandleFailureResult(result);
+        }
+
+        /// <summary>
+        /// Handles delete operations and returns appropriate HTTP response
+        /// </summary>
+        /// <param name="result">The result to handle</param>
+        /// <returns>NoContent response on success, error response on failure</returns>
+        protected ActionResult HandleDeleteResult(Result result)
+        {
+            if (result.IsSuccess)
+            {
+                AddCorrelationId();
+                return NoContent();
+            }
+
+            return HandleFailureResult(result);
+        }
+
+        /// <summary>
+        /// WORKAROUND: ASP.NET Core model binding is broken, so manually deserialize the JSON
+        /// This method attempts to deserialize the request body when model binding fails
+        /// </summary>
+        /// <typeparam name="T">The DTO type to deserialize to</typeparam>
+        /// <param name="originalDto">The original DTO from model binding (may be empty/default)</param>
+        /// <param name="logger">Logger for debugging</param>
+        /// <returns>The properly deserialized DTO</returns>
+        protected async Task<T> TryManualDeserializationAsync<T>(T originalDto, ILogger? logger = null) where T : class
+        {
+            try
+            {
+                // Check if the original DTO has meaningful data
+                var hasData = HasMeaningfulData(originalDto);
+
+                if (hasData)
+                {
+                    // Model binding worked, return the original
+                    return originalDto;
+                }
+
+                // Model binding failed, try manual deserialization
+                Request.EnableBuffering();
+                Request.Body.Position = 0;
+                using var reader = new StreamReader(Request.Body, leaveOpen: true);
+                var requestBody = await reader.ReadToEndAsync();
+                Request.Body.Position = 0;
+
+                if (string.IsNullOrWhiteSpace(requestBody))
+                {
+                    logger?.LogWarning("Request body is empty, returning original DTO");
+                    return originalDto;
+                }
+
+                logger?.LogInformation("Manual deserialization - Request body: {RequestBody}", requestBody);
+
+                var options = new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true,
+                    PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+                };
+
+                var deserializedDto = JsonSerializer.Deserialize<T>(requestBody, options);
+                if (deserializedDto != null)
+                {
+                    logger?.LogInformation("Using manually deserialized DTO: {DTO}", deserializedDto.ToString());
+                    return deserializedDto;
+                }
+            }
+            catch (Exception ex)
+            {
+                logger?.LogError(ex, "Failed to manually deserialize request body, falling back to original DTO");
+            }
+
+            return originalDto;
+        }
+
+        /// <summary>
+        /// Checks if a DTO has meaningful data (not just default values)
+        /// </summary>
+        /// <typeparam name="T">The DTO type</typeparam>
+        /// <param name="dto">The DTO to check</param>
+        /// <returns>True if the DTO has meaningful data, false otherwise</returns>
+        private static bool HasMeaningfulData<T>(T dto) where T : class
+        {
+            if (dto == null) return false;
+
+            var properties = typeof(T).GetProperties();
+            foreach (var prop in properties)
+            {
+                var value = prop.GetValue(dto);
+
+                // Check for non-default values
+                if (value != null)
+                {
+                    if (prop.PropertyType == typeof(string) && !string.IsNullOrEmpty((string)value))
+                        return true;
+                    if (prop.PropertyType == typeof(int) && (int)value != 0)
+                        return true;
+                    if (prop.PropertyType == typeof(decimal) && (decimal)value != 0)
+                        return true;
+                    if (prop.PropertyType == typeof(double) && (double)value != 0)
+                        return true;
+                    if (prop.PropertyType == typeof(float) && (float)value != 0)
+                        return true;
+                    if (prop.PropertyType == typeof(bool) && (bool)value)
+                        return true;
+                    if (prop.PropertyType == typeof(DateTime) && (DateTime)value != default(DateTime))
+                        return true;
+                    if (prop.PropertyType == typeof(Guid) && (Guid)value != default(Guid))
+                        return true;
+                    // Add more type checks as needed
+                }
+            }
+
+            return false;
         }
     }
 }

@@ -20,11 +20,15 @@ namespace DecorStore.API.Controllers
             _fileManagerService = fileManagerService;
         }        [HttpPost("browse")]
         public async Task<IActionResult> BrowseFiles([FromBody] FileBrowseRequestDTO request)
-        {            var modelValidation = ValidateModelState();
+        {
+            // WORKAROUND: ASP.NET Core model binding is broken, so manually deserialize the JSON
+            var actualRequest = await TryManualDeserializationAsync(request, _logger);
+
+            var modelValidation = ValidateModelState();
             if (modelValidation != null)
                 return modelValidation;
 
-            var result = await _fileManagerService.BrowseFilesAsync(request);
+            var result = await _fileManagerService.BrowseFilesAsync(actualRequest);
             if (result.IsFailure)
                 return BadRequest(result.Error);
 
@@ -76,20 +80,26 @@ namespace DecorStore.API.Controllers
         }        [HttpPost("create-folder")]
         public async Task<ActionResult<FileItemDTO>> CreateFolder([FromBody] CreateFolderRequestDTO request)
         {
+            // WORKAROUND: ASP.NET Core model binding is broken, so manually deserialize the JSON
+            var actualRequest = await TryManualDeserializationAsync(request, _logger);
+
             var modelValidation = ValidateModelState();
             if (modelValidation != null)
                 return BadRequest(modelValidation);
 
-            var result = await _fileManagerService.CreateFolderAsync(request);
+            var result = await _fileManagerService.CreateFolderAsync(actualRequest);
             return HandleCreateResult(result);
         }        [HttpDelete("delete")]
         public async Task<ActionResult<DeleteFileResponseDTO>> DeleteFiles([FromBody] DeleteFileRequestDTO request)
         {
+            // WORKAROUND: ASP.NET Core model binding is broken, so manually deserialize the JSON
+            var actualRequest = await TryManualDeserializationAsync(request, _logger);
+
             var modelValidation = ValidateModelState();
             if (modelValidation != null)
                 return BadRequest(modelValidation);
 
-            var result = await _fileManagerService.DeleteFilesAsync(request);
+            var result = await _fileManagerService.DeleteFilesAsync(actualRequest);
             if (result.IsFailure)
                 return BadRequest(result.Error);
 
@@ -97,11 +107,14 @@ namespace DecorStore.API.Controllers
         }        [HttpPost("move")]
         public async Task<ActionResult<FileOperationResponseDTO>> MoveFiles([FromBody] MoveFileRequestDTO request)
         {
+            // WORKAROUND: ASP.NET Core model binding is broken, so manually deserialize the JSON
+            var actualRequest = await TryManualDeserializationAsync(request, _logger);
+
             var modelValidation = ValidateModelState();
             if (modelValidation != null)
                 return BadRequest(modelValidation);
 
-            var result = await _fileManagerService.MoveFilesAsync(request);
+            var result = await _fileManagerService.MoveFilesAsync(actualRequest);
             if (result.IsFailure)
                 return BadRequest(result.Error);
 
@@ -109,11 +122,14 @@ namespace DecorStore.API.Controllers
         }        [HttpPost("copy")]
         public async Task<ActionResult<FileOperationResponseDTO>> CopyFiles([FromBody] CopyFileRequestDTO request)
         {
+            // WORKAROUND: ASP.NET Core model binding is broken, so manually deserialize the JSON
+            var actualRequest = await TryManualDeserializationAsync(request, _logger);
+
             var modelValidation = ValidateModelState();
             if (modelValidation != null)
                 return BadRequest(modelValidation);
 
-            var result = await _fileManagerService.CopyFilesAsync(request);
+            var result = await _fileManagerService.CopyFilesAsync(actualRequest);
             if (result.IsFailure)
                 return BadRequest(result.Error);
 

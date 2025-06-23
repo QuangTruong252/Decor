@@ -23,8 +23,15 @@ namespace DecorStore.API.Extensions
             if (string.IsNullOrEmpty(connectionString))
             {
                 throw new InvalidOperationException("DefaultConnection string is not configured");
-            }            // Check if we should use in-memory database (for development when SQL Server is not available)
+            }            // Check if we should use in-memory database (for development/testing when SQL Server is not available)
             var useInMemoryDatabase = configuration.GetValue<bool>("UseInMemoryDatabase", false);
+
+            // Also check environment for testing
+            var environment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
+            if (environment == "Test")
+            {
+                useInMemoryDatabase = true;
+            }
             
             // Configure DbContext
             services.AddDbContext<ApplicationDbContext>(options =>

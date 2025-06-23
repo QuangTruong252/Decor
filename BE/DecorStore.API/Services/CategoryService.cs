@@ -74,7 +74,7 @@ namespace DecorStore.API.Services
                 var category = await _unitOfWork.Categories.GetByIdWithChildrenAsync(id);
                 if (category == null)
                 {
-                    return Result<CategoryDTO>.Failure("NOT_FOUND", $"Category with ID {id} not found");
+                    return Result<CategoryDTO>.Failure($"Category with ID {id} not found", "NOT_FOUND");
                 }
 
                 var categoryDto = _mapper.Map<CategoryDTO>(category);
@@ -97,7 +97,7 @@ namespace DecorStore.API.Services
                 var category = await _unitOfWork.Categories.GetBySlugAsync(slug);
                 if (category == null)
                 {
-                    return Result<CategoryDTO>.Failure("NOT_FOUND", $"Category with slug '{slug}' not found");
+                    return Result<CategoryDTO>.Failure($"Category with slug '{slug}' not found", "NOT_FOUND");
                 }
 
                 var categoryDto = _mapper.Map<CategoryDTO>(category);
@@ -184,7 +184,7 @@ namespace DecorStore.API.Services
                 var category = await _unitOfWork.Categories.GetByIdAsync(id);
                 if (category == null)
                 {
-                    return Result.Failure("NOT_FOUND", $"Category with ID {id} not found");
+                    return Result.Failure($"Category with ID {id} not found", "NOT_FOUND");
                 }
 
                 // Check slug uniqueness
@@ -274,7 +274,7 @@ namespace DecorStore.API.Services
                 var category = await _unitOfWork.Categories.GetByIdWithChildrenAsync(id);
                 if (category == null)
                 {
-                    return Result.Failure("NOT_FOUND", $"Category with ID {id} not found");
+                    return Result.Failure($"Category with ID {id} not found", "NOT_FOUND");
                 }
 
                 // Check if the category has subcategories

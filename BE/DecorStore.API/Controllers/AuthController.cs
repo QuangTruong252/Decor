@@ -25,13 +25,16 @@ namespace DecorStore.API.Controllers
         [HttpPost("register")]
         public async Task<ActionResult<AuthResponseDTO>> Register(RegisterDTO registerDto)
         {
+            // WORKAROUND: ASP.NET Core model binding is broken, so manually deserialize the JSON
+            var actualRegisterDto = await TryManualDeserializationAsync(registerDto, _logger);
+
             var validationResult = ValidateModelState();
             if (validationResult != null)
             {
                 return BadRequest(validationResult);
             }
 
-            var registerResult = await _authService.RegisterAsync(registerDto);
+            var registerResult = await _authService.RegisterAsync(actualRegisterDto);
             return HandleCreateResult(registerResult);
         }
 
@@ -54,6 +57,18 @@ namespace DecorStore.API.Controllers
         [Authorize]
         public async Task<ActionResult<UserDTO>> GetCurrentUser()
         {
+            // Debug logging for test environment
+            if (Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Test")
+            {
+                Console.WriteLine($"[AUTH-DEBUG] User.Identity.IsAuthenticated: {User.Identity?.IsAuthenticated}");
+                Console.WriteLine($"[AUTH-DEBUG] User.Identity.Name: {User.Identity?.Name}");
+                Console.WriteLine($"[AUTH-DEBUG] User.Claims count: {User.Claims.Count()}");
+                foreach (var claim in User.Claims)
+                {
+                    Console.WriteLine($"[AUTH-DEBUG] Claim: {claim.Type} = {claim.Value}");
+                }
+            }
+
             // Get user ID from claims
             var userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
             if (string.IsNullOrEmpty(userIdClaim) || !int.TryParse(userIdClaim, out var userId))
@@ -137,6 +152,25 @@ namespace DecorStore.API.Controllers
 
             var refreshResult = await _authService.RefreshTokenAsync(request.Token);
             return HandleResult(refreshResult);
+        }
+
+        // GET: api/Auth/test-user (Test endpoint without authorization)
+        [HttpGet("test-user")]
+        public ActionResult<object> TestUser()
+        {
+            // Debug: Check what headers are being received
+            var authHeader = Request.Headers.Authorization.ToString();
+            Console.WriteLine($"[CONTROLLER-DEBUG] Authorization header in controller: {authHeader}");
+            Console.WriteLine($"[CONTROLLER-DEBUG] All headers: {string.Join(", ", Request.Headers.Select(h => $"{h.Key}={string.Join(",", h.Value.ToArray())}"))}");
+            
+            return Ok(new {
+                IsAuthenticated = User.Identity?.IsAuthenticated ?? false,
+                Name = User.Identity?.Name ?? "No Name",
+                AuthenticationType = User.Identity?.AuthenticationType ?? "No Auth Type",
+                Claims = User.Claims.Select(c => new { c.Type, c.Value }).ToList(),
+                Environment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT"),
+                AuthHeaderReceived = authHeader
+            });
         }
     }
 

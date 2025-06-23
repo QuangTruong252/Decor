@@ -205,11 +205,28 @@ namespace DecorStore.API.Repositories
             if (!string.IsNullOrWhiteSpace(filter.SearchTerm))
             {
                 var searchTerm = filter.SearchTerm.ToLower();
-                query = query.Where(p =>
-                    EF.Functions.Contains(p.Name, searchTerm) ||
-                    EF.Functions.Contains(p.Description, searchTerm) ||
-                    EF.Functions.Contains(p.SKU, searchTerm)
-                );
+
+                // Use different search logic based on database provider
+                var isInMemoryDatabase = _context.Database.ProviderName?.Contains("InMemory") == true;
+
+                if (isInMemoryDatabase)
+                {
+                    // For in-memory database, use simple string contains
+                    query = query.Where(p =>
+                        p.Name.ToLower().Contains(searchTerm) ||
+                        p.Description.ToLower().Contains(searchTerm) ||
+                        p.SKU.ToLower().Contains(searchTerm)
+                    );
+                }
+                else
+                {
+                    // For SQL Server, use full-text search
+                    query = query.Where(p =>
+                        EF.Functions.Contains(p.Name, searchTerm) ||
+                        EF.Functions.Contains(p.Description, searchTerm) ||
+                        EF.Functions.Contains(p.SKU, searchTerm)
+                    );
+                }
             }
 
             if (filter.CategoryId.HasValue)
@@ -277,11 +294,28 @@ namespace DecorStore.API.Repositories
             if (!string.IsNullOrWhiteSpace(filter.SearchTerm))
             {
                 var searchTerm = filter.SearchTerm.ToLower();
-                query = query.Where(p =>
-                    EF.Functions.Contains(p.Name, searchTerm) ||
-                    EF.Functions.Contains(p.Description, searchTerm) ||
-                    EF.Functions.Contains(p.SKU, searchTerm)
-                );
+
+                // Use different search logic based on database provider
+                var isInMemoryDatabase = _context.Database.ProviderName?.Contains("InMemory") == true;
+
+                if (isInMemoryDatabase)
+                {
+                    // For in-memory database, use simple string contains
+                    query = query.Where(p =>
+                        p.Name.ToLower().Contains(searchTerm) ||
+                        p.Description.ToLower().Contains(searchTerm) ||
+                        p.SKU.ToLower().Contains(searchTerm)
+                    );
+                }
+                else
+                {
+                    // For SQL Server, use full-text search
+                    query = query.Where(p =>
+                        EF.Functions.Contains(p.Name, searchTerm) ||
+                        EF.Functions.Contains(p.Description, searchTerm) ||
+                        EF.Functions.Contains(p.SKU, searchTerm)
+                    );
+                }
             }
 
             if (filter.CategoryId.HasValue)

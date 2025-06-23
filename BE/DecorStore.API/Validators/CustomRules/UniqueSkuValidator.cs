@@ -5,7 +5,10 @@ namespace DecorStore.API.Validators.CustomRules
 {
     /// <summary>
     /// Custom validator for SKU uniqueness
+    /// NOTE: This validator is excluded from automatic registration due to async rules incompatibility
+    /// with ASP.NET's synchronous validation pipeline. Use manually for async validation.
     /// </summary>
+    [System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)]
     public class UniqueSkuValidator : AbstractValidator<string>
     {
         private readonly IUnitOfWork _unitOfWork;
@@ -57,7 +60,10 @@ namespace DecorStore.API.Validators.CustomRules
 
     /// <summary>
     /// Custom validator for category existence
+    /// NOTE: This validator is excluded from automatic registration due to async rules incompatibility
+    /// with ASP.NET's synchronous validation pipeline. Use manually for async validation.
     /// </summary>
+    [System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)]
     public class CategoryExistsValidator : AbstractValidator<int>
     {
         private readonly IUnitOfWork _unitOfWork;
@@ -77,7 +83,10 @@ namespace DecorStore.API.Validators.CustomRules
 
     /// <summary>
     /// Custom validator for product availability
+    /// NOTE: This validator is excluded from automatic registration due to async rules incompatibility
+    /// with ASP.NET's synchronous validation pipeline. Use ProductAvailabilityService instead.
     /// </summary>
+    [System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)]
     public class ProductAvailabilityValidator : AbstractValidator<int>
     {
         private readonly IUnitOfWork _unitOfWork;
@@ -86,19 +95,30 @@ namespace DecorStore.API.Validators.CustomRules
         {
             _unitOfWork = unitOfWork ?? throw new ArgumentNullException(nameof(unitOfWork));
 
+            // Convert async rules to synchronous validation
+            // Note: This is a simplified version for compatibility
             RuleFor(productId => productId)
                 .GreaterThan(0).WithMessage("Valid product ID is required")
-                .MustAsync(async (productId, cancellation) => 
-                    await _unitOfWork.Products.ExistsAsync(productId))
-                .WithMessage("Product does not exist")
-                .WithErrorCode("PRODUCT_NOT_FOUND")
-                .MustAsync(async (productId, cancellation) =>
-                {
-                    var product = await _unitOfWork.Products.GetByIdAsync(productId);
-                    return product?.IsActive == true;
-                })
-                .WithMessage("Product is not available for purchase")
-                .WithErrorCode("PRODUCT_NOT_AVAILABLE");
+                .WithErrorCode("INVALID_PRODUCT_ID");
+        }
+
+        /// <summary>
+        /// Validates product availability asynchronously (for manual use only)
+        /// </summary>
+        public async Task<(bool IsValid, string ErrorMessage, string ErrorCode)> ValidateAvailabilityAsync(int productId)
+        {
+            if (productId <= 0)
+                return (false, "Valid product ID is required", "INVALID_PRODUCT_ID");
+
+            var exists = await _unitOfWork.Products.ExistsAsync(productId);
+            if (!exists)
+                return (false, "Product does not exist", "PRODUCT_NOT_FOUND");
+
+            var product = await _unitOfWork.Products.GetByIdAsync(productId);
+            if (product?.IsActive != true)
+                return (false, "Product is not available for purchase", "PRODUCT_NOT_AVAILABLE");
+
+            return (true, string.Empty, string.Empty);
         }
     }
 

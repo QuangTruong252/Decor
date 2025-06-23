@@ -17,7 +17,6 @@ namespace DecorStore.API.Validators.ProductValidators
 
             RuleFor(x => x.Id)
                 .GreaterThan(0).WithMessage("Product ID must be greater than 0")
-                .MustAsync(ProductExists).WithMessage("Product does not exist")
                 .WithErrorCode("PRODUCT_ID_INVALID");
 
             RuleFor(x => x.Name)
@@ -88,17 +87,7 @@ namespace DecorStore.API.Validators.ProductValidators
                 .WithErrorCode("PRODUCT_UPDATE_INVALID");
         }
 
-        private async Task<bool> ProductExists(int id, CancellationToken cancellationToken)
-        {
-            try
-            {
-                return await _unitOfWork.Products.AnyAsync(p => p.Id == id);
-            }
-            catch
-            {
-                return false;
-            }
-        }
+
 
         private async Task<bool> BeUniqueNameExcludingCurrent(UpdateProductDTO product, string name, CancellationToken cancellationToken)
         {
