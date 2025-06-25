@@ -19,7 +19,7 @@
     "next": "15.3.2",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "react-hook-form": "^7.56.4",
+    "react-hook-form": "^7.57.0",
     "react-hot-toast": "^2.5.2",
     "react-spinners": "^0.17.0",
     "tailwind-merge": "^3.3.0",
