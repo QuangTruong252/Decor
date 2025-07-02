@@ -6,6 +6,7 @@
 
 import React, { createContext, useContext, useState, useCallback, ReactNode } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useSession } from "next-auth/react";
 import { fileManagerService } from "@/services/fileManager";
 import { useToast } from "@/hooks/use-toast";
 import { fetchWithAuth } from "@/lib/api-utils";
@@ -101,6 +102,8 @@ const FileManagerContext = createContext<FileManagerContextType | null>(null);
 export const FileManagerProvider = ({ children }: { children: ReactNode }) => {
   const toast = useToast();
   const queryClient = useQueryClient();
+  const { data: session } = useSession();
+  const isAuthenticated = !!session;
 
   // State
   const [currentPath, setCurrentPath] = useState<string>("");
@@ -134,6 +137,7 @@ export const FileManagerProvider = ({ children }: { children: ReactNode }) => {
     queryKey: fileManagerKeys.browse(browseParams),
     queryFn: () => fileManagerService.browse(browseParams),
     staleTime: 30000, // 30 seconds
+    enabled: isAuthenticated, // Only fetch if authenticated
   });
 
   // Folder structure query
@@ -145,6 +149,7 @@ export const FileManagerProvider = ({ children }: { children: ReactNode }) => {
     queryKey: fileManagerKeys.folders(currentPath),
     queryFn: () => fileManagerService.getFolderStructure(currentPath),
     staleTime: 60000, // 1 minute
+    enabled: isAuthenticated, // Only fetch if authenticated
   });
 
   // Root folder structure query
@@ -156,6 +161,7 @@ export const FileManagerProvider = ({ children }: { children: ReactNode }) => {
     queryKey: fileManagerKeys.folders(""),
     queryFn: () => fileManagerService.getFolderStructure(""),
     staleTime: 60000, // 1 minute
+    enabled: isAuthenticated, // Only fetch if authenticated
   });
 
   // Upload mutation
@@ -180,11 +186,13 @@ export const FileManagerProvider = ({ children }: { children: ReactNode }) => {
       setUploadProgress(initialProgress);
 
       // Simulate progress updates (in real app, this would come from upload progress)
+      let progressStep = 0;
       const progressInterval = setInterval(() => {
-        setUploadProgress(prev => 
+        progressStep += 1;
+        setUploadProgress(prev =>
           prev.map(item => ({
             ...item,
-            progress: Math.min(item.progress + Math.random() * 20, 90),
+            progress: Math.min(item.progress + 15 + (progressStep % 3) * 5, 90),
             status: item.progress < 90 ? "uploading" as const : item.status,
           }))
         );

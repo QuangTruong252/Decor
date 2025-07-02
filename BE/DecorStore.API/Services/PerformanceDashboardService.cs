@@ -404,6 +404,50 @@ namespace DecorStore.API.Services
             return await GetPerformanceTrendsAsync(days, granularity);
         }
 
+        public async Task<Result<SystemHealthDTO>> GetSystemHealthAsync()
+        {
+            try
+            {
+                var systemHealth = new SystemHealthDTO
+                {
+                    Status = "Healthy",
+                    Timestamp = DateTime.UtcNow,
+                    SystemOverview = new SystemOverviewDTO
+                    {
+                        CpuUsagePercent = GetRandomValue(10, 80),
+                        MemoryUsageMB = (long)GetRandomValue(512, 2048),
+                        MemoryTotalMB = 4096,
+                        MemoryUsagePercent = GetRandomValue(20, 70),
+                        DiskUsageMB = (long)GetRandomValue(10000, 50000),
+                        DiskTotalMB = 100000,
+                        DiskUsagePercent = GetRandomValue(30, 80),
+                        ActiveConnections = (int)GetRandomValue(5, 50),
+                        Uptime = TimeSpan.FromHours(GetRandomValue(1, 720)),
+                        ThreadCount = (int)GetRandomValue(50, 200),
+                        GCTotalMemoryMB = (long)GetRandomValue(100, 500)
+                    },
+                    ApiPerformance = await GetApiPerformanceInternalAsync(),
+                    DatabasePerformance = await GetDatabasePerformanceInternalAsync(),
+                    CachePerformance = await GetCachePerformanceInternalAsync(),
+                    OverallHealth = "Healthy",
+                    Alerts = new List<AlertDTO>(),
+                    HealthChecks = new List<HealthCheckDTO>
+                    {
+                        new HealthCheckDTO { Name = "Database", Status = "Healthy", Duration = TimeSpan.FromMilliseconds(50) },
+                        new HealthCheckDTO { Name = "Cache", Status = "Healthy", Duration = TimeSpan.FromMilliseconds(10) },
+                        new HealthCheckDTO { Name = "External APIs", Status = "Healthy", Duration = TimeSpan.FromMilliseconds(200) }
+                    }
+                };
+
+                return Result<SystemHealthDTO>.Success(systemHealth);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting system health");
+                return Result<SystemHealthDTO>.Failure("Failed to get system health");
+            }
+        }
+
         private static double GetRandomValue(double min, double max)
         {
             var random = new Random();

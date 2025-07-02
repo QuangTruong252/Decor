@@ -74,27 +74,37 @@ export const authOptions: NextAuthOptions = {
   },
   callbacks: {
     async jwt({ token, user, account }: { token: JWT; user?: any; account?: any }): Promise<JWT> {
-      if (account && user) {
-        // This is the first login
-        token.accessToken = user.accessToken;
-        token.id = user.id;
-        token.role = user.role; // Add role to the token
-        token.email = user.email;
-        token.name = user.name;
+      try {
+        if (account && user) {
+          // This is the first login
+          token.accessToken = user.accessToken;
+          token.id = user.id;
+          token.role = user.role; // Add role to the token
+          token.email = user.email;
+          token.name = user.name;
+        }
+        return token;
+      } catch (error) {
+        console.error("JWT callback error:", error);
+        return token;
       }
-      return token;
     },
     async session({ session, token }: { session: any; token: JWT }): Promise<any> {
-      if (session.user) {
-        session.user.accessToken = token.accessToken as string;
-        session.user.id = token.id as string;
-        session.user.role = token.role as string; // Add role to the session
-        // The default session already includes user.name, user.email, user.image
-        // Ensure these are populated if they come from the token
-        if (token.name) session.user.name = token.name as string;
-        if (token.email) session.user.email = token.email as string;
+      try {
+        if (session.user && token) {
+          session.user.accessToken = token.accessToken as string;
+          session.user.id = token.id as string;
+          session.user.role = token.role as string; // Add role to the session
+          // The default session already includes user.name, user.email, user.image
+          // Ensure these are populated if they come from the token
+          if (token.name) session.user.name = token.name as string;
+          if (token.email) session.user.email = token.email as string;
+        }
+        return session;
+      } catch (error) {
+        console.error("Session callback error:", error);
+        return session;
       }
-      return session;
     },
   },
   pages: {
@@ -102,7 +112,7 @@ export const authOptions: NextAuthOptions = {
     // error: '/auth/error', // Custom error page (optional)
   },
   secret: process.env.NEXTAUTH_SECRET, // A secret is required for JWT
-  debug: process.env.NODE_ENV === 'development',
+  debug: false, // Temporarily disable debug to reduce noise
 };
 
 // Helper function to get the session on the server side

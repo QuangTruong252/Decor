@@ -6,6 +6,7 @@ using DecorStore.API.Extensions.Infrastructure;
 using DecorStore.API.Extensions.Application;
 using DecorStore.API.Extensions.Background;
 using DecorStore.API.Middleware;
+using HttpExtensions = DecorStore.API.Extensions.Http;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -32,8 +33,8 @@ builder.Services.AddHttpClient();
 // Add optimized JSON serialization
 builder.Services.AddOptimizedJsonSerialization();
 
-// Add response compression
-builder.Services.AddResponseCompressionServices();
+// Add response compression (using the Http extension to avoid ambiguity)
+HttpExtensions.CompressionServiceExtensions.AddResponseCompressionServices(builder.Services);
 
 // Add service extensions
 builder.Services.AddDatabaseServices(builder.Configuration);

@@ -11,7 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 
 const loginSchema = z.object({
   email: z.string().email("Invalid email address"),
-  password: z.string().min(1, "Password is required"), // Adjusted min length for simplicity, can be more complex
+  password: z.string().min(1, "Password is required"),
 });
 
 type LoginFormData = z.infer<typeof loginSchema>;
@@ -36,12 +36,12 @@ export default function LoginPage() {
   const onSubmit = async (data: LoginFormData) => {
     setIsLoading(true);
     setError(null);
-    
+
     console.log("Login attempt:", { email: data.email, callbackUrl });
-    
+
     try {
       const result = await signIn("credentials", {
-        redirect: false, // We'll handle redirection manually
+        redirect: false,
         email: data.email,
         password: data.password,
         callbackUrl: callbackUrl,
@@ -66,13 +66,11 @@ export default function LoginPage() {
           title: "Success",
           description: "Login successful! Redirecting...",
         });
-        
-        // Add a small delay to ensure session is properly set
+
         setTimeout(() => {
           router.push(callbackUrl);
         }, 100);
       } else {
-        // Handle other cases, though typically one of the above will occur
         const errorMessage = "An unexpected error occurred. Please try again.";
         console.error("Unexpected login result:", result);
         toastError({
@@ -83,7 +81,6 @@ export default function LoginPage() {
         setIsLoading(false);
       }
     } catch (error) {
-      // This catch block might be for network errors or other unexpected issues
       const errorMessage = "Login failed. Please check your connection and try again.";
       console.error("Login catch error:", error);
       toastError({
@@ -174,3 +171,5 @@ export default function LoginPage() {
     </div>
   );
 }
+
+

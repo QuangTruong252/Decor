@@ -397,4 +397,34 @@ namespace DecorStore.API.DTOs
         public long AccessCount { get; set; }
         public string? Tag { get; set; }
     }
+
+    /// <summary>
+    /// System health information DTO
+    /// </summary>
+    public class SystemHealthDTO
+    {
+        public string Status { get; set; } = string.Empty;
+        public DateTime Timestamp { get; set; } = DateTime.UtcNow;
+        public SystemOverviewDTO SystemOverview { get; set; } = new();
+        public ApiPerformanceDTO ApiPerformance { get; set; } = new();
+        public DatabasePerformanceDTO DatabasePerformance { get; set; } = new();
+        public CachePerformanceDTO CachePerformance { get; set; } = new();
+        public List<AlertDTO> Alerts { get; set; } = new();
+        public List<HealthCheckDTO> HealthChecks { get; set; } = new();
+        public string OverallHealth { get; set; } = "Healthy";
+        public Dictionary<string, object> AdditionalMetrics { get; set; } = new();
+    }
+
+    /// <summary>
+    /// Health check result DTO
+    /// </summary>
+    public class HealthCheckDTO
+    {
+        public string Name { get; set; } = string.Empty;
+        public string Status { get; set; } = string.Empty;
+        public string? Description { get; set; }
+        public TimeSpan Duration { get; set; }
+        public Dictionary<string, object> Data { get; set; } = new();
+        public List<string> Tags { get; set; } = new();
+    }
 }

@@ -82,16 +82,8 @@ namespace DecorStore.API.Extensions.Infrastructure
             // Register cache services
             services.AddScoped<ICacheService, CacheService>();
             
-            // Add Redis distributed cache if enabled
-            if (cacheSettings.EnableDistributedCache)
-            {
-                var redisConnectionString = configuration.GetConnectionString("Redis");
-                if (!string.IsNullOrEmpty(redisConnectionString))
-                {
-                    services.AddRedisConnection(configuration);
-                    services.AddDistributedCacheServices(configuration);
-                }
-            }
+            // Note: Redis distributed cache is configured in AddDistributedCacheServices
+            // which is called separately in Program.cs to avoid circular dependencies
 
             // Add background services for cache management
             if (cacheSettings.EnableCacheWarming)

@@ -12,7 +12,6 @@ export function Providers({ children }: { children: ReactNode }) {
   const [queryClient] = useState(() => new QueryClient())
 
   return (
-    // Wrap with SessionProvider
     <SessionProvider>
       <QueryClientProvider client={queryClient}>
         <CategoryStoreProvider>

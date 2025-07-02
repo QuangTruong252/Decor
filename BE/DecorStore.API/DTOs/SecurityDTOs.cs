@@ -456,4 +456,36 @@ namespace DecorStore.API.DTOs
         public bool HasNext => PageNumber < TotalPages;
     }
 
+    /// <summary>
+    /// DTO for security statistics
+    /// </summary>
+    public class SecurityStatsDTO
+    {
+        public int TotalEvents { get; set; }
+        public int AuthenticationEvents { get; set; }
+        public int AuthorizationEvents { get; set; }
+        public int SecurityViolations { get; set; }
+        public int FailedEvents { get; set; }
+        public int SuccessfulEvents { get; set; }
+        public int HighRiskEvents { get; set; }
+        public int MediumRiskEvents { get; set; }
+        public int LowRiskEvents { get; set; }
+        public int EventsRequiringInvestigation { get; set; }
+        public int UniqueIpAddresses { get; set; }
+        public int UniqueUsers { get; set; }
+        public int ActiveTokens { get; set; }
+        public int BlacklistedTokens { get; set; }
+        public int ExpiredTokens { get; set; }
+        public decimal AverageRiskScore { get; set; }
+        public DateTime From { get; set; }
+        public DateTime To { get; set; }
+        public DateTime LastUpdated { get; set; } = DateTime.UtcNow;
+        public List<SecurityTrendDto> DailyTrends { get; set; } = new();
+        public List<TopThreatDto> TopThreats { get; set; } = new();
+        public List<RiskScoreDistributionDto> RiskDistribution { get; set; } = new();
+        public List<SecurityEventDto> RecentHighRiskEvents { get; set; } = new();
+        public Dictionary<string, int> EventTypeBreakdown { get; set; } = new();
+        public Dictionary<string, int> SeverityBreakdown { get; set; } = new();
+    }
+
 }

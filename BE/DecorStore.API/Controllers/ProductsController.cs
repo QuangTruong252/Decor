@@ -255,7 +255,8 @@ namespace DecorStore.API.Controllers
         {
             var result = await _productService.DeleteProductAsync(id);
             return HandleDeleteResult(result);
-        }        // DELETE: api/Products/bulk
+        }
+        // DELETE: api/Products/bulk
         [HttpDelete("bulk")]
         [Authorize(Roles = "Admin")] // Only admin can bulk delete products
         public async Task<IActionResult> BulkDeleteProducts(BulkDeleteDTO bulkDeleteDto)

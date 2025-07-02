@@ -23,5 +23,6 @@ namespace DecorStore.API.Interfaces.Services
         Task<Result<DatabasePerformanceDTO>> GetDatabaseMetricsAsync();
         Task<Result<CachePerformanceDTO>> GetCacheMetricsAsync();
         Task<Result<PerformanceTrendsDTO>> GetPerformanceTrendsAsync(DateTime startDate, DateTime endDate, string granularity);
+        Task<Result<SystemHealthDTO>> GetSystemHealthAsync();
     }
 }

@@ -388,8 +388,8 @@ namespace DecorStore.API.Services
                     EventsRequiringInvestigation = events.Count(e => e.RequiresInvestigation),
                     UniqueIpAddresses = events.Select(e => e.IpAddress).Distinct().Count(),
                     UniqueUsers = events.Where(e => !string.IsNullOrEmpty(e.Username)).Select(e => e.Username).Distinct().Count(),
-                    StartDate = fromDate,
-                    EndDate = toDate
+                    From = fromDate,
+                    To = toDate
                 };
 
                 return Result<SecurityStatsDTO>.Success(stats);

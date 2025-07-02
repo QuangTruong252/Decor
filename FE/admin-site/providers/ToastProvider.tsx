@@ -35,12 +35,14 @@ export const useToast = () => {
 
 export const ToastProvider = ({ children }: { children: React.ReactNode }) => {
     const [toasts, setToasts] = useState<ToastProps[]>([])
+    const [counter, setCounter] = useState(0)
 
     const addToast = useCallback((toast: Omit<ToastProps, "id">) => {
-        const id = Math.random().toString(36).substring(2, 9)
+        const id = `toast-${Date.now()}-${counter}`
+        setCounter(prev => prev + 1)
         setToasts((prevToasts) => [...prevToasts, { id, ...toast }])
         return id
-    }, [])
+    }, [counter])
 
     const removeToast = useCallback((id: string) => {
         setToasts((prevToasts) => prevToasts.filter((toast) => toast.id !== id))
